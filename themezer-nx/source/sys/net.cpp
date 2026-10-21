@@ -134,8 +134,11 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
         response.error = error[0] ? error : curl_easy_strerror(static_cast<CURLcode>(response.curlCode));
     long connects = -1;
     curl_easy_getinfo(easy, CURLINFO_NUM_CONNECTS, &connects);
-    std::printf("GET %.80s: %d, HTTP %ld, %zu bytes, %ld new connections\n", url.c_str(), response.curlCode,
-                response.status, response.body.size(), connects);
+    char line[160];
+    std::snprintf(line, sizeof(line), "GET %.80s: %d, HTTP %ld, %zu bytes, %ld new connections\n", url.c_str(),
+                  response.curlCode, response.status, response.body.size(), connects);
+    // stdio only on the main thread
+    jobs::post([text = std::string(line)] { std::fputs(text.c_str(), stdout); });
     curl_easy_cleanup(easy);
     return response;
 }

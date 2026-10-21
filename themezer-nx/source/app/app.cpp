@@ -140,12 +140,20 @@ int App::run()
     gfx::exit();
     psmExit();
     nifmExit();
-    std::printf("Themezer-NX done\n");
-    // the log's socket goes before the sockets do
-    if (nxlink >= 0)
-        close(nxlink);
-    socketExit();
     romfsExit();
+    std::printf("Themezer-NX done\n");
+    // Started by nxlink, stdout and stderr are copies of its socket. They go before the sockets do: else the C
+    // library's closing of stdout at exit closes a socket after socketExit, which crashed the app, and with the
+    // sockets left open the bsdsocket service, taking the console with it.
+    if (nxlink >= 0)
+    {
+        std::fflush(stdout);
+        std::fflush(stderr);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+        close(nxlink);
+    }
+    socketExit();
     return 0;
 }
 
