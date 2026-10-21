@@ -1,7 +1,9 @@
 #include "scenes/frame.hpp"
 
 #include "app/app.hpp"
+#include "domain/installed.hpp"
 #include "domain/installs.hpp"
+#include "services/local.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/images.hpp"
@@ -152,6 +154,86 @@ std::shared_ptr<Picture> placeholderOf(const themezer::Item& item)
     return images().placeholder(item.preview.thumbHash);
 }
 
+Badge badgeOf(const themezer::Item& item)
+{
+    if (installs::isQueued(item))
+        return Badge::Queued;
+    const int slot = installs::slotOf(item);
+    if (slot >= 0 && !item.id.empty())
+    {
+        const installed::Part& part = installed::part(slot);
+        if (part.themezerId == item.id)
+            return Badge::Installed;
+        // a splash is told by its file: Hekate's is a copy of one on the SD card
+        if (slot == installs::kSplashSlot && part.custom)
+        {
+            for (const library::Entry& entry : local::Library::get().entries())
+            {
+                if (entry.kind == library::Kind::Splash && entry.themezerId == item.id &&
+                    entry.fingerprint == part.fingerprint)
+                    return Badge::Installed;
+            }
+        }
+    }
+    if (local::Library::get().has(item))
+        return Badge::Downloaded;
+    return Badge::None;
+}
+
+Badge badgeOf(const library::Entry& entry)
+{
+    const int slot = entry.kind == library::Kind::Splash ? installs::kSplashSlot : entry.target;
+    if (const installs::Queued* queued = installs::queued(slot); queued && queued->path == entry.path)
+        return Badge::Queued;
+    const installed::Part& part = installed::part(slot);
+    if (part.custom && (part.source == entry.path || (!entry.themezerId.empty() && part.themezerId == entry.themezerId) ||
+                        (entry.kind == library::Kind::Splash && entry.fingerprint == part.fingerprint)))
+        return Badge::Installed;
+    return Badge::None;
+}
+
+Badge badgeOf(const local::Pack& pack)
+{
+    Badge badge = Badge::None;
+    const auto& entries = local::Library::get().entries();
+    for (size_t index : pack.themes)
+    {
+        if (index < entries.size())
+            badge = std::max(badge, badgeOf(entries[index]));
+    }
+    return badge;
+}
+
+const char* badgeLabel(Badge badge)
+{
+    switch (badge)
+    {
+    case Badge::Queued:
+        return "Queued";
+    case Badge::Installed:
+        return "Installed";
+    case Badge::Downloaded:
+        return "Downloaded";
+    case Badge::None:
+        break;
+    }
+    return "";
+}
+
+Icon badgeIcon(Badge badge)
+{
+    switch (badge)
+    {
+    case Badge::Queued:
+        return Icon::Queue;
+    case Badge::Installed:
+        return Icon::MonitorCheck;
+    default:
+        break;
+    }
+    return Icon::Check;
+}
+
 namespace card
 {
 
@@ -168,6 +250,23 @@ void chip(std::string_view text, float x, float bottom)
     roundedRect(x, bottom - height, width, height, height / 2, rgba(12, 10, 9, 190));
     drawText(text, x + 12, textTop(bottom - height / 2, metric::kTextSmall), metric::kTextSmall, color::kText);
 }
+
+// Over the preview's top right: queued and installed in the accent, downloaded quieter.
+void badge(Badge which, float right, float top, Accent accent)
+{
+    if (which == Badge::None)
+        return;
+    const float height = 32;
+    const float iconSize = metric::kIcon * 0.75f;
+    const char* label = badgeLabel(which);
+    const float width = iconSize + 8 + textWidth(label, metric::kTextSmall) + 24;
+    const bool strong = which != Badge::Downloaded;
+    const Color ink = strong ? color::kOnAccent : color::kText;
+    roundedRect(right - width, top, width, height, height / 2, strong ? accent.solid : rgba(12, 10, 9, 190));
+    icon(badgeIcon(which), right - width + 12, top + (height - iconSize) / 2, iconSize, strong ? ink : accent.light);
+    drawText(label, right - width + 12 + iconSize + 8, textTop(top + height / 2, metric::kTextSmall), metric::kTextSmall,
+             ink);
+}
 } // namespace
 
 void highlight(float x, float y, float w, float h, bool down, Accent accent)
@@ -177,8 +276,7 @@ void highlight(float x, float y, float w, float h, bool down, Accent accent)
     roundedOutline(x - 6, top, w + 12, h + 12, metric::kRadius + 6, 4, accent.solid);
 }
 
-void draw(const themezer::Item& item, float x, float y, float w, float h, bool selected, Accent accent,
-          bool showTarget)
+void draw(const Content& content, float x, float y, float w, float h, bool selected, Accent accent)
 {
     if (!selected)
         roundedRect(x, y, w, h, metric::kRadius, color::kFrosted);
@@ -186,54 +284,97 @@ void draw(const themezer::Item& item, float x, float y, float w, float h, bool s
     const float previewH = std::round(previewW * 9 / 16);
     const float px = x + kInset;
     const float py = y + kInset;
-
-    std::shared_ptr<Picture> picture = images().get(item.preview.thumb);
-    if (!picture)
-        picture = placeholderOf(item);
-    if (picture)
+    if (content.picture)
     {
-        picture->drawCover(px, py, previewW, previewH, kPreviewRadius);
+        content.picture->drawCover(px, py, previewW, previewH, kPreviewRadius);
     }
     else
     {
         roundedRect(px, py, previewW, previewH, kPreviewRadius, color::kSurfaceRaised);
-        const Icon which = iconOf(item.kind);
-        icon(which, px + (previewW - metric::kIcon) / 2, py + (previewH - metric::kIcon) / 2, metric::kIcon,
+        icon(content.icon, px + (previewW - metric::kIcon) / 2, py + (previewH - metric::kIcon) / 2, metric::kIcon,
              color::kTextFaint);
     }
-    if (installs::isQueued(item))
-    {
-        // over the preview's top right: queued to install
-        const float height = 32;
-        const float width = metric::kIcon * 0.75f + 8 + textWidth("Queued", metric::kTextSmall) + 24;
-        const float chipX = px + previewW - 8 - width;
-        roundedRect(chipX, py + 8, width, height, height / 2, accent.solid);
-        icon(Icon::Check, chipX + 12, py + 8 + (height - metric::kIcon * 0.75f) / 2, metric::kIcon * 0.75f,
-             color::kOnAccent);
-        drawText("Queued", chipX + 12 + metric::kIcon * 0.75f + 8, textTop(py + 8 + height / 2, metric::kTextSmall),
-                 metric::kTextSmall, color::kOnAccent);
-    }
-    if (item.kind == themezer::Kind::Packs)
-    {
-        char text[32];
-        std::snprintf(text, sizeof(text), item.themes.size() == 1 ? "%zu theme" : "%zu themes", item.themes.size());
-        chip(text, px + 8, py + previewH - 8);
-    }
-    else if (showTarget && item.kind == themezer::Kind::Themes)
-    {
-        chip(themezer::targetLabel(item.target), px + 8, py + previewH - 8);
-    }
+    badge(content.badge, px + previewW - 8, py + 8, accent);
+    if (!content.chip.empty())
+        chip(content.chip, px + 8, py + previewH - 8);
 
     const float textLeft = x + kInset + 4;
     const float textWidthMax = w - 2 * kInset - 8;
     const float textY = py + previewH + 10;
-    drawText(item.name, textLeft, textY, metric::kTextNormal, selected ? color::kText : color::kText, Align::Left,
-             textWidthMax);
-    drawText(item.creator, textLeft, textY + lineHeight(metric::kTextNormal) + 2, metric::kTextSmall,
+    drawText(content.name, textLeft, textY, metric::kTextNormal, color::kText, Align::Left, textWidthMax);
+    drawText(content.creator, textLeft, textY + lineHeight(metric::kTextNormal) + 2, metric::kTextSmall,
              selected ? accent.light : color::kTextDim, Align::Left, textWidthMax);
 }
 
+void draw(const themezer::Item& item, float x, float y, float w, float h, bool selected, Accent accent,
+          bool showTarget)
+{
+    Content content;
+    content.name = item.name;
+    content.creator = item.creator;
+    content.picture = images().get(item.preview.thumb);
+    if (!content.picture)
+        content.picture = placeholderOf(item);
+    content.icon = iconOf(item.kind);
+    content.badge = badgeOf(item);
+    if (item.kind == themezer::Kind::Packs)
+    {
+        char text[32];
+        std::snprintf(text, sizeof(text), item.themes.size() == 1 ? "%zu theme" : "%zu themes", item.themes.size());
+        content.chip = text;
+    }
+    else if (showTarget && item.kind == themezer::Kind::Themes)
+    {
+        content.chip = themezer::targetLabel(item.target);
+    }
+    draw(content, x, y, w, h, selected, accent);
+}
+
 } // namespace card
+
+std::shared_ptr<Picture> localPicture(const library::Entry& entry, int width)
+{
+    // by path and size, so a file replaced by another isn't shown as the old one
+    const std::string key = "sd:" + std::to_string(width) + ":" + std::to_string(entry.size) + ":" + entry.path;
+    return images().load(key, [entry, width] { return library::readPreview(entry, width); });
+}
+
+std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
+{
+    const std::string key = "sd-blur:" + std::to_string(entry.size) + ":" + entry.path;
+    return images().load(key, [entry] { return library::readBlur(entry); });
+}
+
+float filterChip(Icon which, const std::string& text, bool highlighted, Accent accent, float x, float top, float height,
+                 float right)
+{
+    const float iconSize = metric::kIcon * 0.75f;
+    const float room = right - x - (iconSize + 10 + 32);
+    if (room < 40)
+        return 0;
+    const float middle = top + height / 2;
+    const std::string shown = ellipsize(text, room, metric::kTextSmall);
+    const float width = iconSize + 10 + textWidth(shown, metric::kTextSmall) + 32;
+    roundedRect(x, top, width, height, height / 2, highlighted ? withAlpha(accent.solid, 0.35f) : color::kSurface);
+    icon(which, x + 16, std::round(middle - iconSize / 2), iconSize, highlighted ? accent.light : color::kTextDim);
+    drawText(shown, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
+    return width;
+}
+
+std::string thousands(int number)
+{
+    std::string digits = std::to_string(number);
+    for (int i = static_cast<int>(digits.size()) - 3; i > 0; i -= 3)
+        digits.insert(static_cast<size_t>(i), ",");
+    return digits;
+}
+
+std::string megabytes(uint64_t bytes)
+{
+    char text[32];
+    std::snprintf(text, sizeof(text), "%.1f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
+    return text;
+}
 
 void drawEmptyState(Icon which, Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom)

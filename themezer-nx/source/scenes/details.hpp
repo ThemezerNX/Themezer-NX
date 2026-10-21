@@ -8,6 +8,9 @@
 #include "ui/scene.hpp"
 #include "ui/widgets.hpp"
 
+#include <functional>
+#include <memory>
+
 namespace tz::scenes
 {
 
@@ -38,7 +41,10 @@ private:
 class PictureScene final : public ui::Scene
 {
 public:
+    // The HD picture at url, the thumbnail and then the ThumbHash meanwhile.
     PictureScene(std::string url, std::string thumbUrl, std::string thumbHash);
+    // The picture picture gives, a spinner while it gives none.
+    explicit PictureScene(std::function<std::shared_ptr<gfx::Picture>()> picture);
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
@@ -46,9 +52,8 @@ public:
     bool acceptsInput() const override { return !leaving_; }
 
 private:
-    std::string url_;
-    std::string thumbUrl_;
-    std::string thumbHash_;
+    std::function<std::shared_ptr<gfx::Picture>()> picture_;
+    std::function<bool()> final_; // whether the picture is the one to show, not a stand-in for it
     float appear_ = 0;
     bool leaving_ = false;
 };

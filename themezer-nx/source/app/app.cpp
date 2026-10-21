@@ -4,7 +4,9 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
-#include "scenes/browse.hpp"
+#include "domain/installed.hpp"
+#include "scenes/home.hpp"
+#include "services/local.hpp"
 #include "scenes/images.hpp"
 #include "sys/audio.hpp"
 #include "sys/jobs.hpp"
@@ -93,7 +95,18 @@ int App::run()
 
     ui::InputReader reader;
     reader.init();
-    scenes_.emplace<scenes::BrowseScene>();
+    // what's installed, and what's on the SD card (on a worker), as the files are now
+    installed::refresh();
+    // which parts have the installer's files, for nxlink's log
+    std::string parts;
+    for (int slot = 0; slot < installs::kSlotCount; ++slot)
+    {
+        if (installed::part(slot).custom)
+            parts += (parts.empty() ? "" : ", ") + installs::slotLabel(slot);
+    }
+    std::printf("Installed: %s\n", parts.empty() ? "nothing" : parts.c_str());
+    local::Library::get().rescan();
+    scenes_.emplace<scenes::HomeScene>();
     if (!installs::installerPath())
     {
         scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, "NXThemes Installer isn't there",
@@ -126,8 +139,14 @@ int App::run()
     if (installer && installs::queuedCount() > 0)
     {
         const std::string args = installs::installerArgs(installer);
-        std::printf("Starting %s\n", args.c_str());
-        envSetNextLoad(installer, args.c_str());
+        // the menu doesn't leave with more than the loader can pass on (see exitApp); this is for any other way out
+        if (args.size() <= installs::kMaxArgs)
+        {
+            // what goes in, to know at the next start what's installed
+            installed::noteQueued();
+            std::printf("Starting %s\n", args.c_str());
+            envSetNextLoad(installer, args.c_str());
+        }
     }
 
     scenes_.clear();

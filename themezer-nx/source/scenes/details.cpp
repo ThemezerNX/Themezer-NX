@@ -30,13 +30,6 @@ constexpr float kPreviewH = 450;
 constexpr float kColumnX = kPreviewX + kPreviewW + 40;
 constexpr float kColumnW = metric::kWidth - kColumnX - 48;
 
-std::string thousands(int number)
-{
-    std::string digits = std::to_string(number);
-    for (int i = static_cast<int>(digits.size()) - 3; i > 0; i -= 3)
-        digits.insert(static_cast<size_t>(i), ",");
-    return digits;
-}
 
 std::string kindLabel(const themezer::Item& item)
 {
@@ -174,10 +167,6 @@ void DetailsScene::update(ui::Input& input, float dt)
     {
         openMenu();
     }
-    else if (input.pressed(ui::key::kMinus))
-    {
-        openQueue();
-    }
 }
 
 void DetailsScene::draw()
@@ -251,8 +240,22 @@ void DetailsScene::draw()
 }
 
 PictureScene::PictureScene(std::string url, std::string thumbUrl, std::string thumbHash)
-    : url_(std::move(url)), thumbUrl_(std::move(thumbUrl)), thumbHash_(std::move(thumbHash))
 {
+    picture_ = [url, thumbUrl, thumbHash] {
+        std::shared_ptr<Picture> picture = images().get(url);
+        if (!picture)
+            picture = images().get(thumbUrl);
+        if (!picture)
+            picture = images().placeholder(thumbHash);
+        return picture;
+    };
+    final_ = [url] { return images().get(url) != nullptr; };
+    sfx::play(sfx::Sound::Open);
+}
+
+PictureScene::PictureScene(std::function<std::shared_ptr<Picture>()> picture) : picture_(std::move(picture))
+{
+    final_ = [this] { return picture_() != nullptr; };
     sfx::play(sfx::Sound::Open);
 }
 
@@ -277,11 +280,7 @@ void PictureScene::draw()
 {
     const float shown = ease(appear_);
     fill(withAlpha(rgba(0, 0, 0), shown));
-    std::shared_ptr<Picture> picture = images().get(url_);
-    if (!picture)
-        picture = images().get(thumbUrl_);
-    if (!picture)
-        picture = images().placeholder(thumbHash_);
+    const std::shared_ptr<Picture> picture = picture_();
     const Layer layer(0, 0, shown);
     // from a little smaller, as if it came forward
     const float scale = 0.92f + 0.08f * shown;
@@ -289,7 +288,7 @@ void PictureScene::draw()
     const float h = metric::kHeight * scale;
     if (picture)
         picture->drawContain((metric::kWidth - w) / 2, (metric::kHeight - h) / 2, w, h);
-    if (!images().get(url_))
+    if (!final_())
         spinner(metric::kWidth - 48, 48, 18, color::kText);
 }
 

@@ -5,6 +5,7 @@
 
 #include "gfx/texture.hpp"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -17,6 +18,10 @@ class Images
 public:
     // The picture at url when it's in; asked for otherwise, and nullptr until it comes.
     std::shared_ptr<gfx::Picture> get(const std::string& url);
+    // The same for a picture make makes, on the images worker: one from the SD card, say. key tells them apart.
+    std::shared_ptr<gfx::Picture> load(const std::string& key, std::function<SDL_Surface*()> make);
+    // Lets go of a picture, for one whose file is gone.
+    void forget(const std::string& key);
     // The blurry placeholder of a ThumbHash.
     std::shared_ptr<gfx::Picture> placeholder(const std::string& thumbHash);
     // Once a frame: lets go of what hasn't been looked at for a while when there's a lot.

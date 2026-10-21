@@ -2,7 +2,8 @@
 //
 //     THEMEZER_SCRIPT=script.txt THEMEZER_SHOTS=out ./themezer-nx-desktop
 //
-// SDL_VIDEODRIVER=dummy runs it without a window; THEMEZER_SD=folder puts the SD card's /Themes and /switch there
+// SDL_VIDEODRIVER=dummy runs it without a window; THEMEZER_SD=folder puts the SD card's /Themes, /switch, /atmosphere
+// and /bootloader there
 // (an empty NXThemesInstaller.nro in folder/switch lets installing be tried); THEMEZER_EXIT_AFTER_SCRIPT=1 quits when
 // the script ends.
 //
@@ -20,7 +21,7 @@
 #undef opendir
 #undef unlink
 #undef fopen
-#undef remove
+#undef stat
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -208,7 +209,10 @@ const char* desktopSd(const char* path)
 {
     static thread_local std::string mapped;
     const char* sd = std::getenv("THEMEZER_SD");
-    if (!sd || !path || (std::strncmp(path, "/Themes", 7) != 0 && std::strncmp(path, "/switch", 7) != 0))
+    // the SD card's folders the app looks in
+    const bool onSd = path && (std::strncmp(path, "/Themes", 7) == 0 || std::strncmp(path, "/switch", 7) == 0 ||
+                               std::strncmp(path, "/atmosphere", 11) == 0 || std::strncmp(path, "/bootloader", 11) == 0);
+    if (!sd || !onSd)
         return path;
     mapped = std::string(sd) + path;
     return mapped.c_str();

@@ -7,6 +7,7 @@
 #include <cstring>
 #include <memory>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace tz::themezer
 {
@@ -347,7 +348,7 @@ std::expected<void, Error> download(const std::string& url, const std::string& p
     const size_t written = std::fwrite(response.body.data(), 1, response.body.size(), file);
     if (std::fclose(file) != 0 || written != response.body.size())
     {
-        std::remove(path.c_str());
+        unlink(path.c_str());
         return std::unexpected(Error{"Couldn't write it to the SD card. Is it full?", path, false, false});
     }
     return {};

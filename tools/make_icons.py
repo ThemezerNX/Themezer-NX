@@ -69,10 +69,15 @@ ICONS = {
     "newspaper": "newspaper",
     "users": "users",
     "layers": "layers",
+    # the SD card (Lucide has none, and its SIM card has the same shape, as on the 3DS) and online
+    "sd_card": "card-sim",
+    "globe": "globe",
+    "monitor_check": "monitor-check",
+    "folder": "folder",
 }
 
 LARGE_ICONS = ["theme", "pack", "splash", "error", "warning", "search_empty", "wifi_off", "check_circle", "info",
-               "queue"]
+               "queue", "sd_card", "house", "lock", "layout_grid", "settings", "users", "user", "newspaper"]
 
 
 def main():

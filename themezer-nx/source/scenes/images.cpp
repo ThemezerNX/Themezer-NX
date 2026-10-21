@@ -52,8 +52,16 @@ std::shared_ptr<gfx::Picture> Images::get(const std::string& url)
 {
     if (url.empty())
         return nullptr;
+    return load(url, [url] {
+        net::Response response = net::get(url, nullptr, nullptr, 30);
+        return response.ok() ? gfx::decodeImage(response.body.data(), response.body.size()) : nullptr;
+    });
+}
+
+std::shared_ptr<gfx::Picture> Images::load(const std::string& key, std::function<SDL_Surface*()> make)
+{
     const float now = gfx::time();
-    Entry& entry = pictures_[url];
+    Entry& entry = pictures_[key];
     if (now - entry.used > 0.25f)
         entry.seen = now;
     entry.used = now;
@@ -62,29 +70,25 @@ std::shared_ptr<gfx::Picture> Images::get(const std::string& url)
         entry.failed = false;
     if (entry.picture || entry.failed)
         return entry.picture;
-    want(url, now);
+    want(key, now);
     if (entry.requested || now - entry.seen < kSettle)
         return nullptr;
     entry.requested = true;
-    jobs::run(jobs::Lane::Images, [url] {
-        const auto skipped = [url] {
-            jobs::post([url] {
+    jobs::run(jobs::Lane::Images, [key, make = std::move(make)] {
+        if (!stillWanted(key, gfx::time()))
+        {
+            jobs::post([key] {
                 auto& images = scenes::images();
-                if (auto it = images.pictures_.find(url); it != images.pictures_.end())
+                if (auto it = images.pictures_.find(key); it != images.pictures_.end())
                     it->second.requested = false;
             });
-        };
-        if (!stillWanted(url, gfx::time()))
-        {
-            skipped();
             return;
         }
-        net::Response response = net::get(url, nullptr, nullptr, 30);
-        SDL_Surface* surface = response.ok() ? gfx::decodeImage(response.body.data(), response.body.size()) : nullptr;
+        SDL_Surface* surface = make();
         const bool failed = !surface;
-        jobs::post([url, surface, failed] {
+        jobs::post([key, surface, failed] {
             auto& images = scenes::images();
-            auto it = images.pictures_.find(url);
+            auto it = images.pictures_.find(key);
             if (it == images.pictures_.end())
             {
                 SDL_FreeSurface(surface);
@@ -97,6 +101,12 @@ std::shared_ptr<gfx::Picture> Images::get(const std::string& url)
         });
     });
     return nullptr;
+}
+
+void Images::forget(const std::string& key)
+{
+    if (auto it = pictures_.find(key); it != pictures_.end() && !it->second.requested)
+        pictures_.erase(it);
 }
 
 std::shared_ptr<gfx::Picture> Images::placeholder(const std::string& thumbHash)

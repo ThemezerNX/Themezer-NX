@@ -107,11 +107,6 @@ void PackScene::update(ui::Input& input, float dt)
         openMenu();
         return;
     }
-    if (input.pressed(ui::key::kMinus))
-    {
-        openQueue();
-        return;
-    }
     if (grid_.update(input, dt) == ui::GridView::Event::Activated && !pack_.themes.empty())
         openItem(pack_.themes[static_cast<size_t>(grid_.selected())]);
 }

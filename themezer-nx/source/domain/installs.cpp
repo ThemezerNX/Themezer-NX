@@ -72,6 +72,16 @@ const char* installerPath()
     return nullptr;
 }
 
+int targetFromFileLabel(std::string_view label)
+{
+    for (int target = 0; target < themezer::kTargetCount; ++target)
+    {
+        if (label == kFileLabels[target])
+            return target;
+    }
+    return -1;
+}
+
 std::string slotLabel(int slot)
 {
     return slot == kSplashSlot ? "Splash" : themezer::targetLabel(slot);
@@ -133,7 +143,12 @@ std::string itemKey(const themezer::Item& item)
 void queue(int slot, std::string path, const themezer::Item& item)
 {
     if (slot >= 0 && slot < kSlotCount)
-        slots[static_cast<size_t>(slot)] = Queued{std::move(path), item.name, itemKey(item)};
+    {
+        // a file on the SD card that isn't from Themezer goes by its path (see localItem)
+        const bool fromThemezer = item.id.rfind("file:", 0) != 0;
+        slots[static_cast<size_t>(slot)] =
+            Queued{std::move(path), item.name, item.creator, fromThemezer ? item.id : "", itemKey(item)};
+    }
 }
 
 bool isQueued(const themezer::Item& item)
@@ -166,6 +181,11 @@ int queuedCount()
     for (const auto& slot : slots)
         count += slot ? 1 : 0;
     return count;
+}
+
+bool installerTakes(const std::string& path)
+{
+    return path.find(',') == std::string::npos && path.find("(_)") == std::string::npos;
 }
 
 std::string installerArgs(const char* installer)

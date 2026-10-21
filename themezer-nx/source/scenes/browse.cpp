@@ -8,8 +8,6 @@
 #include "sys/audio.hpp"
 #include "ui/overlays.hpp"
 
-#include <switch.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -26,48 +24,15 @@ using themezer::Kind;
 namespace
 {
 
-constexpr float kSide = 48;
-constexpr float kFiltersTop = metric::kTopBarHeight + 2;
-constexpr float kFiltersHeight = 44;
-constexpr float kGridTop = kFiltersTop + kFiltersHeight + 18;
-constexpr int kColumns = 4;
-constexpr float kGap = 22;
+using page::kColumns;
+using page::kFiltersHeight;
+using page::kFiltersTop;
+using page::kGap;
+using page::kGridTop;
+using page::kSide;
 constexpr float kFooter = 96;
 // the next page loads once the selection is this many rows from the end
 constexpr int kRowsAhead = 2;
-
-constexpr Kind kKinds[] = {Kind::Packs, Kind::Themes, Kind::Splashes};
-
-std::string keyboard(const char* guide, const std::string& initial)
-{
-    SwkbdConfig config;
-    if (R_FAILED(swkbdCreate(&config, 0)))
-        return initial;
-    char out[129] = "";
-    swkbdConfigMakePresetDefault(&config);
-    swkbdConfigSetGuideText(&config, guide);
-    swkbdConfigSetInitialText(&config, initial.c_str());
-    swkbdConfigSetStringLenMax(&config, 128);
-    const Result result = swkbdShow(&config, out, sizeof(out));
-    swkbdClose(&config);
-    if (R_FAILED(result))
-        return initial; // cancelled: as it was
-    std::string text = out;
-    while (!text.empty() && text.back() == ' ')
-        text.pop_back();
-    while (!text.empty() && text.front() == ' ')
-        text.erase(text.begin());
-    return text;
-}
-
-// The number with thousands apart: 5,004.
-std::string thousands(int number)
-{
-    std::string digits = std::to_string(number);
-    for (int i = static_cast<int>(digits.size()) - 3; i > 0; i -= 3)
-        digits.insert(static_cast<size_t>(i), ",");
-    return digits;
-}
 
 const char* kindName(Kind kind, int count)
 {
@@ -85,28 +50,37 @@ const char* kindName(Kind kind, int count)
 
 } // namespace
 
-BrowseScene::BrowseScene()
+BrowsePage::BrowsePage(Kind kind)
 {
-    tabs_.setTabs({{"Packs", accent::kPacks, Icon::Pack},
-                   {"Themes", accent::kThemes, Icon::Theme},
-                   {"Splashes", accent::kSplashes, Icon::Splash}});
-    grid_.setBounds(kSide, kGridTop, metric::kWidth - 2 * kSide, metric::kHeight - metric::kHintBarHeight - kGridTop);
+    query_.kind = kind;
+    grid_.setBounds(kSide, kGridTop, metric::kWidth - 2 * kSide, page::kBottom - kGridTop);
     const float cellWidth = (metric::kWidth - 2 * kSide - kGap * (kColumns - 1)) / kColumns;
     grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
-    reload();
 }
 
-BrowseScene::~BrowseScene()
+BrowsePage::~BrowsePage()
 {
     token_.cancel();
 }
 
-Accent BrowseScene::accent() const
+void BrowsePage::onShow()
+{
+    // the first time it's shown, it loads
+    if (state_ == State::NotLoaded)
+        reload();
+}
+
+Accent BrowsePage::accent() const
 {
     return accentOf(query_.kind);
 }
 
-void BrowseScene::reload()
+std::shared_ptr<Picture> BrowsePage::backdrop() const
+{
+    return items_.empty() ? nullptr : placeholderOf(items_[static_cast<size_t>(grid_.selected())]);
+}
+
+void BrowsePage::reload()
 {
     token_.cancel();
     token_ = CancelToken{};
@@ -124,7 +98,7 @@ void BrowseScene::reload()
     fetchMore();
 }
 
-void BrowseScene::fetchMore()
+void BrowsePage::fetchMore()
 {
     if (fetching_ || (query_.page >= pageCount_ && query_.page > 0))
         return;
@@ -164,16 +138,16 @@ void BrowseScene::fetchMore()
         });
 }
 
-void BrowseScene::search()
+void BrowsePage::search()
 {
-    const std::string text = keyboard("Search Themezer", query_.search);
-    if (text == query_.search)
+    const auto text = askText("Search Themezer", query_.search);
+    if (!text || *text == query_.search)
         return;
-    query_.search = text;
+    query_.search = *text;
     reload();
 }
 
-void BrowseScene::chooseSort()
+void BrowsePage::chooseSort()
 {
     // each sort both ways round, as the website offers them; the one in use ticked
     std::vector<ui::Action> actions;
@@ -201,7 +175,7 @@ void BrowseScene::chooseSort()
     App::get().scenes().emplace<ui::ActionSheet>("Sort by", std::move(actions), accent().solid, current);
 }
 
-void BrowseScene::chooseTarget()
+void BrowsePage::chooseTarget()
 {
     std::vector<ui::Action> actions;
     for (int target = -1; target < themezer::kTargetCount; ++target)
@@ -220,7 +194,7 @@ void BrowseScene::chooseTarget()
                                                  query_.target + 1);
 }
 
-void BrowseScene::openFilter()
+void BrowsePage::openFilter()
 {
     // packs and splashes are only sorted: their sorts straight away
     if (query_.kind != Kind::Themes)
@@ -238,9 +212,9 @@ void BrowseScene::openFilter()
     App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
 
-std::vector<ui::Hint> BrowseScene::hints() const
+std::vector<ui::Hint> BrowsePage::hints() const
 {
-    std::vector<ui::Hint> hints{{ui::key::kMinus, "Queue"}, {ui::key::kPlus, "Menu"}};
+    std::vector<ui::Hint> hints;
     if (state_ == State::Failed)
     {
         hints.push_back({ui::key::kA, "Try again"});
@@ -255,41 +229,13 @@ std::vector<ui::Hint> BrowseScene::hints() const
     return hints;
 }
 
-void BrowseScene::tick(float dt)
+void BrowsePage::tick(float dt)
 {
-    backdrop_.tick(dt);
     approach(contentFade_, state_ == State::Ready ? 1.0f : 0.0f, dt, 8);
-    if (!items_.empty())
-    {
-        const themezer::Item& item = items_[static_cast<size_t>(grid_.selected())];
-        backdrop_.set(placeholderOf(item), accent().solid);
-    }
-    else
-    {
-        backdrop_.set(nullptr, accent().solid);
-    }
 }
 
-void BrowseScene::update(ui::Input& input, float dt)
+void BrowsePage::update(ui::Input& input, float dt)
 {
-    const auto shown = hints();
-    hintBar_.update(input, shown);
-    if (tabs_.update(input))
-    {
-        query_.kind = kKinds[tabs_.selected()];
-        reload();
-        return;
-    }
-    if (input.pressed(ui::key::kPlus))
-    {
-        openMenu();
-        return;
-    }
-    if (input.pressed(ui::key::kMinus))
-    {
-        openQueue();
-        return;
-    }
     if (state_ == State::Failed)
     {
         if (input.pressed(ui::key::kA))
@@ -347,7 +293,7 @@ void BrowseScene::update(ui::Input& input, float dt)
         fetchMore();
 }
 
-void BrowseScene::drawFilters(float top)
+void BrowsePage::drawFilters(float top)
 {
     // what the list is: its sort, the part of the HOME Menu, the search; and how much there is. A chip tapped changes it.
     const float middle = top + kFiltersHeight / 2;
@@ -360,19 +306,12 @@ void BrowseScene::drawFilters(float top)
     }
     chips_.clear();
     float x = kSide;
-    const float iconSize = metric::kIcon * 0.75f;
     const auto chip = [&](Icon which, const std::string& text, bool highlighted, Filter filter) {
-        const float room = right - x - (iconSize + 10 + 32);
-        if (room < 40)
-            return;
-        const std::string shown = ellipsize(text, room, metric::kTextSmall);
-        const float width = iconSize + 10 + textWidth(shown, metric::kTextSmall) + 32;
-        roundedRect(x, top, width, kFiltersHeight, kFiltersHeight / 2,
-                    highlighted ? withAlpha(accent().solid, 0.35f) : color::kSurface);
-        icon(which, x + 16, std::round(middle - iconSize / 2), iconSize, highlighted ? accent().light : color::kTextDim);
-        drawText(shown, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
-        chips_.push_back({x, width, filter});
-        x += width + 10;
+        if (const float width = filterChip(which, text, highlighted, accent(), x, top, kFiltersHeight, right); width > 0)
+        {
+            chips_.push_back({x, width, filter});
+            x += width + 10;
+        }
     };
     chip(sortIcon(query_.sort), themezer::sortLabel(query_.sort, query_.ascending), false, Filter::Sort);
     if (query_.kind == Kind::Themes)
@@ -382,9 +321,8 @@ void BrowseScene::drawFilters(float top)
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
 }
 
-void BrowseScene::draw()
+void BrowsePage::draw()
 {
-    backdrop_.draw(0.62f);
     const Accent accent = this->accent();
     const bool showTarget = query_.kind == Kind::Themes && query_.target < 0;
 
@@ -414,33 +352,22 @@ void BrowseScene::draw()
 
     if (state_ == State::Loading)
     {
-        spinner(metric::kWidth / 2, (kGridTop + metric::kHeight - metric::kHintBarHeight) / 2, 32, accent.light);
+        spinner(metric::kWidth / 2, (kGridTop + page::kBottom) / 2, 32, accent.light);
     }
     else if (state_ == State::Failed)
     {
         drawEmptyState(Icon::WifiOff, color::kTextDim, "Couldn't load Themezer", error_, kGridTop,
-                       metric::kHeight - metric::kHintBarHeight);
+                       page::kBottom);
     }
     else if (items_.empty())
     {
         drawEmptyState(Icon::SearchEmpty, color::kTextDim, query_.search.empty() ? "Nothing here" : "No results",
                        query_.search.empty() ? "There's nothing of this kind yet."
                                              : "Nothing matches “" + query_.search + "”. Try other words.",
-                       kGridTop, metric::kHeight - metric::kHintBarHeight);
+                       kGridTop, page::kBottom);
     }
 
-    const float statusLeft = drawTopBar();
-    const float barHeight = 52;
-    const float barWidth = std::min(tabs_.naturalWidth(metric::kTextNormal), statusLeft - 260);
-    tabs_.draw(std::round((metric::kWidth - barWidth) / 2), std::round((metric::kTopBarHeight - barHeight) / 2),
-               barWidth, barHeight, metric::kTextNormal);
     drawFilters(kFiltersTop);
-
-    // the queue's size on its key
-    auto shown = hints();
-    if (const int queued = installs::queuedCount(); queued > 0)
-        shown.front().label = "Queue (" + std::to_string(queued) + ")";
-    hintBar_.draw(shown, 1.0f, accent.solid);
 }
 
 } // namespace tz::scenes

@@ -43,7 +43,7 @@ APP_VERSION := 3.3.1
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/app source/domain source/gfx source/libs source/scenes source/services source/sys source/ui
+SOURCES		:=	source source/app source/core source/domain source/gfx source/libs source/scenes source/services source/sys source/ui
 DATA		:=	data
 INCLUDES	:=	source
 ROMFS		:=  romfs

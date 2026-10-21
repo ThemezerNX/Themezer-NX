@@ -1,7 +1,11 @@
 #include "scenes/actions.hpp"
 
 #include "app/app.hpp"
+#include "domain/installed.hpp"
 #include "domain/installs.hpp"
+#include "scenes/local_details.hpp"
+#include "scenes/local_pack.hpp"
+#include "services/local.hpp"
 #include "scenes/details.hpp"
 #include "scenes/frame.hpp"
 #include "scenes/pack.hpp"
@@ -38,34 +42,6 @@ void showError(const std::string& title, const themezer::Error& error)
         return;
     }
     scenes().emplace<ui::Dialog>(Icon::Error, color::kDanger, title, error.message);
-}
-
-// The text typed on the Switch's keyboard, or nothing when it was cancelled or left empty.
-std::string keyboard(const char* guide, const std::string& initial, size_t maxLength)
-{
-    SwkbdConfig config;
-    if (R_FAILED(swkbdCreate(&config, 0)))
-        return {};
-    std::string out(maxLength + 1, '\0');
-    swkbdConfigMakePresetDefault(&config);
-    swkbdConfigSetGuideText(&config, guide);
-    swkbdConfigSetInitialText(&config, initial.c_str());
-    swkbdConfigSetStringLenMax(&config, static_cast<u32>(maxLength));
-    const Result result = swkbdShow(&config, out.data(), out.size());
-    swkbdClose(&config);
-    if (R_FAILED(result))
-        return {};
-    out.resize(std::strlen(out.c_str()));
-    return out;
-}
-
-std::string trim(std::string text)
-{
-    while (!text.empty() && text.back() == ' ')
-        text.pop_back();
-    while (!text.empty() && text.front() == ' ')
-        text.erase(text.begin());
-    return text;
 }
 
 void queueAndSay(const Item& item, const std::string& path)
@@ -131,6 +107,7 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
             return result;
         },
         [themes, queue, total = chosen.size()](PackResult result) {
+            local::Library::get().rescan();
             if (queue)
             {
                 for (const auto& [index, path] : result.done)
@@ -192,11 +169,274 @@ void choosePackThemes(std::shared_ptr<Item> pack, std::shared_ptr<std::map<int, 
                                       std::move(actions), accentOf(themezer::Kind::Packs).solid);
 }
 
+// Leaves, to NXThemes Installer when something's queued: not with more than the loader can pass on to it.
+void exitApp()
+{
+    const char* installer = installs::installerPath();
+    if (installer && installs::queuedCount() > 0 && installs::installerArgs(installer).size() > installs::kMaxArgs)
+    {
+        scenes().emplace<ui::Dialog>(Icon::Warning, color::kWarning, "Too much to install at once",
+                                     "The queued files' names are too long for NXThemes Installer to take all at once. "
+                                     "Take some out of the queue, and install them next time.");
+        return;
+    }
+    App::get().quit();
+}
+
+// NXThemes Installer can't be given a file with a comma or "(_)" in its path; says so.
+bool installerTakes(const std::string& path)
+{
+    if (installs::installerTakes(path))
+        return true;
+    ui::toast("NXThemes Installer can't take a file with a comma or “(_)” in its name or folder", ui::ToastKind::Error);
+    return false;
+}
+
+// Which of the pack's themes to install, one for each part (asked where it has more than one), then whether to
+// replace what's queued already; go gets the indexes of the ones chosen.
+void choosePack(Item pack, std::function<void(std::vector<int>)> go)
+{
+    auto byTarget = std::make_shared<std::map<int, std::vector<int>>>();
+    for (size_t i = 0; i < pack.themes.size(); ++i)
+    {
+        if (pack.themes[i].target >= 0)
+            (*byTarget)[pack.themes[i].target].push_back(static_cast<int>(i));
+    }
+    if (byTarget->empty())
+    {
+        ui::toast("This pack has no themes to install", ui::ToastKind::Warning);
+        return;
+    }
+    auto shared = std::make_shared<Item>(std::move(pack));
+    auto chosen = std::make_shared<std::vector<int>>();
+    choosePackThemes(shared, byTarget, chosen, byTarget->begin(), [shared, chosen, go] {
+        int replaced = 0;
+        for (int index : *chosen)
+            replaced += installs::queued(installs::slotOf(shared->themes[static_cast<size_t>(index)])) ? 1 : 0;
+        if (replaced == 0)
+        {
+            go(*chosen);
+            return;
+        }
+        scenes().emplace<ui::Dialog>(
+            Icon::Queue, color::kWarning, "Replace queued installs?",
+            "This replaces " + std::to_string(replaced) + (replaced == 1 ? " install" : " installs") +
+                " already queued.",
+            std::vector<ui::DialogButton>{{"Keep them", nullptr}, {"Replace", [chosen, go] { go(*chosen); }}});
+    });
+}
+
 } // namespace
 
 bool canInstall()
 {
     return installs::installerPath() != nullptr;
+}
+
+std::optional<std::string> askText(const char* guide, const std::string& initial, size_t maxLength)
+{
+    SwkbdConfig config;
+    if (R_FAILED(swkbdCreate(&config, 0)))
+        return std::nullopt;
+    std::string out(maxLength + 1, '\0');
+    swkbdConfigMakePresetDefault(&config);
+    swkbdConfigSetGuideText(&config, guide);
+    swkbdConfigSetInitialText(&config, initial.c_str());
+    swkbdConfigSetStringLenMax(&config, static_cast<u32>(maxLength));
+    const Result result = swkbdShow(&config, out.data(), out.size());
+    swkbdClose(&config);
+    if (R_FAILED(result))
+        return std::nullopt;
+    out.resize(std::strlen(out.c_str()));
+    while (!out.empty() && out.back() == ' ')
+        out.pop_back();
+    while (!out.empty() && out.front() == ' ')
+        out.erase(out.begin());
+    return out;
+}
+
+themezer::Item localItem(const library::Entry& entry)
+{
+    Item item;
+    item.kind = entry.kind == library::Kind::Splash ? themezer::Kind::Splashes : themezer::Kind::Themes;
+    // a file that isn't from Themezer goes by its path (see installs::queue)
+    item.id = entry.themezerId.empty() ? "file:" + entry.path : entry.themezerId;
+    item.name = entry.name;
+    item.creator = entry.author;
+    item.target = entry.target;
+    return item;
+}
+
+void openLocal(const library::Entry& entry)
+{
+    scenes().emplace<LocalDetailsScene>(entry.path);
+}
+
+void installLocal(const library::Entry& entry)
+{
+    if (!canInstall())
+    {
+        scenes().emplace<ui::Dialog>(Icon::Warning, color::kWarning, "NXThemes Installer isn't there",
+                                     "Installing needs NXThemes Installer at sd:/switch/NXThemesInstaller.nro.");
+        return;
+    }
+    library::Entry known = entry;
+    // a theme whose file name doesn't say its part: its info.json does
+    if (known.kind == library::Kind::Theme && known.target < 0 && !known.infoRead)
+        library::readInfo(known);
+    if (known.kind == library::Kind::Theme && known.target < 0)
+    {
+        ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
+        return;
+    }
+    if (installerTakes(known.path))
+        queueAndSay(localItem(known), known.path);
+}
+
+void openLocalPack(const std::string& dir)
+{
+    scenes().emplace<LocalPackScene>(dir);
+}
+
+void installLocalPack(const std::string& dir)
+{
+    local::Library& library = local::Library::get();
+    const local::Pack* found = library.findPack(dir);
+    if (!found || found->themes.empty())
+        return;
+    if (!canInstall())
+    {
+        installLocal(library.entries()[found->themes.front()]); // says why it can't
+        return;
+    }
+    Item pack;
+    std::vector<std::string> paths;
+    for (size_t index : found->themes)
+    {
+        library::Entry theme = library.entries()[index];
+        if (!installerTakes(theme.path))
+            return;
+        // a theme whose file name doesn't say its part: its info.json does
+        if (theme.target < 0 && !theme.infoRead)
+            library::readInfo(theme);
+        pack.themes.push_back(localItem(theme));
+        paths.push_back(theme.path);
+    }
+    auto themes = std::make_shared<std::vector<Item>>(pack.themes);
+    choosePack(std::move(pack), [themes, paths](std::vector<int> chosen) {
+        for (int index : chosen)
+        {
+            const Item& theme = (*themes)[static_cast<size_t>(index)];
+            installs::queue(installs::slotOf(theme), paths[static_cast<size_t>(index)], theme);
+        }
+        ui::toast(std::to_string(chosen.size()) + (chosen.size() == 1 ? " theme" : " themes") +
+                      " queued. Exit through + to install them.",
+                  ui::ToastKind::Success);
+    });
+}
+
+void deleteLocalPack(const std::string& dir)
+{
+    const local::Pack* pack = local::Library::get().findPack(dir);
+    if (!pack)
+        return;
+    const size_t count = pack->themes.size();
+    scenes().emplace<ui::Dialog>(
+        Icon::Trash, color::kWarning, "Delete “" + pack->name + "”?",
+        "Its " + std::to_string(count) + (count == 1 ? " theme is" : " themes are") + " taken off the SD card.",
+        std::vector<ui::DialogButton>{
+            {"Keep it", nullptr},
+            {"Delete",
+             [dir] {
+                 const bool ok = local::Library::get().removePack(dir);
+                 // what was queued from it has nothing to install any more
+                 for (int slot = 0; slot < installs::kSlotCount; ++slot)
+                 {
+                     const installs::Queued* queued = installs::queued(slot);
+                     if (queued && queued->path.starts_with(dir + "/") && !installs::exists(queued->path))
+                         installs::unqueue(slot);
+                 }
+                 if (!ok)
+                 {
+                     ui::toast("Couldn't delete all of it from the SD card", ui::ToastKind::Error);
+                     return;
+                 }
+                 sfx::play(sfx::Sound::Back);
+                 ui::toast("Deleted");
+             },
+             true}});
+}
+
+void showOnThemezer(const std::string& quickId)
+{
+    scenes().push(ui::ProgressOverlay::start<std::expected<Item, themezer::Error>>(
+        {"Looking it up", true, color::kPrimary},
+        [quickId](ui::TaskProgress&, const CancelToken& token) { return themezer::lookupQuickId(quickId, token); },
+        [](std::expected<Item, themezer::Error> result) {
+            if (result)
+                openItem(*result);
+            else
+                showError("Couldn't look it up", result.error());
+        }));
+}
+
+void viewLocal(const library::Entry& entry)
+{
+    scenes().emplace<PictureScene>([entry] { return localPicture(entry, static_cast<int>(metric::kWidth)); });
+}
+
+void deleteLocal(const library::Entry& entry)
+{
+    const std::string path = entry.path;
+    const int slot = entry.kind == library::Kind::Splash ? installs::kSplashSlot : entry.target;
+    scenes().emplace<ui::Dialog>(
+        Icon::Trash, color::kWarning, "Delete “" + entry.name + "”?", "It's taken off the SD card.",
+        std::vector<ui::DialogButton>{
+            {"Keep it", nullptr},
+            {"Delete",
+             [path, slot] {
+                 local::Library& library = local::Library::get();
+                 const auto& entries = library.entries();
+                 for (size_t i = 0; i < entries.size(); ++i)
+                 {
+                     if (entries[i].path != path)
+                         continue;
+                     if (!library.remove(i))
+                     {
+                         ui::toast("Couldn't delete it from the SD card", ui::ToastKind::Error);
+                         return;
+                     }
+                     // queued, it isn't any more: there's nothing to install
+                     if (const installs::Queued* queued = installs::queued(slot); queued && queued->path == path)
+                         installs::unqueue(slot);
+                     sfx::play(sfx::Sound::Back);
+                     ui::toast("Deleted");
+                     return;
+                 }
+             },
+             true}});
+}
+
+void uninstallPart(int slot)
+{
+    const bool splash = slot == installs::kSplashSlot;
+    const installed::Part& part = installed::part(slot);
+    const std::string what = part.name.empty() ? (splash ? "the splash" : "the " + installs::slotLabel(slot) + " theme")
+                                               : "“" + part.name + "”";
+    scenes().emplace<ui::Dialog>(
+        Icon::Trash, color::kWarning, "Uninstall " + what + "?",
+        splash ? "Hekate's own splash comes back after a restart."
+               : "Nintendo's " + installs::slotLabel(slot) + " comes back after a restart.",
+        std::vector<ui::DialogButton>{{"Keep it", nullptr},
+                                      {"Uninstall",
+                                       [slot] {
+                                           if (installed::uninstall(slot))
+                                               ui::toast("Uninstalled: restart the console to see the change",
+                                                         ui::ToastKind::Success);
+                                           else
+                                               ui::toast("Couldn't delete its files", ui::ToastKind::Error);
+                                       },
+                                       true}});
 }
 
 void openItem(const Item& item)
@@ -233,6 +473,7 @@ void install(const Item& item, bool save)
             return themezer::download(url, path, token, &progress.download);
         },
         [item, path](std::expected<void, themezer::Error> result) {
+            local::Library::get().rescan();
             if (result)
                 queueAndSay(item, path);
             else
@@ -254,6 +495,7 @@ void download(const Item& item)
             return themezer::download(url, path, token, &progress.download);
         },
         [name = item.name](std::expected<void, themezer::Error> result) {
+            local::Library::get().rescan();
             if (result)
                 ui::toast("“" + name + "” is saved in /Themes/ThemezerNX", ui::ToastKind::Success);
             else
@@ -268,37 +510,7 @@ void installPack(const Item& pack, bool save)
         install(pack.themes.empty() ? pack : pack.themes.front(), save); // says why it can't
         return;
     }
-    auto byTarget = std::make_shared<std::map<int, std::vector<int>>>();
-    for (size_t i = 0; i < pack.themes.size(); ++i)
-    {
-        if (pack.themes[i].target >= 0)
-            (*byTarget)[pack.themes[i].target].push_back(static_cast<int>(i));
-    }
-    if (byTarget->empty())
-    {
-        ui::toast("This pack has no themes to install", ui::ToastKind::Warning);
-        return;
-    }
-    auto shared = std::make_shared<Item>(pack);
-    auto chosen = std::make_shared<std::vector<int>>();
-    choosePackThemes(shared, byTarget, chosen, byTarget->begin(), [shared, chosen, save] {
-        int replaced = 0;
-        for (int index : *chosen)
-            replaced += installs::queued(installs::slotOf(shared->themes[static_cast<size_t>(index)])) ? 1 : 0;
-        if (replaced == 0)
-        {
-            runPackDownloads(*shared, *chosen, true, save);
-            return;
-        }
-        scenes().emplace<ui::Dialog>(
-            Icon::Queue, color::kWarning, "Replace queued installs?",
-            "This replaces " + std::to_string(replaced) + (replaced == 1 ? " install" : " installs") +
-                " already queued.",
-            std::vector<ui::DialogButton>{{"Keep them", nullptr},
-                                          {"Replace", [shared, chosen, save] {
-                                               runPackDownloads(*shared, *chosen, true, save);
-                                           }}});
-    });
+    choosePack(pack, [pack, save](std::vector<int> chosen) { runPackDownloads(pack, std::move(chosen), true, save); });
 }
 
 void downloadPack(const Item& pack)
@@ -312,38 +524,6 @@ void downloadPack(const Item& pack)
         return;
     }
     runPackDownloads(pack, all, false, true);
-}
-
-void openQueue()
-{
-    std::vector<ui::Action> actions;
-    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")", "",
-                       canInstall(), false, [] { App::get().quit(); }, nullptr, ui::key::kPlus});
-    for (int slot = 0; slot < installs::kSlotCount; ++slot)
-    {
-        const installs::Queued* queued = installs::queued(slot);
-        if (!queued)
-            continue;
-        const std::string label = installs::slotLabel(slot) + ": " + queued->name;
-        actions.push_back({Icon::Trash, label, "", true, false, [slot, label] {
-                               scenes().emplace<ui::Dialog>(
-                                   Icon::Trash, color::kWarning, "Take it out of the queue?", label,
-                                   std::vector<ui::DialogButton>{{"Keep it", nullptr},
-                                                                 {"Take out",
-                                                                  [slot] {
-                                                                      installs::unqueue(slot);
-                                                                      sfx::play(sfx::Sound::Back);
-                                                                  },
-                                                                  true}});
-                           }});
-    }
-    if (actions.size() == 1)
-    {
-        ui::toast("Nothing is queued yet. Install a theme or a splash to queue it.");
-        return;
-    }
-    // on the first install, not on leaving: a quick A doesn't exit
-    scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary, 1);
 }
 
 void openSettings()
@@ -374,9 +554,10 @@ void openSettings()
 
 void openQuickId()
 {
-    const std::string quickId = trim(keyboard("Quick ID (find it on themezer.net)", "", 64));
-    if (quickId.empty())
+    const auto typed = askText("Quick ID (find it on themezer.net)", "", 64);
+    if (!typed || typed->empty())
         return;
+    const std::string quickId = *typed;
     scenes().push(ui::ProgressOverlay::start<std::expected<Item, themezer::Error>>(
         {"Looking up " + quickId, true, color::kPrimary},
         [quickId](ui::TaskProgress&, const CancelToken& token) { return themezer::lookupQuickId(quickId, token); },
@@ -391,18 +572,51 @@ void openQuickId()
         }));
 }
 
-void openMenu()
+void openQueue()
+{
+    std::vector<ui::Action> actions;
+    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")", "",
+                       canInstall(), false, exitApp, nullptr, ui::key::kPlus});
+    for (int slot = 0; slot < installs::kSlotCount; ++slot)
+    {
+        const installs::Queued* queued = installs::queued(slot);
+        if (!queued)
+            continue;
+        const std::string label = installs::slotLabel(slot) + ": " + queued->name;
+        actions.push_back({Icon::Trash, label, "", true, false, [slot, label] {
+                               scenes().emplace<ui::Dialog>(
+                                   Icon::Trash, color::kWarning, "Take it out of the queue?", label,
+                                   std::vector<ui::DialogButton>{{"Keep it", nullptr},
+                                                                 {"Take out",
+                                                                  [slot] {
+                                                                      installs::unqueue(slot);
+                                                                      sfx::play(sfx::Sound::Back);
+                                                                  },
+                                                                  true}});
+                           }});
+    }
+    if (actions.size() == 1)
+    {
+        ui::toast("Nothing is queued yet. Install a theme or a splash to queue it.");
+        return;
+    }
+    // on the first install, not on leaving: a quick A doesn't exit
+    scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary, 1);
+}
+
+void openMenu(std::vector<ui::Action> first)
 {
     const int queued = installs::queuedCount();
-    std::vector<ui::Action> actions;
+    std::vector<ui::Action> actions = std::move(first);
+    if (queued > 0)
+        actions.push_back(
+            {Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false, [] { openQueue(); }});
     actions.push_back({Icon::Keyboard, "Install by Quick ID", "", true, false, [] { openQuickId(); }});
-    actions.push_back({Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false,
-                       [] { openQueue(); }, nullptr, ui::key::kMinus});
     actions.push_back({Icon::Settings, "Settings", "", true, false, [] { openSettings(); }});
     actions.push_back({Icon::Info, "About and licenses", "", true, false, [] { openAbout(); }});
     actions.push_back({Icon::Power,
                        queued > 0 && canInstall() ? "Exit and install (" + std::to_string(queued) + ")" : "Exit", "",
-                       true, false, [] { App::get().quit(); }, nullptr, ui::key::kPlus});
+                       true, false, exitApp, nullptr, ui::key::kPlus});
     scenes().emplace<ui::ActionSheet>("Themezer", std::move(actions), color::kPrimary);
 }
 

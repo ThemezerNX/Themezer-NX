@@ -11,7 +11,7 @@ SDL_LIBS := -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lSDL2_ttf
 FLAGS := -g -O1 -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
 
 themezer-nx-desktop: $(OBJECTS)
-	$(CXX) -o $@ $^ $(SDL_LIBS) -lcurl
+	$(CXX) -o $@ $^ $(SDL_LIBS) -lcurl -lz
 
 build/%.o: ../source/%.cpp
 	@mkdir -p $(dir $@)
@@ -29,3 +29,11 @@ build/desktop/switch.o: switch.cpp
 
 clean:
 	rm -rf build themezer-nx-desktop
+
+# The reader of .nxtheme archives, on archives the test makes.
+test: build/tests/archive_test
+	./build/tests/archive_test
+
+build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@ -lz

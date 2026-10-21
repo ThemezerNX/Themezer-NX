@@ -1,0 +1,235 @@
+#include "scenes/local_pack.hpp"
+
+#include "app/app.hpp"
+#include "gfx/renderer.hpp"
+#include "gfx/text.hpp"
+#include "scenes/actions.hpp"
+#include "sys/audio.hpp"
+#include "ui/overlays.hpp"
+
+#include <algorithm>
+#include <cmath>
+
+namespace tz::scenes
+{
+
+using namespace gfx;
+using ui::approach;
+using ui::ease;
+using themezer::Kind;
+
+namespace
+{
+constexpr float kSide = 48;
+constexpr float kColumnW = 380;
+constexpr float kTop = metric::kTopBarHeight + 16;
+constexpr float kGridX = kSide + kColumnW + 40;
+constexpr int kColumns = 2;
+constexpr float kGap = 22;
+// as wide as the SD card's pages ask for theirs, to share them
+constexpr int kThumbWidth = 480;
+} // namespace
+
+LocalPackScene::LocalPackScene(std::string dir) : dir_(std::move(dir))
+{
+    sfx::play(sfx::Sound::Open);
+    grid_.setBounds(kGridX, kTop + 6, metric::kWidth - kGridX - kSide, metric::kHeight - metric::kHintBarHeight - kTop - 6);
+    const float cellWidth = (metric::kWidth - kGridX - kSide - kGap * (kColumns - 1)) / kColumns;
+    grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
+    rebuild();
+}
+
+void LocalPackScene::rebuild()
+{
+    local::Library& library = local::Library::get();
+    generation_ = library.generation();
+    const local::Pack* pack = library.findPack(dir_);
+    if (!pack)
+    {
+        // gone from the SD card
+        leaving_ = true;
+        return;
+    }
+    last_ = *pack;
+    std::vector<const library::Entry*> themes;
+    for (size_t index : pack->themes)
+        themes.push_back(&library.entries()[index]);
+    // in the parts' order, as Themezer lists a pack's; one whose part isn't known yet last
+    std::stable_sort(themes.begin(), themes.end(), [](const library::Entry* a, const library::Entry* b) {
+        const int x = a->target < 0 ? themezer::kTargetCount : a->target;
+        const int y = b->target < 0 ? themezer::kTargetCount : b->target;
+        return x != y ? x < y : a->name < b->name;
+    });
+    themes_.clear();
+    for (const library::Entry* theme : themes)
+        themes_.push_back(theme->path);
+    grid_.setCount(static_cast<int>(themes_.size()));
+}
+
+const library::Entry* LocalPackScene::cover() const
+{
+    const local::Pack* pack = local::Library::get().findPack(dir_);
+    return pack ? local::Library::get().cover(*pack) : nullptr;
+}
+
+const library::Entry* LocalPackScene::themeAt(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(themes_.size()))
+        return nullptr;
+    return local::Library::get().find(themes_[static_cast<size_t>(index)]);
+}
+
+std::vector<ui::Hint> LocalPackScene::hints() const
+{
+    std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
+    if (cover())
+        hints.push_back({ui::key::kY, "View"});
+    hints.push_back({ui::key::kX, "More"});
+    if (!themes_.empty())
+        hints.push_back({ui::key::kA, "Open"});
+    return hints;
+}
+
+void LocalPackScene::openMore()
+{
+    std::vector<ui::Action> actions;
+    const std::string dir = dir_;
+    actions.push_back({Icon::Install, "Install all", "", canInstall(), false, [dir] { installLocalPack(dir); }});
+    if (!last_.themezerId.empty())
+        actions.push_back({Icon::Globe, "Show it on Themezer", "", true, false,
+                           [quickId = "P" + last_.themezerId] { showOnThemezer(quickId); }});
+    // the page goes by itself when the folder has
+    actions.push_back({Icon::Trash, "Delete the pack", "", true, true, [dir] { deleteLocalPack(dir); }});
+    App::get().scenes().emplace<ui::ActionSheet>(last_.name, std::move(actions), accentOf(Kind::Packs).solid,
+                                                 canInstall() ? 0 : 1);
+}
+
+void LocalPackScene::tick(float dt)
+{
+    if (generation_ != local::Library::get().generation())
+        rebuild();
+    const library::Entry* picture = cover();
+    backdrop_.set(picture ? localBackdrop(*picture) : nullptr, accentOf(Kind::Packs).solid);
+    backdrop_.tick(dt);
+    approach(appear_, leaving_ ? 0.0f : 1.0f, dt, leaving_ ? 16 : 10);
+    if (leaving_ && appear_ < 0.05f)
+        close();
+}
+
+void LocalPackScene::update(ui::Input& input, float dt)
+{
+    if (leaving_)
+        return;
+    const auto shown = hints();
+    hintBar_.update(input, shown);
+    if (input.pressed(ui::key::kB))
+    {
+        sfx::play(sfx::Sound::Back);
+        leaving_ = true;
+        return;
+    }
+    const library::Entry* picture = cover();
+    if (picture && (input.pressed(ui::key::kY) || input.tapIn(kSide, kTop, kColumnW, std::round(kColumnW * 9 / 16))))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Confirm);
+        viewLocal(*picture);
+        return;
+    }
+    if (input.pressed(ui::key::kX))
+    {
+        openMore();
+        return;
+    }
+    if (input.pressed(ui::key::kPlus))
+    {
+        openMenu();
+        return;
+    }
+    if (grid_.update(input, dt) == ui::GridView::Event::Activated)
+    {
+        if (const library::Entry* theme = themeAt(grid_.selected()))
+            openLocal(*theme);
+    }
+    // the names and parts of what's on screen, from inside the files
+    local::Library& library = local::Library::get();
+    const auto [first, last] = grid_.visibleRange();
+    for (int index = first; index <= last; ++index)
+    {
+        if (const library::Entry* theme = themeAt(index); theme && !theme->infoRead)
+            library.wantInfo(static_cast<size_t>(theme - library.entries().data()));
+    }
+}
+
+void LocalPackScene::draw()
+{
+    const float shown = ease(appear_);
+    {
+        const Layer layer(0, 0, shown);
+        backdrop_.draw(0.6f);
+    }
+    const Accent accent = accentOf(Kind::Packs);
+    {
+        // the pack: its Home Menu's picture, name, creator and what's in it
+        const Layer layer(0, (1 - shown) * 40, shown);
+        const float pictureH = std::round(kColumnW * 9 / 16);
+        shadow(kSide, kTop, kColumnW, pictureH, 16, 24);
+        const library::Entry* picture = cover();
+        if (auto loaded = picture ? localPicture(*picture, kThumbWidth) : nullptr)
+        {
+            loaded->drawCover(kSide, kTop, kColumnW, pictureH, 16);
+        }
+        else
+        {
+            roundedRect(kSide, kTop, kColumnW, pictureH, 16, color::kSurfaceRaised);
+            icon(Icon::Pack, kSide + (kColumnW - metric::kIconLarge) / 2, kTop + (pictureH - metric::kIconLarge) / 2,
+                 metric::kIconLarge, color::kTextFaint);
+        }
+        float y = kTop + pictureH + 24;
+        y += drawWrapped(last_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
+        if (!last_.author.empty())
+        {
+            drawText("by " + last_.author, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
+            y += lineHeight(metric::kTextNormal);
+        }
+        y += 16;
+        const float iconSize = metric::kIcon * 0.75f;
+        const auto fact = [&](Icon which, const std::string& text) {
+            icon(which, kSide, std::round(y + 22 - iconSize / 2), iconSize, accent.light);
+            drawText(text, kSide + iconSize + 14, textTop(y + 22, metric::kTextSmall), metric::kTextSmall, color::kText,
+                     Align::Left, kColumnW - iconSize - 14);
+            y += 44;
+        };
+        const size_t count = last_.themes.size();
+        fact(Icon::Theme, std::to_string(count) + (count == 1 ? " theme" : " themes"));
+        fact(Icon::SdCard, megabytes(last_.size));
+        if (!last_.themezerId.empty())
+            fact(Icon::Hash, "Quick ID P" + last_.themezerId);
+    }
+    {
+        const Layer layer((1 - shown) * 40, 0, shown);
+        const Accent themes = accentOf(Kind::Themes);
+        grid_.draw(
+            [&](int index, float x, float y, float w, float h, bool selected) {
+                const library::Entry* theme = themeAt(index);
+                if (!theme)
+                    return;
+                card::Content content;
+                content.name = theme->name;
+                content.creator = theme->author;
+                content.picture = localPicture(*theme, kThumbWidth);
+                content.badge = badgeOf(*theme);
+                if (theme->target >= 0)
+                    content.chip = themezer::targetLabel(theme->target);
+                card::draw(content, x, y, w, h, selected, themes);
+            },
+            [&](float x, float y, float w, float h, bool down) { card::highlight(x, y, w, h, down, themes); });
+    }
+    {
+        const Layer layer(0, 0, shown);
+        drawTopBar();
+        hintBar_.draw(hints(), 1.0f, accent.solid);
+    }
+}
+
+} // namespace tz::scenes

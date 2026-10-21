@@ -58,6 +58,10 @@ enum class Icon : uint8_t
     Newspaper,
     Users,
     Layers,
+    SdCard,
+    Globe,
+    MonitorCheck,
+    Folder,
     Count,
 };
 

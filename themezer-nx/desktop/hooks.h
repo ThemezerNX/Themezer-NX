@@ -46,6 +46,7 @@ inline const char* desktopSd(const std::string& path)
 #define access(path, mode) access(desktopSd(path), mode)
 #define opendir(path) opendir(desktopSd(path))
 #define unlink(path) unlink(desktopSd(path))
+#define rmdir(path) rmdir(desktopSd(path))
 #define fopen(path, mode) fopen(desktopSd(path), mode)
-#define remove(path) remove(desktopSd(path))
+#define stat(path, out) stat(desktopSd(path), out)
 #endif
