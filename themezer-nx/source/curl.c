@@ -55,7 +55,40 @@ static bool AreTransfersFinished(RequestInfo_t *rI);
 extern PadState pad;
 
 static CURLM *sTransferer = NULL;
+static CURLSH *sShare = NULL;
 static RequestInfo_t *sActiveTransferQueue = NULL;
+// The browse load runs requests on its own thread, so the shared cache needs locks
+static Mutex sShareLocks[CURL_LOCK_DATA_LAST];
+
+static void ShareLock(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr){
+    mutexLock(&sShareLocks[data]);
+}
+
+static void ShareUnlock(CURL *handle, curl_lock_data data, void *userptr){
+    mutexUnlock(&sShareLocks[data]);
+}
+
+// Shares connections, DNS and TLS sessions between every easy handle
+static void InitCurlShare(void){
+    for (int i = 0; i < CURL_LOCK_DATA_LAST; i++)
+        mutexInit(&sShareLocks[i]);
+
+    sShare = curl_share_init();
+    if (!sShare)
+        return;
+
+    CURLSHcode res = CURLSHE_OK;
+    res |= curl_share_setopt(sShare, CURLSHOPT_LOCKFUNC, ShareLock);
+    res |= curl_share_setopt(sShare, CURLSHOPT_UNLOCKFUNC, ShareUnlock);
+    res |= curl_share_setopt(sShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+    res |= curl_share_setopt(sShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+    res |= curl_share_setopt(sShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+    if (res != CURLSHE_OK){
+        printf("curl share setup failed: %d\n", res);
+        curl_share_cleanup(sShare);
+        sShare = NULL;
+    }
+}
 
 int InitCurlSession(void){
     if (sTransferer)
@@ -64,6 +97,8 @@ int InitCurlSession(void){
     sTransferer = curl_multi_init();
     if (!sTransferer)
         return 1;
+
+    InitCurlShare();
 
     curl_multi_setopt(sTransferer, CURLMOPT_MAXCONNECTS, 12L);
     curl_multi_setopt(sTransferer, CURLMOPT_MAX_TOTAL_CONNECTIONS, 12L);
@@ -80,6 +115,13 @@ void CleanupCurlSession(void){
 
     curl_multi_cleanup(sTransferer);
     sTransferer = NULL;
+
+    if (sShare){
+        CURLSHcode res = curl_share_cleanup(sShare);
+        if (res != CURLSHE_OK)
+            printf("curl share cleanup failed: %d\n", res);
+        sShare = NULL;
+    }
 }
 
 static CURLM *GetTransferer(void){
@@ -500,6 +542,8 @@ CURL *CreateRequest(char *url, get_request_t *data){
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, LOW_SPEED_LIMIT_BYTES);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, LOW_SPEED_TIMEOUT_SECONDS);
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+        if (sShare)
+            curl_easy_setopt(curl, CURLOPT_SHARE, sShare);
 
         data->buffer = malloc(CHUNK_SIZE);
         if (!data->buffer){
@@ -620,6 +664,9 @@ static int MakeJsonRequestInternal(char *url, cJSON **response, volatile bool *c
             *response = cJSON_ParseWithLengthOpts((const char *)req.buffer, req.len, NULL, 0);
         }
 
+        long connects = -1;
+        curl_easy_getinfo(curl, CURLINFO_NUM_CONNECTS, &connects);
+        printf("New connections: %ld\n", connects);
         printf("Buffer: %s\n", req.buffer);
     }
 
