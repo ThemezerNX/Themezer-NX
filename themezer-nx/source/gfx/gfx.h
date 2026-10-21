@@ -5,6 +5,7 @@
 #include "../model.h"
 #include "../utils.h"
 #include "../curl.h"
+#include "../sound.h"
 
 extern SDL_Texture *menuIcon, *searchIcon, *queueIcon, *arrowLIcon, *arrowRIcon, *LeImg, *XIcon, *logo, *icon, *banner, *bgTile, *themeBgThumbHash, *packBgThumbHash, *moodDown, *browseIcon, *quickIdIcon;
 extern SDL_Texture *targetIcons[];

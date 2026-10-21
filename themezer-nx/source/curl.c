@@ -725,6 +725,7 @@ int MakeDownloadRequest(char *url, char *path, DownloadProgressContext_t *progre
             }
             else if (responseCode >= 400){
                 char *message = CopyTextArgsUtil("The themezer server returned HTTP status %ld.", responseCode);
+                SoundPlay(SfxError);
                 ShapeLinker_t *menu = CreateBaseMessagePopup("Download Error", message);
                 free(message);
                 ShapeLinkAdd(&menu, ButtonCreate(POS(250, 470, 780, 50), COLOR_MAINBG, COLOR_CURSORPRESS, COLOR_WHITE, COLOR_CURSOR, 0, ButtonStyleBottomStrip, "Ok", FONT_TEXT[FSize28], exitFunc), ButtonType);
@@ -757,6 +758,7 @@ int MakeDownloadRequest(char *url, char *path, DownloadProgressContext_t *progre
 }
 
 static void ShowRequestErrorPopup(char *title, char *message){
+    SoundPlay(SfxError);
     ShapeLinker_t *menu = CreateBaseMessagePopup(title, message);
     ShapeLinkAdd(&menu, ButtonCreate(POS(250, 470, 780, 50), COLOR_MAINBG, COLOR_CURSORPRESS, COLOR_WHITE, COLOR_CURSOR, 0, ButtonStyleBottomStrip, "Ok", FONT_TEXT[FSize28], exitFunc), ButtonType);
     MakeMenu(menu, ButtonHandlerBExit, NULL);

@@ -37,6 +37,7 @@ int ShowSideTargetMenu(Context_t *ctx){
             char *tempSearch = CopyTextUtil(rI->search ? rI->search : "");
             RequestContentType_t tempContentType = rI->contentType;
             SetDefaultsRequestInfo(rI);
+            SoundPlay(SfxTab);
             rI->target = selection;
             rI->sort = tempSort;
             rI->order = tempOrder;

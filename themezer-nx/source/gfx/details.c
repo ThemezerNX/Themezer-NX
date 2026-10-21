@@ -114,6 +114,7 @@ static int InstallRemoteInstallAtPath(RemoteInstallInfo_t *target, char *path){
         int installSlot = (target->kind == RemoteInstallKindSplash) ? SPLASH_INSTALL_SLOT : target->target;
         SetInstallSlot(installSlot, path);
 
+        SoundPlay(SfxDone);
         const char *title = (target->kind == RemoteInstallKindSplash) ? "Splash Queued!" : "Theme Queued!";
         const char *message = (target->kind == RemoteInstallKindSplash) ?
             "The remote Hekate splash is queued for NXThemes Installer.\nExit the app to apply it.\nYou can exit the app by pressing the + button." :
@@ -206,6 +207,7 @@ static int InstallSplashAtPath(SplashInfo_t *target, char *path){
     if (!res){
         SetInstallSlot(SPLASH_INSTALL_SLOT, path);
 
+        SoundPlay(SfxDone);
         ShapeLinker_t *out = CreateBaseMessagePopup("Splash Queued!", "The Hekate splash is queued for NXThemes Installer.\nExit the app to apply it.\nYou can exit the app by pressing the + button.");
         ShapeLinkAdd(&out, RectangleCreate(POS(250, 470, 780, 50), COLOR_CARDCURSOR, 1), RectangleType);
         ShapeLinkAdd(&out, ButtonCreate(POS(0, 0, SCREEN_W, SCREEN_H), COLOR(0,0,0,0), COLOR(0,0,0,0), COLOR(0,0,0,0), COLOR(0,0,0,0), 0, ButtonStyleFlat, NULL, NULL, exitFunc), ButtonType);
@@ -349,6 +351,7 @@ static int InstallThemeAtPath(ThemeInfo_t *target, char *path){
     if (!res){
         SetInstallSlot(target->target, path);
 
+        SoundPlay(SfxDone);
         ShapeLinker_t *out = CreateBaseMessagePopup("Install Queued!", "Install Queued. Exit the app to apply the theme.\nYou can exit the app by pressing the + button.");
         ShapeLinkAdd(&out, RectangleCreate(POS(250, 470, 780, 50), COLOR_CARDCURSOR, 1), RectangleType);
         ShapeLinkAdd(&out, ButtonCreate(POS(0, 0, SCREEN_W, SCREEN_H), COLOR(0,0,0,0), COLOR(0,0,0,0), COLOR(0,0,0,0), COLOR(0,0,0,0), 0, ButtonStyleFlat, NULL, NULL, exitFunc), ButtonType);
@@ -490,6 +493,7 @@ int ShowQuickIdLookup(Context_t *ctx){
         free(message);
     }
     else if (res < 0 && res != -4){
+        SoundPlay(SfxError);
         ShowQuickIdMessage("Quick ID Lookup Failed", "The quick ID lookup could not be completed.");
     }
 

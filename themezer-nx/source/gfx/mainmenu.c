@@ -103,6 +103,7 @@ static void ShowMainMenuLoadError(int res){
         return;
     }
 
+    SoundPlay(SfxError);
     char *message = CopyTextArgsUtil("Loading browse data failed. Error Code: %d", res);
     ShapeLinker_t *menu = CreateBaseMessagePopup("Browse Load Failed", message);
     ShapeLinkAdd(&menu, ButtonCreate(POS(250, 470, 780, 50), COLOR_MAINBG, COLOR_CURSORPRESS, COLOR_WHITE, COLOR_CURSOR, 0, ButtonStyleBottomStrip, "Ok", FONT_TEXT[FSize28], exitFunc), ButtonType);
@@ -129,6 +130,7 @@ int NextPageButton(Context_t *ctx){
     }
 
     rI->page++;
+    SoundPlay(SfxPage);
     ShowLoadingPageUI(ctx, rI);
 
     if (MakeRequestAsCtx(ctx,rI))
@@ -146,6 +148,7 @@ int PrevPageButton(Context_t *ctx){
     }
 
     rI->page--;
+    SoundPlay(SfxPage);
     ShowLoadingPageUI(ctx, rI);
 
     if (MakeRequestAsCtx(ctx,rI))

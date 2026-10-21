@@ -137,6 +137,7 @@ int DownloadPackButton(Context_t *ctx){
         free(message);
     }
     else {
+        SoundPlay(SfxDone);
         ShowPackDetailsMessage("Download Complete", "All themes in this pack were downloaded.");
     }
 
@@ -231,6 +232,7 @@ static int InstallPackAtPath(Context_t *ctx, bool savePermanently){
     }
     else {
         char *message = CopyTextArgsUtil("%d install%s queued. Exit the app to apply the themes.\nYou can exit the app by pressing the + button.", queued, queued == 1 ? "" : "s");
+        SoundPlay(SfxDone);
         ShowPackDetailsMessage("Installs Queued", message);
         free(message);
     }

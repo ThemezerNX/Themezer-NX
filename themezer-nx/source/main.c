@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
     InitSDL();
     FontInit();
     romfsInit();
+    SoundInit();
     InitTextures();
     socketInitializeDefault();
     curl_global_init(CURL_GLOBAL_ALL);
@@ -90,6 +91,7 @@ int main(int argc, char* argv[])
     }
 
     DestroyTextures();
+    SoundExit();
     romfsExit();
     FontExit();
     ExitSDL();

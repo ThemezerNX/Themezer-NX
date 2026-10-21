@@ -270,6 +270,7 @@ int ShowCurlError(Context_t *ctx){
 }
 
 int ShowConnErrMenu(int res){
+    SoundPlay(SfxError);
     char *message = CopyTextArgsUtil("Something went wrong when connecting to the themezer server! Error Code: %d", res);
     ShapeLinker_t *menu = CreateBaseMessagePopup("Connection Error!", message);
     free(message);

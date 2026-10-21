@@ -158,6 +158,7 @@ int ShowSideFilterMenu(Context_t *ctx){
         rI->order = options.order;
         rI->sort = options.sort;
         rI->page = 1;
+        SoundPlay(SfxTab);
 
         if (MakeRequestAsCtx(ctx, rI)){
             if (rI->search != NULL)

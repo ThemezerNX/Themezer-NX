@@ -37,3 +37,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+UI Sounds
+
+Files:
+themezer-nx/romfs/sfx/*.wav
+
+The UI sounds are synthesized by tools/sfx/make_sfx.py from Themezer-3DS
+(GPL-3.0-or-later, Copyright (C) 2026 Themezer-3DS contributors) and resampled
+to 48 kHz. tools/make_sfx.sh regenerates them from a Themezer-3DS checkout.
