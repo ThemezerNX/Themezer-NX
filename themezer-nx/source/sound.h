@@ -17,6 +17,10 @@ typedef enum {
 void SoundInit(void);
 void SoundExit(void);
 void SoundPlay(Sfx_t sfx);
+bool SoundGetMusic(void);
+bool SoundGetSfx(void);
+void SoundSetMusic(bool on);
+void SoundSetSfx(bool on);
 Context_t SoundMakeMenu(ShapeLinker_t *in, func_ptr buttonHandler, func_ptr runEveryFrame);
 
 // Every menu gets the cursor, confirm, back, open and close sounds through this wrapper

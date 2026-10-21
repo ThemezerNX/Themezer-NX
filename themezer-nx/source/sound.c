@@ -2,9 +2,15 @@
 #undef MakeMenu
 #include <switch.h>
 #include <string.h>
+#include <stdio.h>
+#include "libs/cJSON.h"
 
 #define SFX_VOLUME (SDL_MIX_MAXVOLUME / 2)
+#define MUSIC_VOLUME (SDL_MIX_MAXVOLUME / 4)
+// bgm.wav plays its intro once, then loops from here to its end
+#define MUSIC_LOOP_START_SECONDS 16.2
 #define MAX_MENU_DEPTH 16
+#define SETTINGS_PATH "/Themes/ThemezerNX/settings.json"
 
 static const char *sfxNames[SfxCount] = {"cursor", "page", "tab", "open", "close", "confirm", "back", "done", "error"};
 
@@ -26,6 +32,9 @@ typedef struct {
 } MenuSound_t;
 
 static Sound_t sounds[SfxCount];
+static Sound_t music;
+static Uint32 musicPos = 0, musicLoopStart = 0;
+static bool musicOn = true, sfxOn = true;
 static Channel_t channels[2];
 static SDL_AudioDeviceID device = 0;
 static SDL_AudioSpec spec;
@@ -35,6 +44,14 @@ static int depth = -1;
 
 static void MixCallback(void *userdata, Uint8 *stream, int len){
     SDL_memset(stream, spec.silence, len);
+    for (Uint32 done = 0; musicOn && music.buf && done < (Uint32)len;){
+        Uint32 n = SDL_min((Uint32)len - done, music.len - musicPos);
+        SDL_MixAudioFormat(stream + done, music.buf + musicPos, spec.format, n, MUSIC_VOLUME);
+        done += n;
+        musicPos += n;
+        if (musicPos >= music.len)
+            musicPos = musicLoopStart;
+    }
     for (int i = 0; i < 2; i++){
         Channel_t *ch = &channels[i];
         if (!ch->sound)
@@ -48,9 +65,7 @@ static void MixCallback(void *userdata, Uint8 *stream, int len){
     }
 }
 
-static void LoadSound(Sound_t *out, const char *name){
-    char path[64];
-    snprintf(path, sizeof(path), "romfs:/sfx/%s.wav", name);
+static void LoadSound(Sound_t *out, const char *path){
 
     SDL_AudioSpec wav;
     Uint8 *buf;
@@ -80,7 +95,60 @@ static void LoadSound(Sound_t *out, const char *name){
     SDL_FreeWAV(buf);
 }
 
+static void LoadSettings(void){
+    FILE *fp = fopen(SETTINGS_PATH, "rb");
+    if (!fp)
+        return;
+
+    char buf[256];
+    size_t len = fread(buf, 1, sizeof(buf) - 1, fp);
+    fclose(fp);
+    buf[len] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    cJSON *item = cJSON_GetObjectItem(root, "music");
+    if (cJSON_IsBool(item))
+        musicOn = cJSON_IsTrue(item);
+    item = cJSON_GetObjectItem(root, "sfx");
+    if (cJSON_IsBool(item))
+        sfxOn = cJSON_IsTrue(item);
+    cJSON_Delete(root);
+}
+
+static void SaveSettings(void){
+    FILE *fp = fopen(SETTINGS_PATH, "wb");
+    if (!fp)
+        return;
+
+    fprintf(fp, "{\"music\":%s,\"sfx\":%s}\n", musicOn ? "true" : "false", sfxOn ? "true" : "false");
+    fclose(fp);
+}
+
+bool SoundGetMusic(void){
+    return musicOn;
+}
+
+bool SoundGetSfx(void){
+    return sfxOn;
+}
+
+void SoundSetMusic(bool on){
+    if (device)
+        SDL_LockAudioDevice(device);
+    musicOn = on;
+    musicPos = 0;
+    if (device)
+        SDL_UnlockAudioDevice(device);
+    SaveSettings();
+}
+
+void SoundSetSfx(bool on){
+    sfxOn = on;
+    SaveSettings();
+}
+
 void SoundInit(void){
+    LoadSettings();
     if (SDL_InitSubSystem(SDL_INIT_AUDIO))
         return;
 
@@ -91,8 +159,17 @@ void SoundInit(void){
         return;
     }
 
-    for (int i = 0; i < SfxCount; i++)
-        LoadSound(&sounds[i], sfxNames[i]);
+    for (int i = 0; i < SfxCount; i++){
+        char path[64];
+        snprintf(path, sizeof(path), "romfs:/sfx/%s.wav", sfxNames[i]);
+        LoadSound(&sounds[i], path);
+    }
+
+    LoadSound(&music, "romfs:/bgm.wav");
+    Uint32 frameSize = SDL_AUDIO_BITSIZE(spec.format) / 8 * spec.channels;
+    musicLoopStart = (Uint32)(MUSIC_LOOP_START_SECONDS * spec.freq) * frameSize;
+    if (musicLoopStart >= music.len)
+        musicLoopStart = 0;
 
     SDL_PauseAudioDevice(device, 0);
 }
@@ -106,13 +183,15 @@ void SoundExit(void){
         SDL_free(sounds[i].buf);
         sounds[i].buf = NULL;
     }
+    SDL_free(music.buf);
+    music.buf = NULL;
 
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 void SoundPlay(Sfx_t sfx){
     playCount++;
-    if (!device || !sounds[sfx].buf)
+    if (!sfxOn || !device || !sounds[sfx].buf)
         return;
 
     SDL_LockAudioDevice(device);
