@@ -137,7 +137,7 @@ public:
             drawText("Source code", kColumnX + kColumnW / 2, y, metric::kTextSmall, color::kTextDim, Align::Center);
             y += lineHeight(metric::kTextSmall);
             // on a line of its own, small enough to fit
-            drawText("github.com/suchmememanyskill/themezer-nx", kColumnX + kColumnW / 2, y, metric::kTextSmall - 2,
+            drawText("github.com/ThemezerNX/Themezer-NX", kColumnX + kColumnW / 2, y, metric::kTextSmall - 2,
                      color::kText, Align::Center, kColumnW);
         }
 

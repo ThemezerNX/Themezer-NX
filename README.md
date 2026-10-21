@@ -1,15 +1,15 @@
 # themezer-nx
 A switch theme downloader that pulls from https://themezer.net/, and installs themes using the NXThemesInstaller
 
-[![Build Themezer-nx](https://github.com/suchmememanyskill/themezer-nx/workflows/Build%20Themezer-nx/badge.svg)](https://github.com/suchmememanyskill/themezer-nx/actions)
-[![dlCount](https://img.shields.io/github/downloads/suchmememanyskill/themezer-nx/total?color=blue)](https://github.com/suchmememanyskill/themezer-nx/releases)
-[![version](https://img.shields.io/github/v/release/suchmememanyskill/themezer-nx)](https://github.com/suchmememanyskill/themezer-nx/releases)
+[![Build Themezer-nx](https://github.com/ThemezerNX/Themezer-NX/workflows/Build%20Themezer-nx/badge.svg)](https://github.com/ThemezerNX/Themezer-NX/actions)
+[![dlCount](https://img.shields.io/github/downloads/ThemezerNX/Themezer-NX/total?color=blue)](https://github.com/ThemezerNX/Themezer-NX/releases)
+[![version](https://img.shields.io/github/v/release/ThemezerNX/Themezer-NX)](https://github.com/ThemezerNX/Themezer-NX/releases)
 
 
 ![screenshot](screenshot.jpg)
 
 ## How to use
-1. Download the latest nro release in the [releases tab](https://github.com/suchmememanyskill/themezer-nx/releases) and put it in the switch folder 
+1. Download the latest nro release in the [releases tab](https://github.com/ThemezerNX/Themezer-NX/releases) and put it in the switch folder 
 2. Download the latest [NXThemesInstaller.nro](https://github.com/exelix11/SwitchThemeInjector/releases) and put it in the switch folder, if you haven't already. (The releases from the appstore should work as well)
 3. Make sure your switch is connected to the internet (if you're looking to connect online without connecting to nintendo, see [90DNS](https://nh-server.github.io/switch-guide/extras/blocking_updates/))
 4. Open the app in the homebrew menu
