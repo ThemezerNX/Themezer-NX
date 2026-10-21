@@ -17,8 +17,15 @@ void SceneStack::update(Input& input, float dt)
 
     for (size_t i = 0; i < scenes_.size(); ++i)
         scenes_[i]->tick(dt);
-    if (Scene* scene = top(); scene && !scene->closed())
-        scene->update(input, dt);
+    for (size_t i = scenes_.size(); i-- > 0;)
+    {
+        Scene& scene = *scenes_[i];
+        if (!scene.closed() && scene.acceptsInput())
+        {
+            scene.update(input, dt);
+            break;
+        }
+    }
 
     // close what asked to be closed, and tell the scene that comes back
     bool removed = false;

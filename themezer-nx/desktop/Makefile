@@ -8,7 +8,7 @@ OBJECTS := $(subst build/switch.o,build/desktop/switch.o,$(OBJECTS:switch.o=buil
 
 SDL_CFLAGS := -I/opt/homebrew/include -I/opt/homebrew/include/SDL2
 SDL_LIBS := -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lSDL2_ttf
-FLAGS := -g -O1 -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
+FLAGS := -g -O1 -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
 
 themezer-nx-desktop: $(OBJECTS)
 	$(CXX) -o $@ $^ $(SDL_LIBS) -lcurl
@@ -24,6 +24,8 @@ build/%.o: ../source/%.c
 build/desktop/switch.o: switch.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 $(FLAGS) -c $< -o $@
+
+-include $(OBJECTS:.o=.d)
 
 clean:
 	rm -rf build themezer-nx-desktop

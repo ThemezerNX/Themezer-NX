@@ -378,19 +378,19 @@ std::vector<std::string> wrap(std::string_view text, float width, float size, in
             while (wordEnd < paragraph.size() && paragraph[wordEnd] == ' ')
                 ++wordEnd;
             const std::string_view word = paragraph.substr(first, wordEnd - first);
+            const auto trimmed = [](std::string text) {
+                while (!text.empty() && text.back() == ' ')
+                    text.pop_back();
+                return text;
+            };
             std::string candidate = current + std::string(word);
-            std::string trimmed = candidate;
-            while (!trimmed.empty() && trimmed.back() == ' ')
-                trimmed.pop_back();
-            if (current.empty() || textWidth(trimmed, size) <= width)
+            if (current.empty() || textWidth(trimmed(candidate), size) <= width)
             {
                 current = std::move(candidate);
             }
             else
             {
-                while (!current.empty() && current.back() == ' ')
-                    current.pop_back();
-                out.push_back(std::move(current));
+                out.push_back(trimmed(std::move(current)));
                 current = std::string(word);
                 if (maxLines > 0 && static_cast<int>(out.size()) == maxLines)
                 {
@@ -398,8 +398,8 @@ std::vector<std::string> wrap(std::string_view text, float width, float size, in
                     break;
                 }
             }
-            // a word longer than the line: as much of it as fits
-            while (textWidth(current, size) > width && current.size() > 1)
+            // a word longer than the line: as much of it as fits, the rest on the next
+            while (textWidth(trimmed(current), size) > width && current.size() > 1)
             {
                 std::string head = ellipsize(current, width, size);
                 head.erase(head.size() - std::string("…").size());

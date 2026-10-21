@@ -32,9 +32,13 @@ struct Queued
 {
     std::string path;
     std::string name;
+    std::string item; // which item it is (see itemKey)
 };
 
-void queue(int slot, std::string path, std::string name);
+// What tells items apart: their kind and ID.
+std::string itemKey(const themezer::Item& item);
+void queue(int slot, std::string path, const themezer::Item& item);
+bool isQueued(const themezer::Item& item);
 void unqueue(int slot);
 const Queued* queued(int slot); // nullptr when the slot is free
 int queuedCount();

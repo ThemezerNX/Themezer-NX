@@ -22,7 +22,7 @@ constexpr const char* kTargetApiNames[kTargetCount] = {"ResidentMenu", "Entrance
 constexpr const char* kTargetLabels[kTargetCount] = {"Home Menu",     "Lock Screen", "All Apps", "Settings",
                                                      "Player Select", "User Page",   "News"};
 constexpr const char* kSortApiNames[] = {"Trending", "Created", "Updated", "Downloads", "Saves"};
-constexpr const char* kSortLabels[] = {"Trending", "Newest", "Recently updated", "Most downloaded", "Most saved"};
+constexpr const char* kSortLabels[] = {"Trending", "Date added", "Date updated", "Downloads", "Saves"};
 
 #define THEME_FIELDS                                                                                                  \
     "hexId creator{username} name description createdAt updatedAt downloadCount saveCount target "                   \
@@ -199,7 +199,6 @@ std::string escapeJson(const std::string& text)
 std::expected<Json, Error> request(const char* query, const std::string& variables, const CancelToken& token)
 {
     const std::string url = std::string(kApi) + "?query=" + net::escape(query) + "&variables=" + net::escape(variables);
-    std::printf("requesting %.60s\n", variables.c_str());
     net::Response response = net::get(url, &token, nullptr, kJsonTimeout);
     if (response.curlCode != 0)
         return std::unexpected(connectionError(response));
@@ -244,6 +243,21 @@ int targetFromApi(const char* name)
 const char* sortLabel(Sort sort)
 {
     return kSortLabels[static_cast<size_t>(sort)];
+}
+
+const char* orderLabel(Sort sort, bool ascending)
+{
+    switch (sort)
+    {
+    case Sort::Trending:
+        return ascending ? "Least popular first" : "Most popular first";
+    case Sort::Created:
+    case Sort::Updated:
+        return ascending ? "Oldest first" : "Newest first";
+    default:
+        break;
+    }
+    return ascending ? "Fewest first" : "Most first";
 }
 
 std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& token)

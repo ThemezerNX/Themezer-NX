@@ -1,6 +1,7 @@
 #include "scenes/details.hpp"
 
 #include "app/app.hpp"
+#include "domain/installs.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/actions.hpp"
@@ -81,6 +82,13 @@ DetailsScene::DetailsScene(themezer::Item item) : item_(std::move(item))
 {
     sfx::play(sfx::Sound::Open);
     backdrop_.set(placeholderOf(item_), accentOf(item_.kind).solid);
+    saved_ = installs::exists(installs::savedPath(item_));
+}
+
+void DetailsScene::onResume()
+{
+    // back from a download, maybe
+    saved_ = installs::exists(installs::savedPath(item_));
 }
 
 std::shared_ptr<Picture> DetailsScene::picture() const
@@ -221,7 +229,20 @@ void DetailsScene::draw()
         y += drawWrapped(item_.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;
         drawText("by " + item_.creator, kColumnX, y, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-        y += lineHeight(metric::kTextNormal) + 24;
+        y += lineHeight(metric::kTextNormal) + 12;
+        // what's become of it here: queued to install, or on the SD card
+        const bool queued = installs::isQueued(item_);
+        if (queued || saved_)
+        {
+            const float iconSize = metric::kIcon * 0.75f;
+            const float middle = y + 16;
+            icon(queued ? Icon::Queue : Icon::Check, kColumnX, std::round(middle - iconSize / 2), iconSize,
+                 queued ? accent.light : color::kTextDim);
+            drawText(queued ? "Queued to install" : "On the SD card", kColumnX + iconSize + 12,
+                     textTop(middle, metric::kTextSmall), metric::kTextSmall, queued ? color::kText : color::kTextDim);
+            y += 32;
+        }
+        y += 12;
         rect(kColumnX, y, kColumnW, 1, color::kDivider);
         y += 16;
         drawFacts(item_, kColumnX, y, kColumnW, accent);
@@ -240,15 +261,15 @@ PictureScene::PictureScene(std::string url, std::string thumbUrl, std::string th
     sfx::play(sfx::Sound::Open);
 }
 
-void PictureScene::update(ui::Input& input, float dt)
+void PictureScene::tick(float dt)
 {
     approach(appear_, leaving_ ? 0.0f : 1.0f, dt, leaving_ ? 18 : 12);
-    if (leaving_)
-    {
-        if (appear_ < 0.05f)
-            close();
-        return;
-    }
+    if (leaving_ && appear_ < 0.05f)
+        close();
+}
+
+void PictureScene::update(ui::Input& input, float)
+{
     if (input.pressed(ui::key::kB | ui::key::kA | ui::key::kY) || input.tap)
     {
         input.consumeTouch();

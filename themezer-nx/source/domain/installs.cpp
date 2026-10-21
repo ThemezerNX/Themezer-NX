@@ -116,10 +116,26 @@ bool exists(const std::string& path)
     return access(path.c_str(), F_OK) != -1;
 }
 
-void queue(int slot, std::string path, std::string name)
+std::string itemKey(const themezer::Item& item)
+{
+    return std::to_string(static_cast<int>(item.kind)) + ":" + item.id;
+}
+
+void queue(int slot, std::string path, const themezer::Item& item)
 {
     if (slot >= 0 && slot < kSlotCount)
-        slots[static_cast<size_t>(slot)] = Queued{std::move(path), std::move(name)};
+        slots[static_cast<size_t>(slot)] = Queued{std::move(path), item.name, itemKey(item)};
+}
+
+bool isQueued(const themezer::Item& item)
+{
+    const std::string key = itemKey(item);
+    for (const auto& slot : slots)
+    {
+        if (slot && slot->item == key)
+            return true;
+    }
+    return false;
 }
 
 void unqueue(int slot)

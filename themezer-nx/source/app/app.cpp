@@ -11,6 +11,7 @@
 #include "sys/net.hpp"
 #include "ui/overlays.hpp"
 
+#include <SDL2/SDL.h>
 #include <switch.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -72,11 +73,10 @@ int App::run()
     psmInitialize();
     if (!gfx::init() || !gfx::initText())
     {
-        std::printf("Couldn't start the screen\n");
+        std::printf("Couldn't start the screen: %s\n", SDL_GetError());
         gfx::exit();
         return 1;
     }
-    std::printf("screen and fonts up\n");
     gfx::loadIcons();
 
     mkdir("/Themes", 0777);
@@ -90,14 +90,10 @@ int App::run()
     applyConfig();
     net::init();
     jobs::init();
-    std::printf("audio, network and workers up\n");
 
     ui::InputReader reader;
     reader.init();
-    std::printf("input up\n");
     scenes_.emplace<scenes::BrowseScene>();
-    std::printf("browse made\n");
-    std::printf("installer: %s\n", installs::installerPath() ? installs::installerPath() : "none");
     if (!installs::installerPath())
     {
         scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, "NXThemes Installer isn't there",
@@ -105,7 +101,6 @@ int App::run()
                                     "Installer at sd:/switch/NXThemesInstaller.nro.");
     }
 
-    std::printf("first frame\n");
     float last = gfx::time();
     while (appletMainLoop() && !quitting_ && !scenes_.empty())
     {
@@ -135,7 +130,6 @@ int App::run()
         envSetNextLoad(installer, args.c_str());
     }
 
-    std::printf("leaving\n");
     scenes_.clear();
     jobs::exit();
     scenes::images().clear();

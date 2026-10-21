@@ -18,6 +18,7 @@ public:
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
+    bool acceptsInput() const override { return !leaving_; }
 
 private:
     std::vector<ui::Hint> hints() const;

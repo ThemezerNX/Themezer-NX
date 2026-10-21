@@ -59,7 +59,20 @@ private:
     ui::HintBar hintBar_;
     Backdrop backdrop_;
     float contentFade_ = 0; // a new list fades in
-    float filtersRight_ = 0;
+
+    // the chips under the tabs, where the last frame drew them
+    enum class Filter : uint8_t
+    {
+        Sort,
+        Target,
+        Search,
+    };
+    struct Chip
+    {
+        float x, width;
+        Filter filter;
+    };
+    std::vector<Chip> chips_;
 };
 
 } // namespace tz::scenes

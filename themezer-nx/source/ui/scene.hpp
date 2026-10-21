@@ -25,6 +25,8 @@ public:
     virtual void onResume() {}
     // Called every frame, also when covered, for things that keep going (loading, animations).
     virtual void tick(float /*dt*/) {}
+    // False while it's on its way out: the input goes to the scene under it.
+    virtual bool acceptsInput() const { return true; }
 
     bool closed() const { return closed_; }
     void close() { closed_ = true; }

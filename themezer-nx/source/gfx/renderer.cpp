@@ -45,6 +45,9 @@ bool init()
         return false;
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC |
                                                   SDL_RENDERER_TARGETTEXTURE);
+    // what there is, where there's no GPU (a computer drawing off screen)
+    if (!renderer)
+        renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer)
         return false;
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);

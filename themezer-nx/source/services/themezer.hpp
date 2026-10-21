@@ -35,6 +35,8 @@ enum class Sort : uint8_t
     Count,
 };
 const char* sortLabel(Sort sort);
+// Which way round, in words that fit the sort: "Newest first", "Fewest first"...
+const char* orderLabel(Sort sort, bool ascending);
 
 struct Preview
 {

@@ -71,10 +71,16 @@ std::string trim(std::string text)
 void queueAndSay(const Item& item, const std::string& path)
 {
     const int slot = installs::slotOf(item);
-    const bool replaces = installs::queued(slot) != nullptr;
-    installs::queue(slot, path, item.name);
-    ui::toast(replaces ? item.name + " replaces the " + installs::slotLabel(slot) + " install"
-                       : item.name + " is queued: exit to install it",
+    const installs::Queued* before = installs::queued(slot);
+    if (before && before->item == installs::itemKey(item))
+    {
+        ui::toast("“" + item.name + "” is queued already");
+        return;
+    }
+    const std::string replaced = before ? before->name : "";
+    installs::queue(slot, path, item);
+    ui::toast(replaced.empty() ? "“" + item.name + "” is queued. Exit through + to install it."
+                               : "“" + item.name + "” is queued instead of “" + replaced + "”",
               ui::ToastKind::Success);
 }
 
@@ -130,7 +136,7 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
                 for (const auto& [index, path] : result.done)
                 {
                     const Item& theme = (*themes)[static_cast<size_t>(index)];
-                    installs::queue(installs::slotOf(theme), path, theme.name);
+                    installs::queue(installs::slotOf(theme), path, theme);
                 }
             }
             if (result.cancelled)
@@ -149,7 +155,7 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
                     result.firstError.message);
                 return;
             }
-            ui::toast(queue ? std::to_string(result.done.size()) + " themes queued: exit to install them"
+            ui::toast(queue ? std::to_string(result.done.size()) + " themes queued. Exit through + to install them."
                             : std::to_string(result.done.size()) + " themes saved in /Themes/ThemezerNX",
                       ui::ToastKind::Success);
         });
@@ -239,7 +245,7 @@ void download(const Item& item)
     const std::string path = installs::savedPath(item);
     if (installs::exists(path))
     {
-        ui::toast("It's on the SD card already, in /Themes/ThemezerNX");
+        ui::toast("“" + item.name + "” is on the SD card already, in /Themes/ThemezerNX");
         return;
     }
     scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
@@ -249,7 +255,7 @@ void download(const Item& item)
         },
         [name = item.name](std::expected<void, themezer::Error> result) {
             if (result)
-                ui::toast(name + " is saved in /Themes/ThemezerNX", ui::ToastKind::Success);
+                ui::toast("“" + name + "” is saved in /Themes/ThemezerNX", ui::ToastKind::Success);
             else
                 showError("Couldn't download it", result.error());
         }));
@@ -311,6 +317,9 @@ void downloadPack(const Item& pack)
 void openQueue()
 {
     std::vector<ui::Action> actions;
+    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")",
+                       "Starts NXThemes Installer with what's queued", canInstall(), false, [] { App::get().quit(); },
+                       nullptr, ui::key::kPlus});
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
     {
         const installs::Queued* queued = installs::queued(slot);
@@ -329,40 +338,35 @@ void openQueue()
                                                                   true}});
                            }});
     }
-    if (actions.empty())
+    if (actions.size() == 1)
     {
-        ui::toast("Nothing is queued yet: install a theme or a splash to queue it");
+        ui::toast("Nothing is queued yet. Install a theme or a splash to queue it.");
         return;
     }
-    actions.push_back({Icon::Power, "Exit and install them", "Starts NXThemes Installer with these", canInstall(),
-                       false, [] { App::get().quit(); }, nullptr, ui::key::kPlus});
-    scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary);
+    // on the first install, not on leaving: a quick A doesn't exit
+    scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary, 1);
 }
 
 void openSettings()
 {
-    const auto musicLabel = [] { return std::string("Music: ") + (App::get().config().music ? "On" : "Off"); };
-    const auto sfxLabel = [] { return std::string("Sound effects: ") + (App::get().config().sfx ? "On" : "Off"); };
+    // each a box ticked while it's on
+    const auto box = [](bool on) { return on ? Icon::SquareCheck : Icon::Square; };
     std::vector<ui::Action> actions;
-    ui::Action music{App::get().config().music ? Icon::Volume : Icon::VolumeOff, musicLabel(),
-                     "The music that plays in the background"};
-    music.toggle = [musicLabel](ui::Action& action) {
+    ui::Action music{box(App::get().config().music), "Music", "The music that plays in the background"};
+    music.toggle = [box](ui::Action& action) {
         Config& config = App::get().config();
         config.music = !config.music;
         config.save();
         App::get().applyConfig();
-        action.label = musicLabel();
-        action.icon = config.music ? Icon::Volume : Icon::VolumeOff;
+        action.icon = box(config.music);
     };
-    ui::Action sounds{App::get().config().sfx ? Icon::SquareCheck : Icon::Square, sfxLabel(),
-                      "The sounds of moving round and choosing"};
-    sounds.toggle = [sfxLabel](ui::Action& action) {
+    ui::Action sounds{box(App::get().config().sfx), "Sound effects", "The sounds of moving round and choosing"};
+    sounds.toggle = [box](ui::Action& action) {
         Config& config = App::get().config();
         config.sfx = !config.sfx;
         config.save();
         App::get().applyConfig();
-        action.label = sfxLabel();
-        action.icon = config.sfx ? Icon::SquareCheck : Icon::Square;
+        action.icon = box(config.sfx);
     };
     actions.push_back(std::move(music));
     actions.push_back(std::move(sounds));

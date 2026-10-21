@@ -6,6 +6,7 @@
 #include "sys/net.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <mutex>
 #include <vector>
 
@@ -15,8 +16,12 @@ namespace tz::scenes
 namespace
 {
 
-constexpr size_t kKeep = 160;        // pictures kept, the least recently used going first
+// pictures kept, the least recently used going first: about 120 thumbnails
+constexpr size_t kKeepBytes = 48 * 1024 * 1024;
+constexpr size_t kKeepPlaceholders = 320;
 constexpr float kStillWanted = 2.5f; // seconds: a picture not looked at since is skipped when its turn comes
+// a card that's only flashing past, the grid scrolling fast, isn't worth downloading for
+constexpr float kSettle = 0.12f;
 
 // When each picture was last looked at, for the worker to skip those scrolled past.
 Lock wantedLock;
@@ -49,11 +54,16 @@ std::shared_ptr<gfx::Picture> Images::get(const std::string& url)
         return nullptr;
     const float now = gfx::time();
     Entry& entry = pictures_[url];
+    if (now - entry.used > 0.25f)
+        entry.seen = now;
     entry.used = now;
+    // a picture that didn't come is tried again, a while later
+    if (entry.failed && now - entry.failedAt > 10)
+        entry.failed = false;
     if (entry.picture || entry.failed)
         return entry.picture;
     want(url, now);
-    if (entry.requested)
+    if (entry.requested || now - entry.seen < kSettle)
         return nullptr;
     entry.requested = true;
     jobs::run(jobs::Lane::Images, [url] {
@@ -82,6 +92,7 @@ std::shared_ptr<gfx::Picture> Images::get(const std::string& url)
             }
             it->second.requested = false;
             it->second.failed = failed;
+            it->second.failedAt = gfx::time();
             it->second.picture = gfx::Picture::fromSurface(surface);
         });
     });
@@ -108,8 +119,15 @@ void Images::tick()
     if (now - lastSweep_ < 1)
         return;
     lastSweep_ = now;
-    const auto sweep = [now](std::unordered_map<std::string, Entry>& map, size_t keep) {
-        if (map.size() <= keep)
+    // how much a picture takes, as a texture
+    const auto bytes = [](const Entry& entry) {
+        return entry.picture ? static_cast<size_t>(entry.picture->width()) * entry.picture->height() * 4 : 0;
+    };
+    const auto sweep = [&](std::unordered_map<std::string, Entry>& map, size_t keepBytes, size_t keepCount) {
+        size_t total = 0;
+        for (const auto& [key, entry] : map)
+            total += bytes(entry);
+        if (total <= keepBytes && map.size() <= keepCount)
             return;
         std::vector<std::pair<float, std::string>> byAge;
         for (const auto& [key, entry] : map)
@@ -119,11 +137,15 @@ void Images::tick()
                 byAge.emplace_back(entry.used, key);
         }
         std::sort(byAge.begin(), byAge.end());
-        for (size_t i = 0; i < byAge.size() && map.size() > keep; ++i)
-            map.erase(byAge[i].second);
+        for (size_t i = 0; i < byAge.size() && (total > keepBytes || map.size() > keepCount); ++i)
+        {
+            auto it = map.find(byAge[i].second);
+            total -= bytes(it->second);
+            map.erase(it);
+        }
     };
-    sweep(pictures_, kKeep);
-    sweep(placeholders_, kKeep * 2);
+    sweep(pictures_, kKeepBytes, SIZE_MAX);
+    sweep(placeholders_, SIZE_MAX, kKeepPlaceholders);
 }
 
 void Images::clear()

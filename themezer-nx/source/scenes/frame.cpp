@@ -1,6 +1,7 @@
 #include "scenes/frame.hpp"
 
 #include "app/app.hpp"
+#include "domain/installs.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/images.hpp"
@@ -174,10 +175,22 @@ void draw(const themezer::Item& item, float x, float y, float w, float h, bool s
         icon(which, px + (previewW - metric::kIcon) / 2, py + (previewH - metric::kIcon) / 2, metric::kIcon,
              color::kTextFaint);
     }
+    if (installs::isQueued(item))
+    {
+        // over the preview's top right: queued to install
+        const float height = 32;
+        const float width = metric::kIcon * 0.75f + 8 + textWidth("Queued", metric::kTextSmall) + 24;
+        const float chipX = px + previewW - 8 - width;
+        roundedRect(chipX, py + 8, width, height, height / 2, accent.solid);
+        icon(Icon::Check, chipX + 12, py + 8 + (height - metric::kIcon * 0.75f) / 2, metric::kIcon * 0.75f,
+             color::kOnAccent);
+        drawText("Queued", chipX + 12 + metric::kIcon * 0.75f + 8, textTop(py + 8 + height / 2, metric::kTextSmall),
+                 metric::kTextSmall, color::kOnAccent);
+    }
     if (item.kind == themezer::Kind::Packs)
     {
         char text[32];
-        std::snprintf(text, sizeof(text), "%zu themes", item.themes.size());
+        std::snprintf(text, sizeof(text), item.themes.size() == 1 ? "%zu theme" : "%zu themes", item.themes.size());
         chip(text, px + 8, py + previewH - 8);
     }
     else if (showTarget && item.kind == themezer::Kind::Themes)

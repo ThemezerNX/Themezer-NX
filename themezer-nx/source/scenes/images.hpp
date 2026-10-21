@@ -30,6 +30,8 @@ private:
         bool requested = false;
         bool failed = false;
         float used = 0;
+        float seen = 0; // when it came on screen, this time
+        float failedAt = 0;
     };
     std::unordered_map<std::string, Entry> pictures_;
     std::unordered_map<std::string, Entry> placeholders_;

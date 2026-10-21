@@ -36,7 +36,8 @@ struct Action
 class ActionSheet final : public Scene
 {
 public:
-    ActionSheet(std::string title, std::vector<Action> actions, gfx::Color accent);
+    // Starting on the action at selected, or the first that can be taken.
+    ActionSheet(std::string title, std::vector<Action> actions, gfx::Color accent, int selected = -1);
     void update(Input& input, float dt) override;
     void draw() override;
     bool covers() const override { return false; }

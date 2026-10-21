@@ -18,6 +18,8 @@ public:
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
+    bool acceptsInput() const override { return !leaving_; }
+    void onResume() override;
 
 private:
     std::vector<ui::Hint> hints() const;
@@ -30,6 +32,7 @@ private:
     Backdrop backdrop_;
     float appear_ = 0;
     bool leaving_ = false;
+    bool saved_ = false; // on the SD card already
 };
 
 class PictureScene final : public ui::Scene
@@ -37,8 +40,10 @@ class PictureScene final : public ui::Scene
 public:
     PictureScene(std::string url, std::string thumbUrl, std::string thumbHash);
     void update(ui::Input& input, float dt) override;
+    void tick(float dt) override;
     void draw() override;
     bool covers() const override { return false; }
+    bool acceptsInput() const override { return !leaving_; }
 
 private:
     std::string url_;

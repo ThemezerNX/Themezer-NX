@@ -2,6 +2,10 @@
 //
 //     THEMEZER_SCRIPT=script.txt THEMEZER_SHOTS=out ./themezer-nx-desktop
 //
+// SDL_VIDEODRIVER=dummy runs it without a window; THEMEZER_SD=folder puts the SD card's /Themes and /switch there
+// (an empty NXThemesInstaller.nro in folder/switch lets installing be tried); THEMEZER_EXIT_AFTER_SCRIPT=1 quits when
+// the script ends.
+//
 // A script has a command a line: "wait <frames>", "press <key>", "hold <key> <frames>", "tap <x> <y>",
 // "type <text>" (what the next keyboard returns), "shot <name>" (out/<name>.png) and "quit". Keys: a b x y l r zl zr
 // plus minus up down left right rup rdown. Without a script the keyboard is the controller: arrows, Z = A, X = B,
@@ -11,6 +15,12 @@
 #include <mbedtls/base64.h>
 
 #undef SDL_RenderPresent
+#undef mkdir
+#undef access
+#undef opendir
+#undef unlink
+#undef fopen
+#undef remove
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -194,6 +204,16 @@ std::vector<std::vector<unsigned char>> fonts(6);
 
 } // namespace
 
+const char* desktopSd(const char* path)
+{
+    static thread_local std::string mapped;
+    const char* sd = std::getenv("THEMEZER_SD");
+    if (!sd || !path || (std::strncmp(path, "/Themes", 7) != 0 && std::strncmp(path, "/switch", 7) != 0))
+        return path;
+    mapped = std::string(sd) + path;
+    return mapped.c_str();
+}
+
 extern "C" void desktopPresent(SDL_Renderer* renderer)
 {
     if (!pendingShot.empty())
@@ -211,6 +231,14 @@ extern "C" void desktopPresent(SDL_Renderer* renderer)
         pendingShot.clear();
     }
     SDL_RenderPresent(renderer);
+    // 60 frames a second, as on the Switch, also where nothing waits for the screen
+    static auto next = std::chrono::steady_clock::now();
+    next += std::chrono::microseconds(16667);
+    const auto now = std::chrono::steady_clock::now();
+    if (next > now)
+        std::this_thread::sleep_until(next);
+    else
+        next = now;
 }
 
 extern "C" {

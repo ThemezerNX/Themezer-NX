@@ -217,12 +217,13 @@ void BrowseScene::openFilter()
 {
     std::vector<ui::Action> actions;
     actions.push_back({Icon::Sort, std::string("Sort by: ") + themezer::sortLabel(query_.sort),
-                       "What comes first", true, false, [this] { chooseSort(); }});
-    ui::Action order{Icon::Filter, query_.ascending ? "Order: Lowest first" : "Order: Highest first",
+                       "Trending, date added, date updated, downloads or saves", true, false,
+                       [this] { chooseSort(); }});
+    ui::Action order{Icon::Filter, std::string("Order: ") + themezer::orderLabel(query_.sort, query_.ascending),
                      "Turns the order round"};
     order.toggle = [this](ui::Action& action) {
         query_.ascending = !query_.ascending;
-        action.label = query_.ascending ? "Order: Lowest first" : "Order: Highest first";
+        action.label = std::string("Order: ") + themezer::orderLabel(query_.sort, query_.ascending);
         reload();
     };
     actions.push_back(std::move(order));
@@ -235,13 +236,14 @@ void BrowseScene::openFilter()
     }
     if (!query_.search.empty())
     {
-        actions.push_back({Icon::Search, "Clear the search \"" + query_.search + "\"", "Everything again", true, false,
+        actions.push_back({Icon::Search, "Clear the search “" + query_.search + "”", "Everything again", true, false,
                            [this] {
                                query_.search.clear();
                                reload();
                            }});
     }
-    App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
+    App::get().scenes().emplace<ui::ActionSheet>(query_.kind == Kind::Themes ? "Sort and filter" : "Sort",
+                                                 std::move(actions), accent().solid);
 }
 
 std::vector<ui::Hint> BrowseScene::hints() const
@@ -316,6 +318,22 @@ void BrowseScene::update(ui::Input& input, float dt)
         openFilter();
         return;
     }
+    if (input.tap && input.y >= kFiltersTop && input.y < kFiltersTop + kFiltersHeight)
+    {
+        for (const Chip& chip : chips_)
+        {
+            if (input.x < chip.x || input.x >= chip.x + chip.width)
+                continue;
+            input.consumeTouch();
+            if (chip.filter == Filter::Sort)
+                chooseSort();
+            else if (chip.filter == Filter::Target)
+                chooseTarget();
+            else
+                search();
+            return;
+        }
+    }
     if (input.pressed(ui::key::kB) && !query_.search.empty())
     {
         sfx::play(sfx::Sound::Back);
@@ -339,33 +357,40 @@ void BrowseScene::update(ui::Input& input, float dt)
 
 void BrowseScene::drawFilters(float top)
 {
-    // what the list is: its sort, the part of the HOME Menu, the search; and how much there is
-    float x = kSide;
+    // what the list is: its sort, the part of the HOME Menu, the search; and how much there is. A chip tapped changes it.
     const float middle = top + kFiltersHeight / 2;
-    const auto pill = [&](Icon which, const std::string& text, bool highlighted) {
-        const float width = metric::kIcon * 0.75f + 10 + textWidth(text, metric::kTextSmall) + 32;
-        roundedRect(x, top, width, kFiltersHeight, kFiltersHeight / 2,
-                    highlighted ? withAlpha(accent().solid, 0.35f) : color::kSurface);
-        const float iconSize = metric::kIcon * 0.75f;
-        icon(which, x + 16, std::round(middle - iconSize / 2), iconSize,
-             highlighted ? accent().light : color::kTextDim);
-        drawText(text, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall,
-                 color::kText);
-        x += width + 10;
-    };
-    pill(Icon::Sort, std::string(themezer::sortLabel(query_.sort)) + (query_.ascending ? " (lowest first)" : ""),
-         false);
-    if (query_.kind == Kind::Themes)
-        pill(Icon::Theme, query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target), query_.target >= 0);
-    if (!query_.search.empty())
-        pill(Icon::Search, "\"" + query_.search + "\"", true);
-
+    float right = metric::kWidth - kSide;
     if (state_ == State::Ready)
     {
         const std::string count = thousands(itemCount_) + " " + kindName(query_.kind, itemCount_);
-        drawText(count, metric::kWidth - kSide, textTop(middle, metric::kTextSmall), metric::kTextSmall,
-                 color::kTextDim, Align::Right);
+        drawText(count, right, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kTextDim, Align::Right);
+        right -= textWidth(count, metric::kTextSmall) + 24;
     }
+    chips_.clear();
+    float x = kSide;
+    const float iconSize = metric::kIcon * 0.75f;
+    const auto chip = [&](Icon which, const std::string& text, bool highlighted, Filter filter) {
+        const float room = right - x - (iconSize + 10 + 32);
+        if (room < 40)
+            return;
+        const std::string shown = ellipsize(text, room, metric::kTextSmall);
+        const float width = iconSize + 10 + textWidth(shown, metric::kTextSmall) + 32;
+        roundedRect(x, top, width, kFiltersHeight, kFiltersHeight / 2,
+                    highlighted ? withAlpha(accent().solid, 0.35f) : color::kSurface);
+        icon(which, x + 16, std::round(middle - iconSize / 2), iconSize, highlighted ? accent().light : color::kTextDim);
+        drawText(shown, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
+        chips_.push_back({x, width, filter});
+        x += width + 10;
+    };
+    std::string sort = themezer::sortLabel(query_.sort);
+    if (query_.ascending)
+        sort += std::string(" · ") + themezer::orderLabel(query_.sort, true);
+    chip(Icon::Sort, sort, false, Filter::Sort);
+    if (query_.kind == Kind::Themes)
+        chip(Icon::Theme, query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target), query_.target >= 0,
+             Filter::Target);
+    if (!query_.search.empty())
+        chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
 }
 
 void BrowseScene::draw()
@@ -409,9 +434,9 @@ void BrowseScene::draw()
     }
     else if (items_.empty())
     {
-        drawEmptyState(Icon::SearchEmpty, color::kTextDim, "Nothing here",
+        drawEmptyState(Icon::SearchEmpty, color::kTextDim, query_.search.empty() ? "Nothing here" : "No results",
                        query_.search.empty() ? "There's nothing of this kind yet."
-                                             : "Nothing matches \"" + query_.search + "\". Try other words.",
+                                             : "Nothing matches “" + query_.search + "”. Try other words.",
                        kGridTop, metric::kHeight - metric::kHintBarHeight);
     }
 

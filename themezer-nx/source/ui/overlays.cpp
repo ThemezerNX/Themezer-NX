@@ -20,7 +20,7 @@ constexpr float kSheetRow = 68;
 constexpr float kSheetPadding = 12;
 constexpr float kSheetHeader = 72;
 constexpr float kSheetFooter = 56;
-constexpr int kSheetMaxRows = 7;
+constexpr int kSheetMaxRows = 8;
 constexpr float kButtonHeight = 56;
 
 // How much of a download is in: "1.2 of 3.4 MB", or "1.2 MB" while its size isn't known; nothing before it starts.
@@ -52,10 +52,15 @@ float drawActionKey(Keys key, float right, float middle)
 // ---------------------------------------------------------------------------------------------------------------------
 // ActionSheet
 
-ActionSheet::ActionSheet(std::string title, std::vector<Action> actions, Color accent)
+ActionSheet::ActionSheet(std::string title, std::vector<Action> actions, Color accent, int selected)
     : title_(std::move(title)), actions_(std::move(actions)), accent_(accent)
 {
     sfx::play(sfx::Sound::Open);
+    if (selected >= 0 && selected < static_cast<int>(actions_.size()) && actions_[selected].enabled)
+    {
+        selected_ = selected;
+        return;
+    }
     for (size_t i = 0; i < actions_.size(); ++i)
     {
         if (actions_[i].enabled)
