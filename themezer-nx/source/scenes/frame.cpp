@@ -342,7 +342,13 @@ std::shared_ptr<Picture> localPicture(const library::Entry& entry, int width)
 std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
 {
     const std::string key = "sd-blur:" + std::to_string(entry.size) + ":" + entry.path;
-    return images().load(key, [entry] { return library::readBlur(entry); });
+    return images().load(key, [entry] {
+        // its ThumbHash, as Themezer's pictures have, made from it at a size ThumbHash needs no more than
+        SDL_Surface* small = library::readPreview(entry, 100);
+        SDL_Surface* blur = thumbHashOf(small);
+        SDL_FreeSurface(small);
+        return blur;
+    });
 }
 
 float filterChip(Icon which, const std::string& text, bool highlighted, Accent accent, float x, float top, float height,

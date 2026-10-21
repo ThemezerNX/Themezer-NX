@@ -46,8 +46,6 @@ bool readInfo(Entry& entry);
 // The picture: a theme's background, or the splash turned to lie as the screen shows it, no wider than maxWidth. Any
 // thread. nullptr when there's none.
 SDL_Surface* readPreview(const Entry& entry, int maxWidth);
-// The picture as a blur, for the backdrop behind the screen: soft however it's stretched. Any thread.
-SDL_Surface* readBlur(const Entry& entry);
 bool remove(const Entry& entry);
 
 // A file's size and the CRC-32 of its start, which tell files apart without reading them whole; empty when it isn't

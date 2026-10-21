@@ -86,7 +86,7 @@ void highlight(float x, float y, float w, float h, bool down, gfx::Accent accent
 
 // A file's picture from the SD card, no wider than width, read on the images worker; nullptr until it's in.
 std::shared_ptr<gfx::Picture> localPicture(const library::Entry& entry, int width);
-// The same blurred, for the backdrop, as soft as a ThumbHash's picture.
+// Its ThumbHash's picture, for the backdrop, as the website's pictures have.
 std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 
 // One of the chips under the tabs that say what a list is (its sort, its filter, its search), from x, its text cut to

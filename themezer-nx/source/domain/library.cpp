@@ -225,24 +225,6 @@ bool parseFileName(const std::string& fileName, NameParts& parts)
     return true;
 }
 
-SDL_Surface* readBlur(const Entry& entry)
-{
-    // shrunk to a few dozen pixels, which averages it, then stretched back smoothly
-    SDL_Surface* small = readPreview(entry, 32);
-    if (!small)
-        return nullptr;
-    const int width = 128;
-    const int height = std::max(1, small->h * width / small->w);
-    SDL_Surface* out = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, small->format->format);
-    if (!out || SDL_SoftStretchLinear(small, nullptr, out, nullptr) != 0)
-    {
-        SDL_FreeSurface(out);
-        return small;
-    }
-    SDL_FreeSurface(small);
-    return out;
-}
-
 bool parseFolderName(const std::string& folder, NameParts& parts)
 {
     const size_t open = folder.rfind(" (");

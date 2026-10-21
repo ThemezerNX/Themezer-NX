@@ -30,10 +30,16 @@ build/desktop/switch.o: switch.cpp
 clean:
 	rm -rf build themezer-nx-desktop
 
-# The reader of .nxtheme archives, on archives the test makes.
-test: build/tests/archive_test
+# The reader of .nxtheme archives, on archives the test makes, and the ThumbHash encoder.
+test: build/tests/archive_test build/tests/thumbhash_test
 	./build/tests/archive_test
+	./build/tests/thumbhash_test
 
 build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@ -lz
+
+build/tests/thumbhash_test: tests/thumbhash_test.cpp ../source/libs/thumbhash.c
+	@mkdir -p $(dir $@)
+	$(CC) -std=c11 -g -O1 -c ../source/libs/thumbhash.c -o build/tests/thumbhash.o
+	$(CXX) -std=c++23 -g -O1 -I../source tests/thumbhash_test.cpp build/tests/thumbhash.o -o $@

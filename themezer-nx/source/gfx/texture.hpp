@@ -47,5 +47,7 @@ private:
 SDL_Surface* decodeImage(const void* data, size_t size);
 // The ThumbHash placeholder (base64), a blurry picture of the image it stands for. Safe on any thread.
 SDL_Surface* thumbHashSurface(std::string_view base64);
+// The same made from a picture (ABGR8888, no more than 100 a side is needed), as the website makes them. Any thread.
+SDL_Surface* thumbHashOf(SDL_Surface* picture);
 
 } // namespace tz::gfx

@@ -168,8 +168,8 @@ SECTIONS = [
      "Copyright (C) 1999-2007 Brian Paul and the Mesa contributors; libdrm: Copyright the libdrm authors.\n"
      "Both are under the MIT license:\n\n" + MIT),
     ("cJSON", "JSON", cjson()),
-    ("ThumbHash decoder", "the blurred placeholders (source/libs/thumbhash.c), adapted from datocms/fast_thumbhash",
-     thumbhash()),
+    ("ThumbHash", "the blurred placeholders and backdrops (source/libs/thumbhash.c): the decoder adapted from "
+     "datocms/fast_thumbhash, the encoder ported from evanw/thumbhash", thumbhash()),
     ("Lucide", "the icons (romfs/icons)",
      "ISC License\n\nCopyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). "
      "All other copyright (c) for Lucide are held by Lucide Contributors 2022.\n\n" + ISC

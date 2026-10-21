@@ -1,5 +1,6 @@
 /*
- * ThumbHash decoder adapted from datocms/fast_thumbhash.
+ * ThumbHash decoder adapted from datocms/fast_thumbhash, and an encoder ported from Evan Wallace's
+ * reference implementation's rgbaToThumbHash (MIT License, Copyright (c) 2023 Evan Wallace).
  *
  * Original ThumbHash algorithm by Evan Wallace:
  * https://github.com/evanw/thumbhash
@@ -63,7 +64,9 @@ static double *DecodeChannel(int nx, int ny, double scale, const uint8_t *hash, 
 
     for (int cy = 0; cy < ny; cy++){
         for (int cx = cy ? 0 : 1; cx * ny < nx * (ny - cy); cx++){
-            double value = (hash[acStart + (*acIndex >> 1)] >> (((*acIndex)++ & 1) << 2)) & 15;
+            /* the index read once: reading it and moving it on in one expression is undefined */
+            int index = (*acIndex)++;
+            double value = (hash[acStart + (index >> 1)] >> ((index & 1) << 2)) & 15;
             ac[outIndex++] = (value / 7.5 - 1.0) * scale;
         }
     }
@@ -180,5 +183,135 @@ int ThumbHashToRGBA(const uint8_t *hash, size_t hashLen, int maxSize, uint8_t **
     free(aAc);
 
     *rgba = pixels;
+    return 1;
+}
+/* The encoder, as evanw/thumbhash's rgbaToThumbHash. */
+
+typedef struct {
+    double dc;
+    double ac[32]; /* at most 7x7 luminance factors, less the constant */
+    int count;
+    double scale;
+} EncodedChannel;
+
+/* Math.round's: for the values here, which aren't negative. */
+static int JsRound(double value){
+    return (int)floor(value + 0.5);
+}
+
+/* The DCT into the constant (DC) and the varying (AC) factors, these normalized to 0..1. */
+static void EncodeChannel(const double *channel, int w, int h, int nx, int ny, double *fx, EncodedChannel *out){
+    out->dc = 0.0;
+    out->count = 0;
+    out->scale = 0.0;
+    for (int cy = 0; cy < ny; cy++){
+        for (int cx = 0; cx * ny < nx * (ny - cy); cx++){
+            double f = 0.0;
+            for (int x = 0; x < w; x++)
+                fx[x] = cos(M_PI / w * cx * (x + 0.5));
+            for (int y = 0; y < h; y++){
+                double fy = cos(M_PI / h * cy * (y + 0.5));
+                for (int x = 0; x < w; x++)
+                    f += channel[x + y * w] * fx[x] * fy;
+            }
+            f /= (double)w * h;
+            if (cx || cy){
+                out->ac[out->count++] = f;
+                if (fabs(f) > out->scale)
+                    out->scale = fabs(f);
+            } else {
+                out->dc = f;
+            }
+        }
+    }
+    if (out->scale > 0.0)
+        for (int i = 0; i < out->count; i++)
+            out->ac[i] = 0.5 + 0.5 / out->scale * out->ac[i];
+}
+
+int RGBAToThumbHash(int w, int h, const uint8_t *rgba, uint8_t *hash, size_t *hashLen){
+    if (!rgba || !hash || !hashLen || w <= 0 || h <= 0)
+        return 0;
+    size_t count = (size_t)w * (size_t)h;
+
+    /* the average colour */
+    double avgR = 0.0, avgG = 0.0, avgB = 0.0, avgA = 0.0;
+    for (size_t i = 0, j = 0; i < count; i++, j += 4){
+        double alpha = rgba[j + 3] / 255.0;
+        avgR += alpha / 255.0 * rgba[j];
+        avgG += alpha / 255.0 * rgba[j + 1];
+        avgB += alpha / 255.0 * rgba[j + 2];
+        avgA += alpha;
+    }
+    if (avgA > 0.0){
+        avgR /= avgA;
+        avgG /= avgA;
+        avgB /= avgA;
+    }
+
+    int hasAlpha = avgA < (double)count;
+    int lLimit = hasAlpha ? 5 : 7; /* fewer luminance factors where there's alpha */
+    int longest = w > h ? w : h;
+    int lx = JsRound((double)lLimit * w / longest);
+    int ly = JsRound((double)lLimit * h / longest);
+    if (lx < 1)
+        lx = 1;
+    if (ly < 1)
+        ly = 1;
+
+    /* RGBA to LPQA (luminance, yellow-blue, red-green, alpha), over the average colour */
+    double *channels = malloc(count * 4 * sizeof(double));
+    double *fx = malloc((size_t)w * sizeof(double));
+    if (!channels || !fx){
+        free(channels);
+        free(fx);
+        return 0;
+    }
+    double *l = channels, *p = channels + count, *q = channels + 2 * count, *a = channels + 3 * count;
+    for (size_t i = 0, j = 0; i < count; i++, j += 4){
+        double alpha = rgba[j + 3] / 255.0;
+        double r = avgR * (1.0 - alpha) + alpha / 255.0 * rgba[j];
+        double g = avgG * (1.0 - alpha) + alpha / 255.0 * rgba[j + 1];
+        double b = avgB * (1.0 - alpha) + alpha / 255.0 * rgba[j + 2];
+        l[i] = (r + g + b) / 3.0;
+        p[i] = (r + g) / 2.0 - b;
+        q[i] = r - g;
+        a[i] = alpha;
+    }
+
+    EncodedChannel lc, pc, qc, ac = {0};
+    EncodeChannel(l, w, h, lx > 3 ? lx : 3, ly > 3 ? ly : 3, fx, &lc);
+    EncodeChannel(p, w, h, 3, 3, fx, &pc);
+    EncodeChannel(q, w, h, 3, 3, fx, &qc);
+    if (hasAlpha)
+        EncodeChannel(a, w, h, 5, 5, fx, &ac);
+    free(channels);
+    free(fx);
+
+    /* the constants */
+    int isLandscape = w > h;
+    uint32_t header24 = (uint32_t)JsRound(63.0 * lc.dc) | ((uint32_t)JsRound(31.5 + 31.5 * pc.dc) << 6) |
+                        ((uint32_t)JsRound(31.5 + 31.5 * qc.dc) << 12) | ((uint32_t)JsRound(31.0 * lc.scale) << 18) |
+                        ((uint32_t)hasAlpha << 23);
+    uint32_t header16 = (uint32_t)(isLandscape ? ly : lx) | ((uint32_t)JsRound(63.0 * pc.scale) << 3) |
+                        ((uint32_t)JsRound(63.0 * qc.scale) << 9) | ((uint32_t)isLandscape << 15);
+    for (int i = 0; i < THUMBHASH_MAX_LENGTH; i++)
+        hash[i] = 0;
+    hash[0] = (uint8_t)(header24 & 255);
+    hash[1] = (uint8_t)((header24 >> 8) & 255);
+    hash[2] = (uint8_t)(header24 >> 16);
+    hash[3] = (uint8_t)(header16 & 255);
+    hash[4] = (uint8_t)(header16 >> 8);
+    int acStart = hasAlpha ? 6 : 5;
+    if (hasAlpha)
+        hash[5] = (uint8_t)(JsRound(15.0 * ac.dc) | (JsRound(15.0 * ac.scale) << 4));
+
+    /* the varying factors, 4 bits each */
+    const EncodedChannel *order[4] = {&lc, &pc, &qc, &ac};
+    int acIndex = 0;
+    for (int c = 0; c < (hasAlpha ? 4 : 3); c++)
+        for (int i = 0; i < order[c]->count; i++, acIndex++)
+            hash[acStart + (acIndex >> 1)] |= (uint8_t)(JsRound(15.0 * order[c]->ac[i]) << ((acIndex & 1) << 2));
+    *hashLen = (size_t)acStart + (size_t)(acIndex + 1) / 2;
     return 1;
 }

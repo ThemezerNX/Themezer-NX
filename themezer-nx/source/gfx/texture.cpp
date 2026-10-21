@@ -140,19 +140,16 @@ SDL_Surface* decodeImage(const void* data, size_t size)
     return converted;
 }
 
-SDL_Surface* thumbHashSurface(std::string_view base64)
+namespace
 {
-    if (base64.empty())
-        return nullptr;
-    std::vector<unsigned char> hash(base64.size() * 3 / 4 + 4);
-    size_t length = 0;
-    if (mbedtls_base64_decode(hash.data(), hash.size(), &length, reinterpret_cast<const unsigned char*>(base64.data()),
-                              base64.size()) != 0)
-        return nullptr;
+
+// A ThumbHash drawn, 32 on its longer side, as the website draws them.
+SDL_Surface* drawThumbHash(const uint8_t* hash, size_t length)
+{
     uint8_t* pixels = nullptr;
     int width = 0;
     int height = 0;
-    if (!ThumbHashToRGBA(hash.data(), length, 32, &pixels, &width, &height) || !pixels)
+    if (!ThumbHashToRGBA(hash, length, 32, &pixels, &width, &height) || !pixels)
         return nullptr;
     SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_ABGR8888);
     if (surface)
@@ -163,6 +160,39 @@ SDL_Surface* thumbHashSurface(std::string_view base64)
     }
     std::free(pixels);
     return surface;
+}
+
+} // namespace
+
+SDL_Surface* thumbHashSurface(std::string_view base64)
+{
+    if (base64.empty())
+        return nullptr;
+    std::vector<unsigned char> hash(base64.size() * 3 / 4 + 4);
+    size_t length = 0;
+    if (mbedtls_base64_decode(hash.data(), hash.size(), &length, reinterpret_cast<const unsigned char*>(base64.data()),
+                              base64.size()) != 0)
+        return nullptr;
+    return drawThumbHash(hash.data(), length);
+}
+
+SDL_Surface* thumbHashOf(SDL_Surface* picture)
+{
+    if (!picture || picture->format->format != SDL_PIXELFORMAT_ABGR8888)
+        return nullptr;
+    // its pixels row after row: ABGR8888 is RGBA in memory
+    const size_t row = static_cast<size_t>(picture->w) * 4;
+    std::vector<uint8_t> rgba(row * static_cast<size_t>(picture->h));
+    SDL_LockSurface(picture);
+    for (int y = 0; y < picture->h; ++y)
+        std::memcpy(rgba.data() + row * static_cast<size_t>(y), static_cast<uint8_t*>(picture->pixels) + y * picture->pitch,
+                    row);
+    SDL_UnlockSurface(picture);
+    uint8_t hash[THUMBHASH_MAX_LENGTH];
+    size_t length = 0;
+    if (!RGBAToThumbHash(picture->w, picture->h, rgba.data(), hash, &length))
+        return nullptr;
+    return drawThumbHash(hash, length);
 }
 
 } // namespace tz::gfx
