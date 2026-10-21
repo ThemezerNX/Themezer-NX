@@ -89,3 +89,10 @@ THIS SOFTWARE.
 
 Themezer's logo (themezer-nx/romfs/brand/*.png) is rendered from the Themezer
 monorepo's design files by tools/make_brand.mjs.
+
+In the App
+
+The app's About page shows themezer-nx/romfs/licenses.txt: the notices of the
+libraries it's built with (libnx, SDL2, FreeType, HarfBuzz, libpng,
+libjpeg-turbo, libwebp, zlib, bzip2, curl, Mbed TLS, Mesa, cJSON and the
+above), made by tools/make_licenses.py from devkitPro's license files.

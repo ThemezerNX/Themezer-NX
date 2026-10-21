@@ -121,6 +121,32 @@ Icon iconOf(themezer::Kind kind)
     return Icon::Theme;
 }
 
+Icon sortIcon(themezer::Sort sort)
+{
+    switch (sort)
+    {
+    case themezer::Sort::Trending:
+        return Icon::Flame;
+    case themezer::Sort::Created:
+        return Icon::CalendarPlus;
+    case themezer::Sort::Updated:
+        return Icon::CalendarCog;
+    case themezer::Sort::Downloads:
+        return Icon::Download;
+    default:
+        break;
+    }
+    return Icon::Bookmark;
+}
+
+Icon targetIcon(int target)
+{
+    // in the API's order: the Home Menu, the lockscreen, all apps, settings, player selection, the user page, news
+    constexpr Icon kIcons[themezer::kTargetCount] = {Icon::House,  Icon::Lock, Icon::LayoutGrid, Icon::Settings,
+                                                     Icon::Users,  Icon::User, Icon::Newspaper};
+    return target >= 0 && target < themezer::kTargetCount ? kIcons[target] : Icon::Layers;
+}
+
 std::shared_ptr<Picture> placeholderOf(const themezer::Item& item)
 {
     return images().placeholder(item.preview.thumbHash);

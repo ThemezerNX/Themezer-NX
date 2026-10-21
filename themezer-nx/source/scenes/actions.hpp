@@ -22,6 +22,7 @@ void downloadPack(const themezer::Item& pack);
 void openMenu();
 void openQueue();
 void openSettings();
+void openAbout();
 void openQuickId();
 
 // For the hints: whether installing can be done at all.

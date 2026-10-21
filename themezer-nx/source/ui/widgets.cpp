@@ -227,9 +227,8 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     if (hints.empty() || alpha <= 0)
         return;
     const Layer layer(0, 0, alpha);
-    gradientV(0, y_ - 24, metric::kWidth, 24, rgba(12, 10, 9, 0), withAlpha(color::kBackground, 0.6f));
-    rect(0, y_, metric::kWidth, height_, withAlpha(color::kSurfaceSolid, 0.94f));
-    rect(0, y_, metric::kWidth, 1, color::kDivider);
+    rect(0, y_, metric::kWidth, height_, color::kSurfaceSolid);
+    rect(0, y_, metric::kWidth, 1, mix(color::kSurfaceSolid, color::kText, 0.1f));
 
     // in that order, right-aligned as the Switch's own hints are
     std::vector<const Hint*> order;
@@ -412,7 +411,7 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
     for (size_t i = 0; i < count; ++i)
     {
         const Tab& tab = tabs_[i];
-        const Color tint = static_cast<int>(i) == selected_ ? color::kText : color::kTextDim;
+        const Color tint = static_cast<int>(i) == selected_ ? tab.accent.light : color::kTextDim;
         float cx = slots_[i].x + (slots_[i].width - contentWidth(tab, textSize)) / 2;
         if (tab.icon != Icon::Count)
         {

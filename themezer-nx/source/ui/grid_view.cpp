@@ -21,6 +21,8 @@ constexpr float kPressTime = 0.11f;
 constexpr float kScrollbarWidth = 6;
 // the right stick scrolls this many pixels a second at full tilt
 constexpr float kStickSpeed = 1800;
+// under the last row, for the selected card's ring and its ledge, which stand out of the card
+constexpr float kEdgeRoom = 16;
 } // namespace
 
 void GridView::setBounds(float x, float y, float width, float height)
@@ -69,7 +71,7 @@ float GridView::cellWidth() const
 
 float GridView::maxScroll() const
 {
-    return std::max(minScroll(), static_cast<float>(rows()) * rowHeight() - gap_ + footer_ - height_);
+    return std::max(minScroll(), static_cast<float>(rows()) * rowHeight() - gap_ + footer_ + kEdgeRoom - height_);
 }
 
 float GridView::overscroll() const
@@ -101,7 +103,7 @@ void GridView::keepSelectionVisible()
     const float top = static_cast<float>(row) * rowHeight();
     const float margin = height_ > rowHeight() * 2.5f ? rowHeight() * 0.35f : 0.0f;
     const float above = row == 0 ? topInset_ : margin;
-    const float below = row == rows() - 1 ? std::max(margin, footer_) : margin;
+    const float below = row == rows() - 1 ? std::max(margin, footer_ + kEdgeRoom) : margin;
     if (top - above < target_)
         target_ = top - above;
     else if (top + cellHeight_ + below > target_ + height_)
@@ -255,20 +257,13 @@ GridView::Event GridView::update(Input& input, float dt)
         }
         else if (input.tap && inside && count_ > 0)
         {
+            // a card tapped opens, as on a phone: the selection goes there too, for when the page closes
             if (const int cell = cellAt(input.x, input.y); cell >= 0)
             {
-                if (cell == selected_)
-                {
-                    event = Event::Activated;
-                    sfx::play(sfx::Sound::Confirm);
-                }
-                else
-                {
-                    selected_ = cell;
-                    keepSelectionVisible();
-                    event = Event::Moved;
-                    sfx::play(sfx::Sound::Cursor);
-                }
+                selected_ = cell;
+                keepSelectionVisible();
+                event = Event::Activated;
+                sfx::play(sfx::Sound::Confirm);
                 input.consumeTouch();
             }
         }

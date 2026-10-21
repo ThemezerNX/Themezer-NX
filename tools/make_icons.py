@@ -58,6 +58,17 @@ ICONS = {
     "user": "user",
     "hash": "hash",
     "image": "image",
+    # the sorts and the parts of the HOME Menu, as the website has them
+    "flame": "flame",
+    "bookmark": "bookmark",
+    "calendar_plus": "calendar-plus",
+    "calendar_cog": "calendar-cog",
+    "house": "house",
+    "lock": "lock-keyhole",
+    "layout_grid": "layout-grid",
+    "newspaper": "newspaper",
+    "users": "users",
+    "layers": "layers",
 }
 
 LARGE_ICONS = ["theme", "pack", "splash", "error", "warning", "search_empty", "wifi_off", "check_circle", "info",

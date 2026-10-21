@@ -41,32 +41,32 @@ PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack))
 
 std::vector<ui::Hint> PackScene::hints() const
 {
-    std::vector<ui::Hint> hints{{ui::key::kB, "Back"}, {ui::key::kX, "More"}};
-    hints.push_back({ui::key::kY, canInstall() ? "Install all" : "Download all"});
+    std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
+    if (!pack_.preview.hd.empty())
+        hints.push_back({ui::key::kY, "View"});
+    hints.push_back({ui::key::kX, canInstall() ? "Install all" : "Download all"});
     if (!pack_.themes.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
 
-void PackScene::openMore()
+void PackScene::openInstall()
 {
     const bool installable = canInstall();
     const themezer::Item pack = pack_;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, "Install all and keep them",
-                       "One theme for each part of the HOME Menu, saved and queued", installable, false,
-                       [pack] { installPack(pack, true); }, nullptr, ui::key::kY});
-    actions.push_back({Icon::Install, "Install all without keeping them",
-                       "Queued to install, then deleted at the next start", installable, false,
+    actions.push_back({Icon::Install, "Install all and keep them", "", installable, false,
+                       [pack] { installPack(pack, true); }});
+    actions.push_back({Icon::Install, "Install all without keeping them", "", installable, false,
                        [pack] { installPack(pack, false); }});
-    actions.push_back({Icon::Download, "Download all", "Every theme saved in /Themes/ThemezerNX, not installed", true,
-                       false, [pack] { downloadPack(pack); }});
-    if (!pack_.preview.hd.empty())
-        actions.push_back({Icon::Eye, "View the collage", "The pack's picture, filling the screen", true, false, [pack] {
-                               App::get().scenes().emplace<PictureScene>(pack.preview.hd, pack.preview.thumb,
-                                                                         pack.preview.thumbHash);
-                           }});
-    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid);
+    actions.push_back({Icon::Download, "Download all", "", true, false, [pack] { downloadPack(pack); }});
+    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid,
+                                                 installable ? 0 : 2);
+}
+
+void PackScene::view()
+{
+    App::get().scenes().emplace<PictureScene>(pack_.preview.hd, pack_.preview.thumb, pack_.preview.thumbHash);
 }
 
 void PackScene::tick(float dt)
@@ -89,18 +89,17 @@ void PackScene::update(ui::Input& input, float dt)
         leaving_ = true;
         return;
     }
-    if (input.pressed(ui::key::kY))
+    if (!pack_.preview.hd.empty() &&
+        (input.pressed(ui::key::kY) || input.tapIn(kSide, kTop, kColumnW, std::round(kColumnW * 9 / 16))))
     {
+        input.consumeTouch();
         sfx::play(sfx::Sound::Confirm);
-        if (canInstall())
-            installPack(pack_, true);
-        else
-            downloadPack(pack_);
+        view();
         return;
     }
     if (input.pressed(ui::key::kX))
     {
-        openMore();
+        openInstall();
         return;
     }
     if (input.pressed(ui::key::kPlus))

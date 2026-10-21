@@ -22,7 +22,8 @@ public:
 
 private:
     std::vector<ui::Hint> hints() const;
-    void openMore();
+    void openInstall();
+    void view();
 
     themezer::Item pack_;
     ui::GridView grid_;

@@ -22,7 +22,7 @@ enum class Kind : uint8_t
 
 // The parts of the HOME Menu a theme is for, in the API's order.
 constexpr int kTargetCount = 7;
-const char* targetLabel(int target); // "Home Menu", or "Unknown"
+const char* targetLabel(int target); // as the website names it: "Home Menu", or "Unknown"
 int targetFromApi(const char* name); // -1 when unknown
 
 enum class Sort : uint8_t
@@ -34,9 +34,8 @@ enum class Sort : uint8_t
     Saves,
     Count,
 };
-const char* sortLabel(Sort sort);
-// Which way round, in words that fit the sort: "Newest first", "Fewest first"...
-const char* orderLabel(Sort sort, bool ascending);
+// A sort and its direction in the website's words: "Most downloaded", "Oldest first"...
+const char* sortLabel(Sort sort, bool ascending);
 
 struct Preview
 {

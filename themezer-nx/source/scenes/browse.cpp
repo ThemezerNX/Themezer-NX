@@ -175,75 +175,67 @@ void BrowseScene::search()
 
 void BrowseScene::chooseSort()
 {
+    // each sort both ways round, as the website offers them; the one in use ticked
     std::vector<ui::Action> actions;
+    int current = 0;
     for (int i = 0; i < static_cast<int>(themezer::Sort::Count); ++i)
     {
         const auto sort = static_cast<themezer::Sort>(i);
-        actions.push_back({sort == query_.sort ? Icon::Check : Icon::Sort, themezer::sortLabel(sort), "", true, false,
-                           [this, sort] {
-                               if (sort == query_.sort)
-                                   return;
-                               query_.sort = sort;
-                               reload();
-                           }});
+        for (bool ascending : {false, true})
+        {
+            const bool chosen = sort == query_.sort && ascending == query_.ascending;
+            if (chosen)
+                current = static_cast<int>(actions.size());
+            ui::Action action{sortIcon(sort), themezer::sortLabel(sort, ascending), "", true, false,
+                              [this, sort, ascending] {
+                                  if (sort == query_.sort && ascending == query_.ascending)
+                                      return;
+                                  query_.sort = sort;
+                                  query_.ascending = ascending;
+                                  reload();
+                              }};
+            action.checked = chosen;
+            actions.push_back(std::move(action));
+        }
     }
-    App::get().scenes().emplace<ui::ActionSheet>("Sort by", std::move(actions), accent().solid);
+    App::get().scenes().emplace<ui::ActionSheet>("Sort by", std::move(actions), accent().solid, current);
 }
 
 void BrowseScene::chooseTarget()
 {
     std::vector<ui::Action> actions;
-    actions.push_back({query_.target < 0 ? Icon::Check : Icon::Theme, "Every part", "Themes for all of the HOME Menu",
-                       true, false, [this] {
-                           if (query_.target < 0)
-                               return;
-                           query_.target = -1;
-                           reload();
-                       }});
-    for (int target = 0; target < themezer::kTargetCount; ++target)
+    for (int target = -1; target < themezer::kTargetCount; ++target)
     {
-        actions.push_back({query_.target == target ? Icon::Check : Icon::Theme, themezer::targetLabel(target), "",
-                           true, false, [this, target] {
-                               if (query_.target == target)
-                                   return;
-                               query_.target = target;
-                               reload();
-                           }});
+        ui::Action action{targetIcon(target), target < 0 ? "Every part" : themezer::targetLabel(target), "", true,
+                          false, [this, target] {
+                              if (query_.target == target)
+                                  return;
+                              query_.target = target;
+                              reload();
+                          }};
+        action.checked = query_.target == target;
+        actions.push_back(std::move(action));
     }
-    App::get().scenes().emplace<ui::ActionSheet>("Show themes for", std::move(actions), accent().solid);
+    App::get().scenes().emplace<ui::ActionSheet>("Show themes for", std::move(actions), accent().solid,
+                                                 query_.target + 1);
 }
 
 void BrowseScene::openFilter()
 {
+    // packs and splashes are only sorted: their sorts straight away
+    if (query_.kind != Kind::Themes)
+    {
+        chooseSort();
+        return;
+    }
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Sort, std::string("Sort by: ") + themezer::sortLabel(query_.sort),
-                       "Trending, date added, date updated, downloads or saves", true, false,
-                       [this] { chooseSort(); }});
-    ui::Action order{Icon::Filter, std::string("Order: ") + themezer::orderLabel(query_.sort, query_.ascending),
-                     "Turns the order round"};
-    order.toggle = [this](ui::Action& action) {
-        query_.ascending = !query_.ascending;
-        action.label = std::string("Order: ") + themezer::orderLabel(query_.sort, query_.ascending);
-        reload();
-    };
-    actions.push_back(std::move(order));
-    if (query_.kind == Kind::Themes)
-    {
-        actions.push_back({Icon::Theme,
-                           std::string("Part of the HOME Menu: ") +
-                               (query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target)),
-                           "Themes for one part only", true, false, [this] { chooseTarget(); }});
-    }
-    if (!query_.search.empty())
-    {
-        actions.push_back({Icon::Search, "Clear the search “" + query_.search + "”", "Everything again", true, false,
-                           [this] {
-                               query_.search.clear();
-                               reload();
-                           }});
-    }
-    App::get().scenes().emplace<ui::ActionSheet>(query_.kind == Kind::Themes ? "Sort and filter" : "Sort",
-                                                 std::move(actions), accent().solid);
+    actions.push_back({sortIcon(query_.sort), std::string("Sort: ") + themezer::sortLabel(query_.sort, query_.ascending),
+                       "", true, false, [this] { chooseSort(); }});
+    actions.push_back({targetIcon(query_.target),
+                       std::string("Part of the HOME Menu: ") +
+                           (query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target)),
+                       "", true, false, [this] { chooseTarget(); }});
+    App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
 
 std::vector<ui::Hint> BrowseScene::hints() const
@@ -382,13 +374,10 @@ void BrowseScene::drawFilters(float top)
         chips_.push_back({x, width, filter});
         x += width + 10;
     };
-    std::string sort = themezer::sortLabel(query_.sort);
-    if (query_.ascending)
-        sort += std::string(" · ") + themezer::orderLabel(query_.sort, true);
-    chip(Icon::Sort, sort, false, Filter::Sort);
+    chip(sortIcon(query_.sort), themezer::sortLabel(query_.sort, query_.ascending), false, Filter::Sort);
     if (query_.kind == Kind::Themes)
-        chip(Icon::Theme, query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target), query_.target >= 0,
-             Filter::Target);
+        chip(targetIcon(query_.target), query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target),
+             query_.target >= 0, Filter::Target);
     if (!query_.search.empty())
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
 }

@@ -317,16 +317,15 @@ void downloadPack(const Item& pack)
 void openQueue()
 {
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")",
-                       "Starts NXThemes Installer with what's queued", canInstall(), false, [] { App::get().quit(); },
-                       nullptr, ui::key::kPlus});
+    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")", "",
+                       canInstall(), false, [] { App::get().quit(); }, nullptr, ui::key::kPlus});
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
     {
         const installs::Queued* queued = installs::queued(slot);
         if (!queued)
             continue;
         const std::string label = installs::slotLabel(slot) + ": " + queued->name;
-        actions.push_back({Icon::Trash, label, "Takes it out of the queue", true, false, [slot, label] {
+        actions.push_back({Icon::Trash, label, "", true, false, [slot, label] {
                                scenes().emplace<ui::Dialog>(
                                    Icon::Trash, color::kWarning, "Take it out of the queue?", label,
                                    std::vector<ui::DialogButton>{{"Keep it", nullptr},
@@ -352,7 +351,7 @@ void openSettings()
     // each a box ticked while it's on
     const auto box = [](bool on) { return on ? Icon::SquareCheck : Icon::Square; };
     std::vector<ui::Action> actions;
-    ui::Action music{box(App::get().config().music), "Music", "The music that plays in the background"};
+    ui::Action music{box(App::get().config().music), "Music"};
     music.toggle = [box](ui::Action& action) {
         Config& config = App::get().config();
         config.music = !config.music;
@@ -360,7 +359,7 @@ void openSettings()
         App::get().applyConfig();
         action.icon = box(config.music);
     };
-    ui::Action sounds{box(App::get().config().sfx), "Sound effects", "The sounds of moving round and choosing"};
+    ui::Action sounds{box(App::get().config().sfx), "Sound effects"};
     sounds.toggle = [box](ui::Action& action) {
         Config& config = App::get().config();
         config.sfx = !config.sfx;
@@ -396,16 +395,13 @@ void openMenu()
 {
     const int queued = installs::queuedCount();
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Keyboard, "Install by Quick ID", "Type the ID themezer.net shows for an item", true,
-                       false, [] { openQuickId(); }});
-    actions.push_back({Icon::Queue, "Queued installs (" + std::to_string(queued) + ")",
-                       "What NXThemes Installer installs when you exit", true, false, [] { openQueue(); }, nullptr,
-                       ui::key::kMinus});
-    actions.push_back({Icon::Settings, "Settings", "Music and sound effects", true, false, [] { openSettings(); }});
-    actions.push_back({Icon::Power, queued > 0 && canInstall() ? "Exit and install (" + std::to_string(queued) + ")"
-                                                                : "Exit",
-                       queued > 0 && canInstall() ? "Starts NXThemes Installer with the queued installs"
-                                                  : "Back to the HOME Menu",
+    actions.push_back({Icon::Keyboard, "Install by Quick ID", "", true, false, [] { openQuickId(); }});
+    actions.push_back({Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false,
+                       [] { openQueue(); }, nullptr, ui::key::kMinus});
+    actions.push_back({Icon::Settings, "Settings", "", true, false, [] { openSettings(); }});
+    actions.push_back({Icon::Info, "About and licenses", "", true, false, [] { openAbout(); }});
+    actions.push_back({Icon::Power,
+                       queued > 0 && canInstall() ? "Exit and install (" + std::to_string(queued) + ")" : "Exit", "",
                        true, false, [] { App::get().quit(); }, nullptr, ui::key::kPlus});
     scenes().emplace<ui::ActionSheet>("Themezer", std::move(actions), color::kPrimary);
 }

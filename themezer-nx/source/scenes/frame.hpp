@@ -41,6 +41,9 @@ float drawTopBar(float alpha = 1.0f);
 
 gfx::Accent accentOf(themezer::Kind kind);
 gfx::Icon iconOf(themezer::Kind kind);
+// The website's icons for its sorts and for the parts of the HOME Menu (-1 for all of them).
+gfx::Icon sortIcon(themezer::Sort sort);
+gfx::Icon targetIcon(int target);
 // The picture standing in for an item: its ThumbHash.
 std::shared_ptr<gfx::Picture> placeholderOf(const themezer::Item& item);
 

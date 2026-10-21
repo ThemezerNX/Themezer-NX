@@ -65,7 +65,7 @@ float drawFacts(const themezer::Item& item, float x, float y, float width, Accen
     if (!item.remote)
     {
         fact(Icon::Download, thousands(item.downloads) + (item.downloads == 1 ? " download" : " downloads"));
-        fact(Icon::Heart, thousands(item.saves) + (item.saves == 1 ? " save" : " saves"));
+        fact(Icon::Bookmark, thousands(item.saves) + (item.saves == 1 ? " save" : " saves"));
         fact(Icon::Calendar, "Updated " + themezer::dateOf(item.updatedAt));
     }
     else
@@ -115,15 +115,10 @@ void DetailsScene::openMore()
     const bool installable = canInstall();
     const themezer::Item item = item_;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, "Install and keep it", "Saved in /Themes/ThemezerNX, and queued to install",
-                       installable, false, [item] { install(item, true); }, nullptr, ui::key::kA});
-    actions.push_back({Icon::Install, "Install without keeping it", "Queued to install, then deleted at the next start",
-                       installable, false, [item] { install(item, false); }});
-    actions.push_back({Icon::Download, "Download only", "Saved in /Themes/ThemezerNX, not installed", true, false,
-                       [item] { download(item); }});
-    if (!item_.preview.hd.empty())
-        actions.push_back({Icon::Eye, "View the preview", "The picture, filling the screen", true, false,
-                           [this] { view(); }, nullptr, ui::key::kY});
+    // what A (install and keep it) and Y (view) don't do
+    actions.push_back({Icon::Install, "Install without keeping it", "", installable, false,
+                       [item] { install(item, false); }});
+    actions.push_back({Icon::Download, "Download only", "", true, false, [item] { download(item); }});
     App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid);
 }
 

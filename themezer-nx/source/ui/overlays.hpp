@@ -30,6 +30,7 @@ struct Action
     // Instead of run: done with the sheet staying open, for a setting switched on and off; it changes the action.
     std::function<void(Action&)> toggle;
     Keys key = 0; // the button that does it without the sheet, shown at the end of its row
+    bool checked = false; // the choice in use, ticked at the end of its row
 };
 
 // The actions as rows in a panel sliding up from the bottom of the screen.
@@ -46,6 +47,7 @@ private:
     float panelTop() const;
     float panelHeight() const;
     int visibleRows() const;
+    bool hasDetails() const;
 
     std::string title_;
     std::vector<Action> actions_;

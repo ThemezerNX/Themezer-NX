@@ -21,6 +21,7 @@ constexpr const char* kIconNames[] = {
     "search_empty", "settings", "info", "refresh", "sort", "filter", "wifi", "wifi_off", "warning", "error", "trash",
     "eye",    "square",   "square_check", "battery", "battery_charging", "keyboard", "power", "music", "volume",
     "volume_off", "queue", "save", "heart", "calendar", "user", "hash", "image",
+    "flame", "bookmark", "calendar_plus", "calendar_cog", "house", "lock", "layout_grid", "newspaper", "users", "layers",
 };
 static_assert(std::size(kIconNames) == static_cast<size_t>(Icon::Count));
 

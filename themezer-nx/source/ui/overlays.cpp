@@ -16,11 +16,11 @@ namespace
 {
 
 constexpr float kSheetWidth = 760;
-constexpr float kSheetRow = 68;
+constexpr float kSheetRow = 60;
 constexpr float kSheetPadding = 12;
 constexpr float kSheetHeader = 72;
 constexpr float kSheetFooter = 56;
-constexpr int kSheetMaxRows = 8;
+constexpr int kSheetMaxRows = 10;
 constexpr float kButtonHeight = 56;
 
 // How much of a download is in: "1.2 of 3.4 MB", or "1.2 MB" while its size isn't known; nothing before it starts.
@@ -76,9 +76,16 @@ int ActionSheet::visibleRows() const
     return std::min(static_cast<int>(actions_.size()), kSheetMaxRows);
 }
 
+bool ActionSheet::hasDetails() const
+{
+    return std::any_of(actions_.begin(), actions_.end(), [](const Action& action) { return !action.detail.empty(); });
+}
+
 float ActionSheet::panelHeight() const
 {
-    return kSheetHeader + kSheetRow * static_cast<float>(visibleRows()) + kSheetPadding + kSheetFooter;
+    // a line under the rows for what the selected one is, when there's more to say than its label
+    return kSheetHeader + kSheetRow * static_cast<float>(visibleRows()) + kSheetPadding +
+           (hasDetails() ? kSheetFooter : 12);
 }
 
 float ActionSheet::panelTop() const
@@ -219,13 +226,19 @@ void ActionSheet::draw()
                                            : (action.danger ? color::kDanger : (selected ? accent_ : color::kTextDim));
         icon(action.icon, left + 36, std::round(middle - metric::kIcon / 2), metric::kIcon, tint);
         const Color textColor = action.enabled ? (action.danger ? color::kDanger : color::kText) : color::kTextFaint;
-        const float labelRight = drawActionKey(action.key, left + kSheetWidth - 36, middle);
+        float labelRight = drawActionKey(action.key, left + kSheetWidth - 36, middle);
+        if (action.checked)
+        {
+            labelRight -= metric::kIcon;
+            icon(Icon::Check, labelRight, std::round(middle - metric::kIcon / 2), metric::kIcon, accent_);
+            labelRight -= 12;
+        }
         drawText(action.label, left + 88, textTop(middle, metric::kTextNormal), metric::kTextNormal, textColor,
                  Align::Left, labelRight - left - 88);
         y += kSheetRow;
     }
-    // what the selected action does
-    if (selected_ >= 0 && selected_ < static_cast<int>(actions_.size()))
+    // what the selected action is
+    if (hasDetails() && selected_ >= 0 && selected_ < static_cast<int>(actions_.size()))
     {
         const float middle = top + panelHeight() - kSheetFooter / 2;
         drawText(actions_[static_cast<size_t>(selected_)].detail, left + 36, textTop(middle, metric::kTextSmall),

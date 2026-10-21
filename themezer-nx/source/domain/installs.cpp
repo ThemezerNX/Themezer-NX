@@ -24,6 +24,15 @@ constexpr const char* kInstallerPaths[] = {
 
 std::array<std::optional<Queued>, kSlotCount> slots;
 
+// in the names of the files, as the app has always named them (the website's names differ a little)
+constexpr const char* kFileLabels[themezer::kTargetCount] = {"Home Menu",     "Lock Screen", "All Apps", "Settings",
+                                                             "Player Select", "User Page",   "News"};
+
+const char* fileLabel(int target)
+{
+    return target >= 0 && target < themezer::kTargetCount ? kFileLabels[target] : "Unknown";
+}
+
 // A name safe for the SD card's FAT: no characters it forbids, nothing outside ASCII, single spaces.
 std::string safe(const std::string& name)
 {
@@ -83,7 +92,7 @@ std::string savedPath(const themezer::Item& item)
     if (item.kind == themezer::Kind::Splashes)
         return std::string(kFolder) + "/Splashes/" + name + " (" + (item.remote ? "remote-splash-" : "splash-") +
                safe(item.id) + ").bmp";
-    const std::string file = name + " (" + safe(slotLabel(item.target)) + "-" + safe(item.id) + ").nxtheme";
+    const std::string file = name + " (" + safe(fileLabel(item.target)) + "-" + safe(item.id) + ").nxtheme";
     if (!item.packId.empty())
         return std::string(kFolder) + "/" + safe(item.packName) + " by " + safe(item.packCreator) + " (" +
                safe(item.packId) + ")/" + file;

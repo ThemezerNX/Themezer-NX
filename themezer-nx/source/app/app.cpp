@@ -140,9 +140,11 @@ int App::run()
     gfx::exit();
     psmExit();
     nifmExit();
-    socketExit();
+    std::printf("Themezer-NX done\n");
+    // the log's socket goes before the sockets do
     if (nxlink >= 0)
         close(nxlink);
+    socketExit();
     romfsExit();
     return 0;
 }

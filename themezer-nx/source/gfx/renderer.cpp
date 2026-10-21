@@ -64,7 +64,8 @@ void exit()
     window = nullptr;
     TTF_Quit();
     IMG_Quit();
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    // all of SDL, the audio too, which is closed by now
+    SDL_Quit();
 }
 
 SDL_Renderer* sdl()

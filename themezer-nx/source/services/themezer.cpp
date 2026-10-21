@@ -19,10 +19,15 @@ constexpr long kJsonTimeout = 20;
 
 constexpr const char* kTargetApiNames[kTargetCount] = {"ResidentMenu", "Entrance",     "Flaunch", "Set",
                                                        "Psl",          "MyPage",       "Notification"};
-constexpr const char* kTargetLabels[kTargetCount] = {"Home Menu",     "Lock Screen", "All Apps", "Settings",
-                                                     "Player Select", "User Page",   "News"};
+constexpr const char* kTargetLabels[kTargetCount] = {"Home Menu",        "Lockscreen", "All Apps", "Settings",
+                                                     "Player Selection", "User Page",  "News"};
 constexpr const char* kSortApiNames[] = {"Trending", "Created", "Updated", "Downloads", "Saves"};
-constexpr const char* kSortLabels[] = {"Trending", "Date added", "Date updated", "Downloads", "Saves"};
+// by sort: highest first, then lowest first
+constexpr const char* kSortLabels[][2] = {
+    {"Trending now", "Least trending"},     {"Newest first", "Oldest first"},
+    {"Recently updated", "Least recently updated"}, {"Most downloaded", "Least downloaded"},
+    {"Most saved", "Least saved"},
+};
 
 #define THEME_FIELDS                                                                                                  \
     "hexId creator{username} name description createdAt updatedAt downloadCount saveCount target "                   \
@@ -240,24 +245,9 @@ int targetFromApi(const char* name)
     return -1;
 }
 
-const char* sortLabel(Sort sort)
+const char* sortLabel(Sort sort, bool ascending)
 {
-    return kSortLabels[static_cast<size_t>(sort)];
-}
-
-const char* orderLabel(Sort sort, bool ascending)
-{
-    switch (sort)
-    {
-    case Sort::Trending:
-        return ascending ? "Least popular first" : "Most popular first";
-    case Sort::Created:
-    case Sort::Updated:
-        return ascending ? "Oldest first" : "Newest first";
-    default:
-        break;
-    }
-    return ascending ? "Fewest first" : "Most first";
+    return kSortLabels[static_cast<size_t>(sort)][ascending ? 1 : 0];
 }
 
 std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& token)

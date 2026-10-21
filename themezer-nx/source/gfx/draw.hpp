@@ -48,6 +48,16 @@ enum class Icon : uint8_t
     User,
     Hash,
     Image,
+    Flame,
+    Bookmark,
+    CalendarPlus,
+    CalendarCog,
+    House,
+    Lock,
+    LayoutGrid,
+    Newspaper,
+    Users,
+    Layers,
     Count,
 };
 
