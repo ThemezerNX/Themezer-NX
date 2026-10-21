@@ -22,14 +22,11 @@ constexpr Keys kZL = HidNpadButton_ZL;
 constexpr Keys kZR = HidNpadButton_ZR;
 constexpr Keys kPlus = HidNpadButton_Plus;
 constexpr Keys kMinus = HidNpadButton_Minus;
-// The D-pad and the left stick count as the same directions.
-constexpr Keys kUp = HidNpadButton_Up | HidNpadButton_StickLUp;
-constexpr Keys kDown = HidNpadButton_Down | HidNpadButton_StickLDown;
-constexpr Keys kLeft = HidNpadButton_Left | HidNpadButton_StickLLeft;
-constexpr Keys kRight = HidNpadButton_Right | HidNpadButton_StickLRight;
-// The right stick scrolls.
-constexpr Keys kScrollUp = HidNpadButton_StickRUp;
-constexpr Keys kScrollDown = HidNpadButton_StickRDown;
+// The D-pad and both sticks count as the same directions.
+constexpr Keys kUp = HidNpadButton_Up | HidNpadButton_StickLUp | HidNpadButton_StickRUp;
+constexpr Keys kDown = HidNpadButton_Down | HidNpadButton_StickLDown | HidNpadButton_StickRDown;
+constexpr Keys kLeft = HidNpadButton_Left | HidNpadButton_StickLLeft | HidNpadButton_StickRLeft;
+constexpr Keys kRight = HidNpadButton_Right | HidNpadButton_StickLRight | HidNpadButton_StickRRight;
 } // namespace key
 
 struct Input

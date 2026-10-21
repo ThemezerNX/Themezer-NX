@@ -36,7 +36,6 @@ constexpr float kHeader = 64;
 constexpr float kTextInset = 28;
 constexpr float kFriction = 3;       // how fast a fling slows down, as in the grids
 constexpr float kHeldSpeed = 900;    // pixels a second, while up or down is held
-constexpr float kStickSpeed = 1800;  // and with the right stick
 
 const char* kCredits =
     "Themezer-NX is made by suchmememanyskill and the Themezer contributors. Thanks to Exelix11 for NXThemesInstaller, "
@@ -92,10 +91,6 @@ public:
             held += kHeldSpeed * dt;
         if (input.held & ui::key::kUp)
             held -= kHeldSpeed * dt;
-        if (input.held & ui::key::kScrollDown)
-            held += kStickSpeed * dt;
-        if (input.held & ui::key::kScrollUp)
-            held -= kStickSpeed * dt;
         if (page != 0 || (held != 0 && over == 0))
         {
             scroll_ = std::clamp(std::clamp(scroll_, 0.0f, maxScroll) + page + held, 0.0f, maxScroll);

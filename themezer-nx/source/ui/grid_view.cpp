@@ -19,8 +19,6 @@ constexpr float kFriction = 3.0f; // how fast a fling slows down
 constexpr float kGlide = 22.0f;   // how fast the highlight goes to the selected card
 constexpr float kPressTime = 0.11f;
 constexpr float kScrollbarWidth = 6;
-// the right stick scrolls this many pixels a second at full tilt
-constexpr float kStickSpeed = 1800;
 // under the last row, for the selected card's ring and its ledge, which stand out of the card
 constexpr float kEdgeRoom = 16;
 } // namespace
@@ -101,7 +99,8 @@ void GridView::keepSelectionVisible()
     // a part of a row of margin above and below the selection, where there's room
     const int row = selected_ / columns_;
     const float top = static_cast<float>(row) * rowHeight();
-    const float margin = height_ > rowHeight() * 2.5f ? rowHeight() * 0.35f : 0.0f;
+    // at least the room the selected card's ring and ledge take, so they're never under what's round the grid
+    const float margin = std::max(kEdgeRoom, height_ > rowHeight() * 2.5f ? rowHeight() * 0.35f : 0.0f);
     const float above = row == 0 ? topInset_ : margin;
     const float below = row == rows() - 1 ? std::max(margin, footer_ + kEdgeRoom) : margin;
     if (top - above < target_)
@@ -202,32 +201,7 @@ GridView::Event GridView::update(Input& input, float dt)
         }
     }
 
-    // the right stick scrolls, the selection coming along to stay on screen
-    if (input.held & (key::kScrollUp | key::kScrollDown))
-    {
-        const float direction = (input.held & key::kScrollDown) ? 1.0f : -1.0f;
-        target_ = std::clamp(target_ + direction * kStickSpeed * dt, minScroll(), maxScroll());
-        velocity_ = 0;
-        if (count_ > 0)
-        {
-            const int firstRow = static_cast<int>(std::ceil(target_ / rowHeight()));
-            const int lastRow = static_cast<int>(std::floor((target_ + height_ - cellHeight_) / rowHeight()));
-            const int row = selected_ / columns_;
-            const int column = selected_ % columns_;
-            int next = selected_;
-            if (row < firstRow)
-                next = std::min(count_ - 1, firstRow * columns_ + column);
-            else if (row > lastRow && lastRow >= 0)
-                next = std::min(count_ - 1, lastRow * columns_ + column);
-            if (next != selected_)
-            {
-                selected_ = next;
-                event = Event::Moved;
-            }
-        }
-    }
-
-    // touch: drag to scroll, tap to select, tap the selected card to open it
+    // touch: drag to scroll, tap a card to open it
     const bool inside = input.x >= x_ && input.x < x_ + width_ && input.y >= y_ && input.y < y_ + height_;
     if (input.touchStarted || (!input.touching && !input.touchEnded) ||
         (input.touching && (input.startX != touchX_ || input.startY != touchY_)))
