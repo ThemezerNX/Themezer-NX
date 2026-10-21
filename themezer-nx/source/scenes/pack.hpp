@@ -1,0 +1,34 @@
+// A pack's page: its collage and what it is beside a grid of its themes, and installing or downloading them all.
+
+#pragma once
+
+#include "scenes/frame.hpp"
+#include "services/themezer.hpp"
+#include "ui/grid_view.hpp"
+#include "ui/scene.hpp"
+#include "ui/widgets.hpp"
+
+namespace tz::scenes
+{
+
+class PackScene final : public ui::Scene
+{
+public:
+    explicit PackScene(themezer::Item pack);
+    void update(ui::Input& input, float dt) override;
+    void tick(float dt) override;
+    void draw() override;
+
+private:
+    std::vector<ui::Hint> hints() const;
+    void openMore();
+
+    themezer::Item pack_;
+    ui::GridView grid_;
+    ui::HintBar hintBar_;
+    Backdrop backdrop_;
+    float appear_ = 0;
+    bool leaving_ = false;
+};
+
+} // namespace tz::scenes

@@ -1,0 +1,156 @@
+#include "app/app.hpp"
+
+#include "domain/installs.hpp"
+#include "gfx/draw.hpp"
+#include "gfx/renderer.hpp"
+#include "gfx/text.hpp"
+#include "scenes/browse.hpp"
+#include "scenes/images.hpp"
+#include "sys/audio.hpp"
+#include "sys/jobs.hpp"
+#include "sys/net.hpp"
+#include "ui/overlays.hpp"
+
+#include <switch.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <ctime>
+
+namespace tz
+{
+
+App& App::get()
+{
+    static App app;
+    return app;
+}
+
+void App::applyConfig()
+{
+    audio::setMusic(config_.music);
+    sfx::setEnabled(config_.sfx);
+}
+
+void App::updateStatus(float dt)
+{
+    statusAge_ += dt;
+    if (statusAge_ < 1)
+        return;
+    statusAge_ = 0;
+    const std::time_t now = std::time(nullptr);
+    if (const std::tm* local = std::localtime(&now))
+    {
+        status_.hour = local->tm_hour;
+        status_.minute = local->tm_min;
+    }
+    u32 charge = 100;
+    if (R_SUCCEEDED(psmGetBatteryChargePercentage(&charge)))
+        status_.battery = static_cast<int>(charge);
+    PsmChargerType charger = PsmChargerType_Unconnected;
+    if (R_SUCCEEDED(psmGetChargerType(&charger)))
+        status_.charging = charger != PsmChargerType_Unconnected;
+    NifmInternetConnectionType type;
+    u32 strength = 0;
+    NifmInternetConnectionStatus connection;
+    status_.online = R_SUCCEEDED(nifmGetInternetConnectionStatus(&type, &strength, &connection)) &&
+                     connection == NifmInternetConnectionStatus_Connected;
+}
+
+int App::run()
+{
+    romfsInit();
+    socketInitializeDefault();
+    // started by nxlink: the logs go back to it
+    const int nxlink = nxlinkStdio();
+    // nothing held back, so a crash doesn't lose the last lines
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    std::printf("Themezer-NX " APP_VERSION " starting\n");
+    nifmInitialize(NifmServiceType_User);
+    psmInitialize();
+    if (!gfx::init() || !gfx::initText())
+    {
+        std::printf("Couldn't start the screen\n");
+        gfx::exit();
+        return 1;
+    }
+    std::printf("screen and fonts up\n");
+    gfx::loadIcons();
+
+    mkdir("/Themes", 0777);
+    mkdir("/Themes/ThemezerNX", 0777);
+    mkdir("/Themes/ThemezerNX/Splashes", 0777);
+    mkdir("/Themes/ThemezerNX/.tmp", 0777);
+    installs::removeTemporary();
+
+    config_.load();
+    audio::init();
+    applyConfig();
+    net::init();
+    jobs::init();
+    std::printf("audio, network and workers up\n");
+
+    ui::InputReader reader;
+    reader.init();
+    std::printf("input up\n");
+    scenes_.emplace<scenes::BrowseScene>();
+    std::printf("browse made\n");
+    std::printf("installer: %s\n", installs::installerPath() ? installs::installerPath() : "none");
+    if (!installs::installerPath())
+    {
+        scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, "NXThemes Installer isn't there",
+                                    "Themes and splashes can be downloaded, but installing them needs NXThemes "
+                                    "Installer at sd:/switch/NXThemesInstaller.nro.");
+    }
+
+    std::printf("first frame\n");
+    float last = gfx::time();
+    while (appletMainLoop() && !quitting_ && !scenes_.empty())
+    {
+        const float now = gfx::time();
+        const float dt = std::clamp(now - last, 0.0f, 0.1f);
+        last = now;
+
+        jobs::drain();
+        updateStatus(dt);
+        ui::Input input = reader.read(dt);
+        scenes_.update(input, dt);
+        ui::updateToasts(dt);
+        scenes::images().tick();
+
+        gfx::beginFrame();
+        gfx::beginTextFrame();
+        scenes_.draw();
+        ui::drawToasts();
+        gfx::endFrame();
+    }
+
+    const char* installer = installs::installerPath();
+    if (installer && installs::queuedCount() > 0)
+    {
+        const std::string args = installs::installerArgs(installer);
+        std::printf("Starting %s\n", args.c_str());
+        envSetNextLoad(installer, args.c_str());
+    }
+
+    std::printf("leaving\n");
+    scenes_.clear();
+    jobs::exit();
+    scenes::images().clear();
+    net::exit();
+    audio::exit();
+    gfx::freeIcons();
+    gfx::exitText();
+    gfx::exit();
+    psmExit();
+    nifmExit();
+    socketExit();
+    if (nxlink >= 0)
+        close(nxlink);
+    romfsExit();
+    return 0;
+}
+
+} // namespace tz

@@ -367,3 +367,6 @@ themezer-nx/assets/
 .idea/
 
 .DS_Store
+themezer-nx/desktop/build/
+themezer-nx/desktop/themezer-nx-desktop
+themezer-nx/romfs:
