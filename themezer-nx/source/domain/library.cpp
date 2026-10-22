@@ -285,8 +285,10 @@ SDL_Surface* readPreview(const Entry& entry, int maxWidth)
     SDL_Surface* surface = nullptr;
     if (entry.kind == Kind::Theme)
     {
-        // a JPEG background; the older DDS ones have no picture here
-        auto jpeg = archive::readFile(entry.path, "image.jpg", 8 * 1024 * 1024);
+        // Themezer's screenshot, else a JPEG background; the older DDS ones have no picture here
+        auto jpeg = archive::readFile(entry.path, "preview.jpg", 8 * 1024 * 1024);
+        if (!jpeg)
+            jpeg = archive::readFile(entry.path, "image.jpg", 8 * 1024 * 1024);
         if (!jpeg)
             return nullptr;
         SDL_RWops* rw = SDL_RWFromConstMem(jpeg->data(), static_cast<int>(jpeg->size()));
