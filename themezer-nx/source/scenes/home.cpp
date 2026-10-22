@@ -163,7 +163,7 @@ float modeWidth()
 {
     const float label = std::max(textWidth(modeLabel(true), metric::kTextNormal),
                                  textWidth(modeLabel(false), metric::kTextNormal));
-    return std::round(16 + metric::kIcon + 10 + label + 20);
+    return std::round(16 + ui::buttonWidth(ui::key::kMinus, metric::kButtonGlyph) + 12 + metric::kIcon + 10 + label + 20);
 }
 } // namespace
 
@@ -174,13 +174,18 @@ float HomeScene::drawModeButton(float x, float y, float height)
     modeY_ = y;
     modeW_ = width;
     modeH_ = height;
-    // a key with the mode it's in: its icon and its name
-    const float top = ui::drawKey(x, y, width, height - ui::kKeyLip, color::kSurfaceHigh, modePress_.down());
-    const float middle = top + (height - ui::kKeyLip) / 2;
+    // as the tab bar is: a pill with the key that switches it, which sinks and lights up pressed; then the mode it's in
+    const bool down = modePress_.down();
+    const float middle = y + height / 2;
+    roundedRect(x, y, width, height, height / 2, color::kSurface);
+    float left = x + 16;
+    left += ui::drawButton(ui::key::kMinus, left, textTop(middle, metric::kButtonGlyph) + (down ? ui::kKeyLip : 0),
+                           metric::kButtonGlyph, down ? color::kText : color::kTextDim) +
+            12;
     const float iconSize = metric::kIcon;
-    icon(onlineMode_ ? Icon::Globe : Icon::SdCard, x + 16, std::round(middle - iconSize / 2), iconSize,
+    icon(onlineMode_ ? Icon::Globe : Icon::SdCard, left, std::round(middle - iconSize / 2), iconSize,
          onlineMode_ ? accent::kApp.light : color::kText);
-    drawText(modeLabel(onlineMode_), x + 16 + iconSize + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
+    drawText(modeLabel(onlineMode_), left + iconSize + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
              color::kText);
     return x + width;
 }
