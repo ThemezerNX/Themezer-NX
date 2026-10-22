@@ -166,7 +166,7 @@ void LocalDetailsScene::draw()
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
         // the file it's in, under the picture
-        drawText(entry.fileName, kPreviewX + 4, kPreviewY + kPreviewH + 24, metric::kTextSmall, color::kTextFaint,
+        drawText(entry.fileName, kPreviewX + 4, kPreviewY + kPreviewH + 20, metric::kTextCaption, color::kTextFaint,
                  Align::Left, kPreviewW - 8);
     }
     {

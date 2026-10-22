@@ -59,6 +59,6 @@ private:
 };
 
 // The facts about an item, a line each with an icon: from (x, y) down, width wide. Returns where they end.
-float drawFacts(const themezer::Item& item, float x, float y, float width, gfx::Accent accent);
+float drawFacts(const themezer::Item& item, float x, float y, float width, gfx::Accent accent, float row = 44);
 
 } // namespace tz::scenes

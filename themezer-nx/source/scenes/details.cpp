@@ -42,9 +42,9 @@ std::string kindLabel(const themezer::Item& item)
 
 } // namespace
 
-float drawFacts(const themezer::Item& item, float x, float y, float width, Accent accent)
+float drawFacts(const themezer::Item& item, float x, float y, float width, Accent accent, float row)
 {
-    const float row = 44;
+
     const float iconSize = metric::kIcon * 0.75f;
     const auto fact = [&](Icon which, const std::string& text) {
         if (text.empty())
@@ -195,8 +195,8 @@ void DetailsScene::draw()
             spinner(kPreviewX + kPreviewW - 32, kPreviewY + 32, 14, color::kText);
 
         if (!item_.description.empty())
-            drawWrapped(item_.description, kPreviewX + 4, kPreviewY + kPreviewH + 24, kPreviewW - 8,
-                        metric::kTextNormal, color::kTextDim, 3);
+            drawWrapped(item_.description, kPreviewX + 4, kPreviewY + kPreviewH + 20, kPreviewW - 8,
+                        metric::kTextCaption, color::kTextDim, 3);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);

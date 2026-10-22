@@ -131,16 +131,24 @@ void PackScene::draw()
             picture->drawCover(kSide, kTop, kColumnW, collageH, 16);
         else
             roundedRect(kSide, kTop, kColumnW, collageH, 16, color::kSurfaceRaised);
-        float y = kTop + collageH + 24;
+        float y = kTop + collageH + 16;
+        // its description under it, as a theme's is; the facts closer together to make room for it
+        const bool described = !pack_.description.empty();
+        if (described)
+            y += drawWrapped(pack_.description, kSide + 4, y, kColumnW - 8, metric::kTextCaption, color::kTextDim, 2) + 12;
+        else
+            y += 8;
+        const float row = described ? 36 : 44;
         y += drawWrapped(pack_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
         drawText("by " + pack_.creator, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-        y += lineHeight(metric::kTextNormal) + 16;
+        y += lineHeight(metric::kTextNormal) + (described ? 10 : 16);
         const float iconSize = metric::kIcon * 0.75f;
         const std::string count = std::to_string(pack_.themes.size()) + (pack_.themes.size() == 1 ? " theme" : " themes");
-        icon(Icon::Theme, kSide, std::round(y + 22 - iconSize / 2), iconSize, accent.light);
-        drawText(count, kSide + iconSize + 14, textTop(y + 22, metric::kTextSmall), metric::kTextSmall, color::kText);
-        y += 44;
-        drawFacts(pack_, kSide, y, kColumnW, accent);
+        icon(Icon::Theme, kSide, std::round(y + row / 2 - iconSize / 2), iconSize, accent.light);
+        drawText(count, kSide + iconSize + 14, textTop(y + row / 2, metric::kTextSmall), metric::kTextSmall,
+                 color::kText);
+        y += row;
+        drawFacts(pack_, kSide, y, kColumnW, accent, row);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);

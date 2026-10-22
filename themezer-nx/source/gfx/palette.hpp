@@ -98,6 +98,7 @@ constexpr float kTextTitle = 40;  // an item's name on its page
 constexpr float kTextLarge = 30;  // titles
 constexpr float kTextNormal = 25; // most text
 constexpr float kTextSmall = 21;  // second lines and hints
+constexpr float kTextCaption = 18; // what goes under a picture: its description, its file
 constexpr float kButtonGlyph = 30;
 } // namespace metric
 
