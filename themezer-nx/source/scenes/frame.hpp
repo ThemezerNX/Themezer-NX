@@ -35,6 +35,9 @@ private:
     Layer current_;
     Layer previous_;
     float fade_ = 1;
+    bool waiting_ = false; // for a picture, showing the last one meanwhile
+    float waited_ = 0;
+    gfx::Color waitingAccent_ = gfx::color::kPrimary;
 };
 
 // The top bar: Themezer's logo on the left, the time, Wi-Fi and battery on the right. Returns where the status

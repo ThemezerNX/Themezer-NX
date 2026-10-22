@@ -20,6 +20,16 @@ using namespace gfx;
 
 void Backdrop::set(std::shared_ptr<Picture> blur, Color accent)
 {
+    // no picture, most likely not in yet: what's shown stays a moment, so the picture fades in from it, not from dark
+    if (!blur && current_.picture)
+    {
+        if (!waiting_)
+            waited_ = 0;
+        waiting_ = true;
+        waitingAccent_ = accent;
+        return;
+    }
+    waiting_ = false;
     if (blur == current_.picture && accent == current_.accent)
         return;
     previous_ = current_;
@@ -29,6 +39,14 @@ void Backdrop::set(std::shared_ptr<Picture> blur, Color accent)
 
 void Backdrop::tick(float dt)
 {
+    if (waiting_ && (waited_ += dt) > 0.6f)
+    {
+        // it has none after all
+        waiting_ = false;
+        previous_ = current_;
+        current_ = Layer{nullptr, waitingAccent_};
+        fade_ = 0;
+    }
     fade_ = std::min(1.0f, fade_ + dt * 3.5f);
     if (fade_ >= 1)
         previous_ = {};
