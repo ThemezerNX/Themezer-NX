@@ -2,6 +2,7 @@
 
 #include "app/app.hpp"
 #include "gfx/renderer.hpp"
+#include "gfx/text.hpp"
 #include "scenes/actions.hpp"
 #include "services/local.hpp"
 #include "sys/audio.hpp"
@@ -111,13 +112,14 @@ void HomeScene::tick(float dt)
 void HomeScene::update(ui::Input& input, float dt)
 {
     hints_ = page().hints();
+    hints_.push_back({ui::key::kZR, "Quick ID"});
     hints_.push_back({ui::key::kPlus, "Menu"});
     hints_.push_back({ui::key::kMinus, onlineMode_ ? "SD card" : "Themezer"});
     hintBar_.update(input, hints_);
 
     // the mode button first: a tap on it isn't the tab bar's
     const auto onModeButton = [&](float x, float y) {
-        return x >= modeX_ && x < modeX_ + modeSize_ && y >= modeY_ && y < modeY_ + modeSize_;
+        return x >= modeX_ && x < modeX_ + modeW_ && y >= modeY_ && y < modeY_ + modeH_;
     };
     const bool fromModeButton = onModeButton(input.startX, input.startY) && onModeButton(input.x, input.y);
     const bool modePressed = input.pressed(ui::key::kMinus) || (input.tap && fromModeButton);
@@ -140,19 +142,47 @@ void HomeScene::update(ui::Input& input, float dt)
         openMenu();
         return;
     }
+    if (input.pressed(ui::key::kZR))
+    {
+        sfx::play(sfx::Sound::Confirm);
+        openQuickId();
+        return;
+    }
     page().update(input, dt);
 }
 
-void HomeScene::drawModeButton(float x, float y, float size)
+namespace
 {
+const char* modeLabel(bool online)
+{
+    return online ? "Themezer" : "SD card";
+}
+
+// as wide for both, so the tabs stay where they are
+float modeWidth()
+{
+    const float label = std::max(textWidth(modeLabel(true), metric::kTextNormal),
+                                 textWidth(modeLabel(false), metric::kTextNormal));
+    return std::round(16 + metric::kIcon + 10 + label + 20);
+}
+} // namespace
+
+float HomeScene::drawModeButton(float x, float y, float height)
+{
+    const float width = modeWidth();
     modeX_ = x;
     modeY_ = y;
-    modeSize_ = size;
-    // a round key, its icon the mode it's in
-    const float top = ui::drawKey(x, y, size, size - ui::kKeyLip, color::kSurfaceHigh, modePress_.down());
+    modeW_ = width;
+    modeH_ = height;
+    // a key with the mode it's in: its icon and its name
+    const float top = ui::drawKey(x, y, width, height - ui::kKeyLip, color::kSurfaceHigh, modePress_.down());
+    const float middle = top + (height - ui::kKeyLip) / 2;
     const float iconSize = metric::kIcon;
-    icon(onlineMode_ ? Icon::Globe : Icon::SdCard, x + (size - iconSize) / 2, top + (size - ui::kKeyLip - iconSize) / 2,
-         iconSize, onlineMode_ ? accent::kApp.light : color::kText);
+    icon(onlineMode_ ? Icon::Globe : Icon::SdCard, x + 16, std::round(middle - iconSize / 2), iconSize,
+         onlineMode_ ? accent::kApp.light : color::kText);
+    drawText(modeLabel(onlineMode_), x + 16 + iconSize + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
+             color::kText);
+    return x + width;
 }
 
 void HomeScene::draw()
@@ -164,13 +194,16 @@ void HomeScene::draw()
         page().draw();
     }
     const float statusLeft = drawTopBar();
-    // the mode button and the tabs, in the middle of the bar
-    const float barWidth = std::min(tabs_.naturalWidth(metric::kTextNormal), statusLeft - 360);
-    const float total = kBarHeight + 12 + barWidth;
-    const float left = std::round((metric::kWidth - total) / 2);
+    // the mode button and the tabs, in the middle of the bar where there's room, between the logo and the status
+    const float from = 32 + brandWidth(Brand::Logo) + 20;
+    const float to = statusLeft - 20;
+    const float modeW = modeWidth();
+    const float barWidth = std::min(tabs_.naturalWidth(metric::kTextNormal), to - from - modeW - 12);
+    const float total = modeW + 12 + barWidth;
+    const float left = std::round(std::clamp((metric::kWidth - total) / 2, from, to - total));
     const float top = std::round((metric::kTopBarHeight - kBarHeight) / 2);
-    drawModeButton(left, top, kBarHeight);
-    tabs_.draw(left + kBarHeight + 12, top, barWidth, kBarHeight, metric::kTextNormal);
+    const float tabsLeft = drawModeButton(left, top, kBarHeight) + 12;
+    tabs_.draw(tabsLeft, top, barWidth, kBarHeight, metric::kTextNormal);
     hintBar_.draw(hints_, 1.0f, page().accent().solid);
 }
 

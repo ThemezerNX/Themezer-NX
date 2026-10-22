@@ -1,5 +1,5 @@
 // The app's first screen, as Themezer-3DS's: two modes with the same tabs (packs, themes, splashes), the SD card's and
-// Themezer's. The round button before the tabs, or -, switches them, staying on the same tab.
+// Themezer's. The button before the tabs, which says which it is, or -, switches them, staying on the same tab.
 
 #pragma once
 
@@ -31,7 +31,8 @@ private:
     void switchTo(int tab, int side);
     void remember();
     void openMenu();
-    void drawModeButton(float x, float y, float size);
+    // Draws it, its width from its label; returns where it ends.
+    float drawModeButton(float x, float y, float height);
 
     std::vector<std::unique_ptr<Page>> local_;
     std::vector<std::unique_ptr<Page>> online_;
@@ -43,7 +44,7 @@ private:
     std::vector<ui::Hint> hints_;
     Backdrop backdrop_;
     ui::KeyPress modePress_;
-    float modeX_ = 0, modeY_ = 0, modeSize_ = 0; // where the last frame drew the mode button
+    float modeX_ = 0, modeY_ = 0, modeW_ = 0, modeH_ = 0; // where the last frame drew the mode button
     float appear_ = 1;                             // the page, coming in from the side of its tab
     int side_ = 0;
 };
