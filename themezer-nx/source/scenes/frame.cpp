@@ -77,10 +77,13 @@ float drawTopBar(float alpha)
     else
     {
         icon(Icon::Battery, x, iconTop, metric::kIcon, color::kText);
-        // the outline's inside is from (4.5, 9.5) of its 24-unit grid, 11 by 5
+        // the outline is 16 by 12 at (2, 6) of its 24-unit grid with a stroke of 2: inside, from (3, 7) to (17, 17);
+        // the fill keeps 1.5 from it all round, on whole pixels
         const float unit = metric::kIcon / 24.0f;
         const float level = std::clamp(status.battery / 100.0f, 0.0f, 1.0f);
-        rect(x + 4.5f * unit, iconTop + 9.5f * unit, std::round(11.0f * unit * level), 5.0f * unit,
+        const float left = std::round(x + 4.5f * unit);
+        const float top = std::round(iconTop + 8.5f * unit);
+        rect(left, top, std::round(11.0f * unit * level), std::round(iconTop + 15.5f * unit) - top,
              status.battery <= 15 ? color::kDanger : color::kText);
     }
 
