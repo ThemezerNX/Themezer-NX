@@ -130,8 +130,7 @@ void HomeScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kPlus))
     {
-        // without what the home screen has a button for: the mode, and Quick ID (ZR)
-        openMenu(false);
+        openMenu();
         return;
     }
     if (input.pressed(ui::key::kZR))

@@ -44,8 +44,8 @@ themezer::Item localItem(const library::Entry& entry);
 // The item's page on Themezer, looked up by its Quick ID.
 void showOnThemezer(const std::string& quickId);
 
-// The menu: the queue, Quick ID (unless the screen has a button for it), the settings, About and Exit.
-void openMenu(bool quickId = true);
+// The menu, the same on every screen: the queue, the settings, About and Exit. Quick ID is the home screen's ZR.
+void openMenu();
 // What's queued to install, each to be taken out.
 void openQueue();
 void openSettings();

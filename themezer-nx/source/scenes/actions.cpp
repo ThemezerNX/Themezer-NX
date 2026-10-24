@@ -634,15 +634,14 @@ void openQueue()
     scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary, 1);
 }
 
-void openMenu(bool quickId)
+void openMenu()
 {
     const int queued = installs::queuedCount();
     std::vector<ui::Action> actions;
     if (queued > 0)
         actions.push_back(
             {Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false, [] { openQueue(); }});
-    if (quickId)
-        actions.push_back({Icon::Keyboard, "Install by Quick ID", "", true, false, [] { openQuickId(); }});
+
     actions.push_back({Icon::Settings, "Settings", "", true, false, [] { openSettings(); }});
     actions.push_back({Icon::Info, "About and licenses", "", true, false, [] { openAbout(); }});
     actions.push_back({Icon::Power,
