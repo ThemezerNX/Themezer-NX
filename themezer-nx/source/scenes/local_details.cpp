@@ -242,8 +242,9 @@ void LocalDetailsScene::draw()
     {
         const Layer layer(0, 0, shown);
         drawTopBar();
-        hintBar_.draw(hints(), 1.0f, accent.solid);
     }
+    // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+    hintBar_.draw(hints(), 1.0f, accent.solid);
 }
 
 } // namespace tz::scenes
