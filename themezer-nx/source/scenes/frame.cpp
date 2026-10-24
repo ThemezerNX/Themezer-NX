@@ -218,6 +218,16 @@ std::shared_ptr<Picture> placeholderOf(const themezer::Item& item)
 
 Badge badgeOf(const themezer::Item& item)
 {
+    // a pack, as the SD card's: its themes' strongest, Queued or Installed; Downloaded when all of them are
+    if (item.kind == themezer::Kind::Packs)
+    {
+        Badge strongest = Badge::None;
+        for (const themezer::Item& theme : item.themes)
+            strongest = std::max(strongest, badgeOf(theme));
+        if (strongest > Badge::Downloaded)
+            return strongest;
+        return local::Library::get().has(item) ? Badge::Downloaded : Badge::None;
+    }
     if (installs::isQueued(item))
         return Badge::Queued;
     const int slot = installs::slotOf(item);

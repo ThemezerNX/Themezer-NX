@@ -101,8 +101,11 @@ int App::run()
     std::string parts;
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
     {
-        if (installed::part(slot).custom)
-            parts += (parts.empty() ? "" : ", ") + installs::slotLabel(slot);
+        // and what's in it, when the app installed it
+        const installed::Part& part = installed::part(slot);
+        if (part.custom)
+            parts += (parts.empty() ? "" : ", ") + installs::slotLabel(slot) +
+                     (part.name.empty() ? "" : " (" + part.name + ")");
     }
     std::printf("Installed: %s\n", parts.empty() ? "nothing" : parts.c_str());
     local::Library::get().rescan();
