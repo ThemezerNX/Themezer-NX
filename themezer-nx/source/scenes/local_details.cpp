@@ -80,11 +80,11 @@ std::vector<ui::Hint> LocalDetailsScene::hints() const
     // queued, A takes it out again
     return {{ui::key::kB, "Back"},
             {ui::key::kY, "View"},
-            {ui::key::kX, "More"},
+            {ui::key::kX, "Options"},
             {ui::key::kA, queuedSlot() >= 0 ? "Cancel install" : "Install"}};
 }
 
-void LocalDetailsScene::openMore()
+void LocalDetailsScene::openOptions()
 {
     const library::Entry* found = entry();
     if (!found)
@@ -92,13 +92,15 @@ void LocalDetailsScene::openMore()
     const library::Entry current = *found;
     const int slot = current.kind == Kind::Splash ? installs::kSplashSlot : current.target;
     std::vector<ui::Action> actions;
+    if (current.kind == Kind::Theme && local::inPack(current))
+        actions.push_back({Icon::Pack, "Open pack", "", true, false, [current] { openPackOf(current); }});
     if (badgeOf(current) == Badge::Installed)
-        actions.push_back({Icon::Trash, "Uninstall it", "", true, true, [slot] { uninstallPart(slot); }});
+        actions.push_back({Icon::Trash, "Uninstall", "", true, true, [slot] { uninstallPart(slot); }});
     if (!current.themezerId.empty())
-        actions.push_back({Icon::Globe, "Show it on Themezer", "", true, false,
+        actions.push_back({Icon::Globe, "Show on Themezer", "", true, false,
                            [quickId = quickIdOf(current)] { showOnThemezer(quickId); }});
     // the page goes by itself when the file has
-    actions.push_back({Icon::Trash, "Delete it", "", true, true, [current] { deleteLocal(current); }});
+    actions.push_back({Icon::Trash, "Delete", "", true, true, [current] { deleteLocal(current); }});
     App::get().scenes().emplace<ui::ActionSheet>(current.name, std::move(actions), accentOf(current).solid);
 }
 
@@ -155,7 +157,13 @@ void LocalDetailsScene::update(ui::Input& input, float)
     }
     else if (input.pressed(ui::key::kX))
     {
-        openMore();
+        openOptions();
+    }
+    else if (factTapped(input, kColumnX, packRow_, kColumnW))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Confirm);
+        openPackOf(*found);
     }
     else if (input.pressed(ui::key::kY) || input.tapIn(kPreviewX, kPreviewY, kPreviewW, kPreviewH))
     {
@@ -201,7 +209,6 @@ void LocalDetailsScene::draw()
     {
         const Layer layer((1 - shown) * 40, 0, shown);
         float y = kPreviewY - 6;
-        const float iconSize = metric::kIcon * 0.75f;
         y += drawWrapped(entry.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;
         if (!entry.author.empty())
@@ -212,23 +219,20 @@ void LocalDetailsScene::draw()
         y += 20;
         rect(kColumnX, y, kColumnW, 1, color::kDivider);
         y += 16;
-        const float row = 44;
-        const auto fact = [&](Icon which, const std::string& text) {
-            if (text.empty())
-                return;
-            const float middle = y + row / 2;
-            icon(which, kColumnX, std::round(middle - iconSize / 2), iconSize, accent.light);
-            drawText(text, kColumnX + iconSize + 14, textTop(middle, metric::kTextSmall), metric::kTextSmall,
-                     color::kText, Align::Left, kColumnW - iconSize - 14);
-            y += row;
-        };
-        if (!entry.folder.empty())
-            fact(Icon::Folder, entry.folder);
+        // as Themezer's page has them: the pack it's in (a link to it), then what its file says
+        packRow_ = -1;
+        if (entry.kind == Kind::Theme && local::inPack(entry))
+        {
+            const local::Pack* pack = local::Library::get().findPack(entry.path.substr(0, entry.path.rfind('/')));
+            packRow_ = y;
+            y = drawFact(Icon::Pack, "From the pack " + (pack ? pack->name : entry.folder), kColumnX, y, kColumnW,
+                         accent, true);
+        }
         if (!entry.layout.empty())
-            fact(Icon::LayoutGrid, entry.layout);
-        fact(Icon::SdCard, megabytes(entry.size));
+            y = drawFact(Icon::LayoutGrid, "Layout: " + entry.layout, kColumnX, y, kColumnW, accent);
+        y = drawFact(Icon::SdCard, megabytes(entry.size), kColumnX, y, kColumnW, accent);
         if (!entry.themezerId.empty())
-            fact(Icon::Hash, "Quick ID " + quickIdOf(entry));
+            y = drawFact(Icon::Hash, "Quick ID " + quickIdOf(entry), kColumnX, y, kColumnW, accent);
     }
     {
         const Layer layer(0, 0, shown);

@@ -124,6 +124,14 @@ std::shared_ptr<gfx::Picture> localPicture(const library::Entry& entry, int widt
 // Its ThumbHash's picture, for the backdrop, as the website's pictures have.
 std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 
+// A page's facts, beside or under its picture, a row each: an icon in the accent and a line; a link (a tap on it opens
+// something, as an entry of the page's options does) ends in "›". Returns the next row's top.
+constexpr float kFactRow = 40;
+float drawFact(gfx::Icon which, const std::string& text, float x, float y, float width, gfx::Accent accent,
+               bool link = false);
+// Whether a tap was on the fact row at top, from x as wide as width.
+bool factTapped(const ui::Input& input, float x, float top, float width);
+
 // The hint bar every screen has, with what's queued to install at its left end ("2 queued"), which a tap opens.
 void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>& hints);
 void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, gfx::Color accent = gfx::color::kPrimary);

@@ -34,6 +34,8 @@ void viewLocal(const library::Entry& entry);
 void deleteLocal(const library::Entry& entry);
 // A pack's folder on the SD card, by its path: its page, queueing its themes as installPack does, deleting it.
 void openLocalPack(const std::string& dir);
+// The pack a theme on the SD card is in: its folder's page, as the SD card's Packs tab opens it.
+void openPackOf(const library::Entry& theme);
 void installLocalPack(const std::string& dir);
 void deleteLocalPack(const std::string& dir);
 // What's queued in a slot taken out of the queue, and said so; or in several, a pack's.

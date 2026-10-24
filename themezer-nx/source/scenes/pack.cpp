@@ -64,27 +64,33 @@ std::vector<ui::Hint> PackScene::hints() const
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (!pack_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
-    // queued, X takes its themes out again
-    hints.push_back({ui::key::kX, !queuedSlots().empty() ? "Cancel install"
-                                  : canInstall()         ? "Install all"
-                                                         : "Download all"});
+    hints.push_back({ui::key::kX, "Options"});
     if (!pack_.themes.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
 
-void PackScene::openInstall()
+void PackScene::openOptions()
 {
     const bool installable = canInstall();
     const themezer::Item pack = pack_;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, "Install & Save", "", installable, false,
-                       [pack] { installPack(pack, true); }});
-    actions.push_back({Icon::Install, "Install only", "", installable, false,
-                       [pack] { installPack(pack, false); }});
+    // queued, its themes come out again; else the ways to get them all, as a theme's install sheet has them
+    if (const std::vector<int> queued = queuedSlots(); !queued.empty())
+    {
+        actions.push_back({Icon::Error, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
+    }
+    else
+    {
+        actions.push_back({Icon::Install, "Install & Save", "", installable, false,
+                           [pack] { installPack(pack, true); }});
+        actions.push_back({Icon::Install, "Install only", "", installable, false,
+                           [pack] { installPack(pack, false); }});
+    }
     actions.push_back({Icon::Download, "Download only", "", true, false, [pack] { downloadPack(pack); }});
-    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid,
-                                                 installable ? 0 : 2);
+    // without NXThemes Installer, on Download only
+    const int selected = installable ? 0 : static_cast<int>(actions.size()) - 1;
+    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid, selected);
 }
 
 void PackScene::view()
@@ -124,10 +130,7 @@ void PackScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kX))
     {
-        if (const std::vector<int> queued = queuedSlots(); !queued.empty())
-            unqueueAndSay(queued);
-        else
-            openInstall();
+        openOptions();
         return;
     }
     if (input.pressed(ui::key::kPlus))
@@ -170,11 +173,10 @@ void PackScene::draw()
             y += drawWrapped(pack_.description, kSide + 4, y, kColumnW - 8, metric::kTextCaption, color::kTextDim, 2) + 12;
         else
             y += 8;
-        const float row = described ? 36 : 44;
         y += drawWrapped(pack_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
         drawText("by " + pack_.creator, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
         y += lineHeight(metric::kTextNormal) + (described ? 10 : 16);
-        drawFacts(pack_, kSide, y, kColumnW, accent, row);
+        drawFacts(pack_, kSide, y, kColumnW, accent);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);

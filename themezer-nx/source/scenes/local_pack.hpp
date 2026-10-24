@@ -18,7 +18,8 @@ namespace tz::scenes
 class LocalPackScene final : public ui::Scene
 {
 public:
-    explicit LocalPackScene(std::string dir);
+    // trail: where it was opened from, for its top bar
+    explicit LocalPackScene(std::string dir, std::vector<ui::Crumb> trail = currentTrail());
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
@@ -30,7 +31,8 @@ private:
     const library::Entry* cover() const;
     const library::Entry* themeAt(int index) const;
     std::vector<ui::Hint> hints() const;
-    void openMore();
+    // X: installing it all or cancelling that, its page on Themezer, deleting it.
+    void openOptions();
 
     std::string dir_;
     std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar

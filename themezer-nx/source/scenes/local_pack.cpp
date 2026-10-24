@@ -31,14 +31,14 @@ constexpr float kGap = 22;
 constexpr int kThumbWidth = 480;
 } // namespace
 
-LocalPackScene::LocalPackScene(std::string dir) : dir_(std::move(dir))
+LocalPackScene::LocalPackScene(std::string dir, std::vector<ui::Crumb> trail)
+    : dir_(std::move(dir)), trail_(std::move(trail))
 {
     sfx::play(sfx::Sound::Open);
     grid_.setBounds(kGridX, kTop + 6, metric::kWidth - kGridX - kSide, metric::kHeight - metric::kHintBarHeight - kTop - 6);
     const float cellWidth = (metric::kWidth - kGridX - kSide - kGap * (kColumns - 1)) / kColumns;
     grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
     rebuild();
-    trail_ = currentTrail();
 }
 
 std::vector<ui::Crumb> LocalPackScene::crumbs() const
@@ -93,13 +93,13 @@ std::vector<ui::Hint> LocalPackScene::hints() const
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (cover())
         hints.push_back({ui::key::kY, "View"});
-    hints.push_back({ui::key::kX, "More"});
+    hints.push_back({ui::key::kX, "Options"});
     if (!themes_.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
 
-void LocalPackScene::openMore()
+void LocalPackScene::openOptions()
 {
     std::vector<ui::Action> actions;
     const std::string dir = dir_;
@@ -111,14 +111,14 @@ void LocalPackScene::openMore()
             queued.push_back(slot);
     }
     if (!queued.empty())
-        actions.push_back({Icon::Trash, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
+        actions.push_back({Icon::Error, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
     else
         actions.push_back({Icon::Install, "Install all", "", canInstall(), false, [dir] { installLocalPack(dir); }});
     if (!last_.themezerId.empty())
-        actions.push_back({Icon::Globe, "Show it on Themezer", "", true, false,
+        actions.push_back({Icon::Globe, "Show on Themezer", "", true, false,
                            [quickId = "P" + last_.themezerId] { showOnThemezer(quickId); }});
     // the page goes by itself when the folder has
-    actions.push_back({Icon::Trash, "Delete the pack", "", true, true, [dir] { deleteLocalPack(dir); }});
+    actions.push_back({Icon::Trash, "Delete pack", "", true, true, [dir] { deleteLocalPack(dir); }});
     App::get().scenes().emplace<ui::ActionSheet>(last_.name, std::move(actions), accentOf(Kind::Packs).solid,
                                                  canInstall() || !queued.empty() ? 0 : 1);
 }
@@ -159,7 +159,7 @@ void LocalPackScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kX))
     {
-        openMore();
+        openOptions();
         return;
     }
     if (input.pressed(ui::key::kPlus))
@@ -218,16 +218,9 @@ void LocalPackScene::draw()
             y += lineHeight(metric::kTextNormal);
         }
         y += 16;
-        const float iconSize = metric::kIcon * 0.75f;
-        const auto fact = [&](Icon which, const std::string& text) {
-            icon(which, kSide, std::round(y + 22 - iconSize / 2), iconSize, accent.light);
-            drawText(text, kSide + iconSize + 14, textTop(y + 22, metric::kTextSmall), metric::kTextSmall, color::kText,
-                     Align::Left, kColumnW - iconSize - 14);
-            y += 44;
-        };
-        fact(Icon::SdCard, megabytes(last_.size));
+        y = drawFact(Icon::SdCard, megabytes(last_.size), kSide, y, kColumnW, accent);
         if (!last_.themezerId.empty())
-            fact(Icon::Hash, "Quick ID P" + last_.themezerId);
+            y = drawFact(Icon::Hash, "Quick ID P" + last_.themezerId, kSide, y, kColumnW, accent);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);

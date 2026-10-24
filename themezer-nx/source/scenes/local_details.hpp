@@ -28,10 +28,12 @@ private:
     // Its slot when it's what's queued there, else -1.
     int queuedSlot() const;
     std::vector<ui::Hint> hints() const;
-    void openMore();
+    // X: its pack, uninstalling it, its page on Themezer, deleting it.
+    void openOptions();
     void leave();
 
     std::string path_;
+    float packRow_ = -1; // where its pack's fact was drawn, for a tap
     std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar
     library::Entry last_; // what it was, drawn while the page goes after the file has
     ui::HintBar hintBar_;

@@ -280,12 +280,13 @@ void LibraryPage::openFilter()
                        "", true, false, [this] { chooseTarget(); }});
     actions.push_back({Icon::Pack, std::string("Show: ") + packedLabel(inPack_), "", true, false,
                        [this] { choosePacked(); }});
-    App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
+    App::get().scenes().emplace<ui::ActionSheet>("Sort & filter", std::move(actions), accent().solid);
 }
 
 std::vector<ui::Hint> LibraryPage::hints() const
 {
-    std::vector<ui::Hint> hints{{ui::key::kY, "Search"}, {ui::key::kX, "Sort"}};
+    std::vector<ui::Hint> hints{{ui::key::kY, "Search"},
+                                {ui::key::kX, kind_ == Kind::Themes ? "Sort & filter" : "Sort"}};
     if (!search_.empty())
         hints.push_back({ui::key::kB, "Clear search"});
     if (chipFocus_ >= 0)

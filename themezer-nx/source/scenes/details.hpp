@@ -5,6 +5,7 @@
 
 #include "scenes/frame.hpp"
 #include "services/themezer.hpp"
+#include "ui/overlays.hpp"
 #include "ui/scene.hpp"
 #include "ui/widgets.hpp"
 
@@ -29,8 +30,12 @@ private:
     std::vector<ui::Hint> hints() const;
     std::shared_ptr<gfx::Picture> picture() const;
     void openInstall();
+    // X: what else can be done with it: its pack, uninstalling it.
+    std::vector<ui::Action> options() const;
+    void openPack() const;
     void view();
 
+    float packRow_ = -1; // where its pack's fact was drawn, for a tap
     themezer::Item item_;
     std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar
     ui::HintBar hintBar_;
@@ -60,6 +65,8 @@ private:
 };
 
 // The facts about an item, a line each with an icon: from (x, y) down, width wide. Returns where they end.
-float drawFacts(const themezer::Item& item, float x, float y, float width, gfx::Accent accent, float row = 44);
+// packRow, when given, gets the top of the row of a theme's pack, a link, or -1 without one.
+float drawFacts(const themezer::Item& item, float x, float y, float width, gfx::Accent accent,
+                float* packRow = nullptr);
 
 } // namespace tz::scenes

@@ -219,7 +219,7 @@ void BrowsePage::openFilter()
                        "", true, false, [this] { chooseTarget(); }});
     actions.push_back({Icon::Pack, std::string("Show: ") + packedLabel(query_.inPack), "", true, false,
                        [this] { choosePacked(); }});
-    App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
+    App::get().scenes().emplace<ui::ActionSheet>("Sort & filter", std::move(actions), accent().solid);
 }
 
 std::vector<ui::Hint> BrowsePage::hints() const
@@ -231,7 +231,7 @@ std::vector<ui::Hint> BrowsePage::hints() const
         return hints;
     }
     hints.push_back({ui::key::kY, "Search"});
-    hints.push_back({ui::key::kX, "Sort"});
+    hints.push_back({ui::key::kX, query_.kind == Kind::Themes ? "Sort & filter" : "Sort"});
     if (!query_.search.empty())
         hints.push_back({ui::key::kB, "Clear search"});
     if (chipFocus_ >= 0)

@@ -330,6 +330,12 @@ void openLocalPack(const std::string& dir)
     scenes().emplace<LocalPackScene>(dir);
 }
 
+void openPackOf(const library::Entry& theme)
+{
+    scenes().emplace<LocalPackScene>(theme.path.substr(0, theme.path.rfind('/')),
+                                     std::vector<ui::Crumb>{modeCrumb(false), sectionCrumb(themezer::Kind::Packs)});
+}
+
 void installLocalPack(const std::string& dir)
 {
     local::Library& library = local::Library::get();

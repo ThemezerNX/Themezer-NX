@@ -33,18 +33,10 @@ constexpr float kColumnW = metric::kWidth - kColumnX - 48;
 
 } // namespace
 
-float drawFacts(const themezer::Item& item, float x, float y, float width, Accent accent, float row)
+float drawFacts(const themezer::Item& item, float x, float y, float width, Accent accent, float* packRow)
 {
-
-    const float iconSize = metric::kIcon * 0.75f;
-    const auto fact = [&](Icon which, const std::string& text) {
-        if (text.empty())
-            return;
-        const float middle = y + row / 2;
-        icon(which, x, std::round(middle - iconSize / 2), iconSize, accent.light);
-        drawText(text, x + iconSize + 14, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
-                 Align::Left, width - iconSize - 14);
-        y += row;
+    const auto fact = [&](Icon which, const std::string& text, bool link = false) {
+        y = drawFact(which, text, x, y, width, accent, link);
     };
     if (!item.remote)
     {
@@ -57,8 +49,14 @@ float drawFacts(const themezer::Item& item, float x, float y, float width, Accen
         fact(Icon::Globe, "A remote install, not on Themezer");
         fact(Icon::Calendar, "Added " + themezer::dateOf(item.createdAt));
     }
+    if (packRow)
+        *packRow = -1;
     if (!item.packName.empty() && item.kind == Kind::Themes)
-        fact(Icon::Pack, "From the pack " + item.packName);
+    {
+        if (packRow)
+            *packRow = y;
+        fact(Icon::Pack, "From the pack " + item.packName, true);
+    }
     fact(Icon::Hash, "Quick ID " + item.quickId);
     return y;
 }
@@ -91,7 +89,9 @@ std::vector<ui::Hint> DetailsScene::hints() const
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (!item_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
-    // A opens the install sheet, as a pack's X does; queued, A takes it out again
+    if (!options().empty())
+        hints.push_back({ui::key::kX, "Options"});
+    // A opens the install sheet; queued, A takes it out again
     hints.push_back(
         {ui::key::kA, installs::isQueued(item_) ? "Cancel install" : canInstall() ? "Install" : "Download"});
     return hints;
@@ -108,6 +108,23 @@ void DetailsScene::openInstall()
     actions.push_back({Icon::Download, "Download only", "", true, false, [item] { download(item); }});
     App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid,
                                                  installable ? 0 : 2);
+}
+
+std::vector<ui::Action> DetailsScene::options() const
+{
+    std::vector<ui::Action> actions;
+    if (item_.kind == Kind::Themes && !item_.packId.empty())
+        actions.push_back({Icon::Pack, "Open pack", "", true, false, [id = item_.packId] { showOnThemezer("P" + id); }});
+    if (badgeOf(item_) == Badge::Installed)
+        actions.push_back({Icon::Trash, "Uninstall", "", true, true,
+                           [slot = installs::slotOf(item_)] { uninstallPart(slot); }});
+    return actions;
+}
+
+void DetailsScene::openPack() const
+{
+    // looked up as its Quick ID would be: the theme has only the pack's ID and name
+    showOnThemezer("P" + item_.packId);
 }
 
 void DetailsScene::view()
@@ -145,6 +162,17 @@ void DetailsScene::update(ui::Input& input, float dt)
             return;
         }
         openInstall();
+    }
+    else if (input.pressed(ui::key::kX))
+    {
+        if (std::vector<ui::Action> actions = options(); !actions.empty())
+            App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid);
+    }
+    else if (factTapped(input, kColumnX, packRow_, kColumnW))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Confirm);
+        openPack();
     }
     else if (input.pressed(ui::key::kY) && !item_.preview.hd.empty())
     {
@@ -204,7 +232,7 @@ void DetailsScene::draw()
         y += lineHeight(metric::kTextNormal) + 20;
         rect(kColumnX, y, kColumnW, 1, color::kDivider);
         y += 16;
-        drawFacts(item_, kColumnX, y, kColumnW, accent);
+        drawFacts(item_, kColumnX, y, kColumnW, accent, &packRow_);
     }
 
     {

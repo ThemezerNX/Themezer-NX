@@ -558,6 +558,27 @@ std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
     });
 }
 
+float drawFact(Icon which, const std::string& text, float x, float y, float width, Accent accent, bool link)
+{
+    if (text.empty())
+        return y;
+    const float iconSize = metric::kIcon * 0.75f;
+    const float middle = y + kFactRow / 2;
+    icon(which, x, std::round(middle - iconSize / 2), iconSize, accent.light);
+    const float textX = x + iconSize + 14;
+    const float shown = drawText(text, textX, textTop(middle, metric::kTextSmall), metric::kTextSmall,
+                                 link ? accent.light : color::kText, Align::Left, width - iconSize - 14 - (link ? 24 : 0));
+    if (link)
+        drawText("›", textX + shown + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, accent.light);
+    return y + kFactRow;
+}
+
+bool factTapped(const ui::Input& input, float x, float top, float width)
+{
+    const auto inside = [&](float px, float py) { return px >= x && px < x + width && py >= top && py < top + kFactRow; };
+    return top >= 0 && input.tap && inside(input.x, input.y) && inside(input.startX, input.startY);
+}
+
 namespace
 {
 // where the queue's pill was last drawn (0 wide when it wasn't), and whether a finger is on it
