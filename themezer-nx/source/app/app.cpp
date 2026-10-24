@@ -121,17 +121,27 @@ int App::run()
         const float dt = std::clamp(now - last, 0.0f, 0.1f);
         last = now;
 
+        // a frame's own work in its parts, for the log when it's long enough to show as a stutter
+        const Uint64 start = SDL_GetPerformanceCounter();
         jobs::drain();
+        const Uint64 drained = SDL_GetPerformanceCounter();
         updateStatus(dt);
         ui::Input input = reader.read(dt);
         scenes_.update(input, dt);
         ui::updateToasts(dt);
         scenes::images().tick();
+        const Uint64 updated = SDL_GetPerformanceCounter();
 
         gfx::beginFrame();
         gfx::beginTextFrame();
         scenes_.draw();
         ui::drawToasts();
+        const Uint64 drawn = SDL_GetPerformanceCounter();
+        if (const double ms = 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+            static_cast<double>(drawn - start) * ms > 50)
+            std::printf("Slow frame: %.0f ms (posted work %.0f, update %.0f, draw %.0f)\n",
+                        static_cast<double>(drawn - start) * ms, static_cast<double>(drained - start) * ms,
+                        static_cast<double>(updated - drained) * ms, static_cast<double>(drawn - updated) * ms);
         gfx::endFrame();
     }
 
