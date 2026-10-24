@@ -241,7 +241,7 @@ void BrowsePage::openFilter()
                            (query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target)),
                        "", true, false, [this] { chooseTarget(); }});
     const size_t packed = packedIndex(query_.inPack);
-    actions.push_back({kPackedIcons[packed], std::string("Show: ") + kPackedLabels[packed], "", true, false,
+    actions.push_back({Icon::Pack, std::string("Show: ") + kPackedLabels[packed], "", true, false,
                        [this] { choosePacked(); }});
     App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
@@ -356,7 +356,7 @@ void BrowsePage::drawFilters(float top)
     if (query_.kind == Kind::Themes)
     {
         const size_t packed = packedIndex(query_.inPack);
-        chip(kPackedIcons[packed], kPackedLabels[packed], packed != 0, Filter::Packed);
+        chip(Icon::Pack, kPackedLabels[packed], packed != 0, Filter::Packed);
     }
     if (!query_.search.empty())
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
