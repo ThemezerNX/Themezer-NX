@@ -58,6 +58,9 @@ void openQuickId();
 
 // For the hints: whether installing can be done at all.
 bool canInstall();
+// NXThemes Installer, which installs what's queued: when it isn't on the SD card, asks to download it from its
+// releases on GitHub, to sd:/switch/NXThemesInstaller.nro, as an app store would.
+void offerInstaller();
 
 // Text typed on the Switch's keyboard, its spaces at the ends cut; nothing when it was cancelled.
 std::optional<std::string> askText(const char* guide, const std::string& initial = {}, size_t maxLength = 128);

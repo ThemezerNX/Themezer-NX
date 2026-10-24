@@ -5,6 +5,7 @@
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "domain/installed.hpp"
+#include "scenes/actions.hpp"
 #include "scenes/home.hpp"
 #include "services/local.hpp"
 #include "scenes/images.hpp"
@@ -111,11 +112,7 @@ int App::run()
     local::Library::get().rescan();
     scenes_.emplace<scenes::HomeScene>();
     if (!installs::installerPath())
-    {
-        scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, "NXThemes Installer isn't there",
-                                    "Themes and splashes can be downloaded, but installing them needs NXThemes "
-                                    "Installer at sd:/switch/NXThemesInstaller.nro.");
-    }
+        scenes::offerInstaller();
 
     float last = gfx::time();
     while (appletMainLoop() && !quitting_ && !scenes_.empty())

@@ -72,7 +72,6 @@ std::vector<ui::Hint> PackScene::hints() const
 
 void PackScene::openOptions()
 {
-    const bool installable = canInstall();
     const themezer::Item pack = pack_;
     std::vector<ui::Action> actions;
     // queued, its themes come out again; else the ways to get them all, as a theme's install sheet has them
@@ -82,15 +81,11 @@ void PackScene::openOptions()
     }
     else
     {
-        actions.push_back({Icon::Install, "Install & Save", "", installable, false,
-                           [pack] { installPack(pack, true); }});
-        actions.push_back({Icon::Install, "Install only", "", installable, false,
-                           [pack] { installPack(pack, false); }});
+        actions.push_back({Icon::Install, "Install & Save", "", true, false, [pack] { installPack(pack, true); }});
+        actions.push_back({Icon::Install, "Install only", "", true, false, [pack] { installPack(pack, false); }});
     }
     actions.push_back({Icon::Download, "Download only", "", true, false, [pack] { downloadPack(pack); }});
-    // without NXThemes Installer, on Download only
-    const int selected = installable ? 0 : static_cast<int>(actions.size()) - 1;
-    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid, selected);
+    App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid, 0);
 }
 
 void PackScene::view()

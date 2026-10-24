@@ -93,21 +93,19 @@ std::vector<ui::Hint> DetailsScene::hints() const
         hints.push_back({ui::key::kX, "Options"});
     // A opens the install sheet; queued, A takes it out again
     hints.push_back(
-        {ui::key::kA, installs::isQueued(item_) ? "Cancel install" : canInstall() ? "Install" : "Download"});
+        {ui::key::kA, installs::isQueued(item_) ? "Cancel install" : "Install"});
     return hints;
 }
 
 void DetailsScene::openInstall()
 {
-    const bool installable = canInstall();
     const themezer::Item item = item_;
     std::vector<ui::Action> actions;
     // the ways to get it, as a pack's sheet has: saved in /Themes/ThemezerNX or only until the next start, or only saved
-    actions.push_back({Icon::Install, "Install & Save", "", installable, false, [item] { install(item, true); }});
-    actions.push_back({Icon::Install, "Install only", "", installable, false, [item] { install(item, false); }});
+    actions.push_back({Icon::Install, "Install & Save", "", true, false, [item] { install(item, true); }});
+    actions.push_back({Icon::Install, "Install only", "", true, false, [item] { install(item, false); }});
     actions.push_back({Icon::Download, "Download only", "", true, false, [item] { download(item); }});
-    App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid,
-                                                 installable ? 0 : 2);
+    App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid, 0);
 }
 
 std::vector<ui::Action> DetailsScene::options() const

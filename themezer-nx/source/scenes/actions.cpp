@@ -15,6 +15,7 @@
 #include <switch.h>
 
 #include <cstring>
+#include <unistd.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -241,6 +242,55 @@ bool canInstall()
     return installs::installerPath() != nullptr;
 }
 
+namespace
+{
+constexpr const char* kInstallerUrl =
+    "https://github.com/exelix11/SwitchThemeInjector/releases/latest/download/NXThemesInstaller.nro";
+constexpr const char* kInstallerPath = "/switch/NXThemesInstaller.nro";
+
+// Whether the file is a homebrew app: an .nro has "NRO0" 16 bytes in, where an error page wouldn't.
+bool isNro(const char* path)
+{
+    char magic[4] = {};
+    FILE* file = std::fopen(path, "rb");
+    const bool read = file && std::fseek(file, 16, SEEK_SET) == 0 && std::fread(magic, 1, 4, file) == 4;
+    if (file)
+        std::fclose(file);
+    return read && std::memcmp(magic, "NRO0", 4) == 0;
+}
+
+void downloadInstaller()
+{
+    scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+        {"Downloading NXThemes Installer", true, color::kPrimary},
+        [](ui::TaskProgress& progress, const CancelToken& token) -> std::expected<void, themezer::Error> {
+            auto done = themezer::download(kInstallerUrl, kInstallerPath, token, &progress.download);
+            if (done && !isNro(kInstallerPath))
+            {
+                unlink(kInstallerPath);
+                return std::unexpected(
+                    themezer::Error{"What came wasn't NXThemes Installer. Try again later.", {}, false, false});
+            }
+            return done;
+        },
+        [](std::expected<void, themezer::Error> result) {
+            if (result)
+                ui::toast("NXThemes Installer is ready", ui::ToastKind::Success);
+            else
+                showError("Couldn't download NXThemes Installer", result.error());
+        }));
+}
+} // namespace
+
+void offerInstaller()
+{
+    scenes().emplace<ui::Dialog>(
+        Icon::Download, color::kPrimary, "Download NXThemes Installer?",
+        "Themezer-NX installs themes with NXThemes Installer, which isn't on the SD card. It's downloaded from its "
+        "releases on GitHub to sd:/switch/NXThemesInstaller.nro.",
+        std::vector<ui::DialogButton>{{"Not now", nullptr}, {"Download", [] { downloadInstaller(); }}});
+}
+
 std::optional<std::string> askText(const char* guide, const std::string& initial, size_t maxLength)
 {
     SwkbdConfig config;
@@ -308,8 +358,7 @@ void installLocal(const library::Entry& entry)
 {
     if (!canInstall())
     {
-        scenes().emplace<ui::Dialog>(Icon::Warning, color::kWarning, "NXThemes Installer isn't there",
-                                     "Installing needs NXThemes Installer at sd:/switch/NXThemesInstaller.nro.");
+        offerInstaller();
         return;
     }
     library::Entry known = entry;
@@ -344,7 +393,7 @@ void installLocalPack(const std::string& dir)
         return;
     if (!canInstall())
     {
-        installLocal(library.entries()[found->themes.front()]); // says why it can't
+        offerInstaller();
         return;
     }
     Item pack;
@@ -496,9 +545,7 @@ void install(const Item& item, bool save)
 {
     if (!canInstall())
     {
-        scenes().emplace<ui::Dialog>(Icon::Warning, color::kWarning, "NXThemes Installer isn't there",
-                                     "Installing needs NXThemes Installer at sd:/switch/NXThemesInstaller.nro. "
-                                     "You can still download it.");
+        offerInstaller();
         return;
     }
     if (installs::slotOf(item) < 0)
@@ -552,7 +599,7 @@ void installPack(const Item& pack, bool save)
 {
     if (!canInstall())
     {
-        install(pack.themes.empty() ? pack : pack.themes.front(), save); // says why it can't
+        offerInstaller();
         return;
     }
     choosePack(pack, [pack, save](std::vector<int> chosen) { runPackDownloads(pack, std::move(chosen), true, save); });

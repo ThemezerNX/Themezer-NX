@@ -113,14 +113,13 @@ void LocalPackScene::openOptions()
     if (!queued.empty())
         actions.push_back({Icon::Error, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
     else
-        actions.push_back({Icon::Install, "Install all", "", canInstall(), false, [dir] { installLocalPack(dir); }});
+        actions.push_back({Icon::Install, "Install all", "", true, false, [dir] { installLocalPack(dir); }});
     if (!last_.themezerId.empty())
         actions.push_back({Icon::Globe, "Show on Themezer", "", true, false,
                            [quickId = "P" + last_.themezerId] { showOnThemezer(quickId); }});
     // the page goes by itself when the folder has
     actions.push_back({Icon::Trash, "Delete pack", "", true, true, [dir] { deleteLocalPack(dir); }});
-    App::get().scenes().emplace<ui::ActionSheet>(last_.name, std::move(actions), accentOf(Kind::Packs).solid,
-                                                 canInstall() || !queued.empty() ? 0 : 1);
+    App::get().scenes().emplace<ui::ActionSheet>(last_.name, std::move(actions), accentOf(Kind::Packs).solid, 0);
 }
 
 void LocalPackScene::tick(float dt)
