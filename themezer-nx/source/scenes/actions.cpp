@@ -267,6 +267,17 @@ themezer::Item localItem(const library::Entry& entry)
     return item;
 }
 
+void unqueueAndSay(int slot)
+{
+    const installs::Queued* queued = installs::queued(slot);
+    if (!queued)
+        return;
+    const std::string name = queued->name;
+    installs::unqueue(slot);
+    sfx::play(sfx::Sound::Back);
+    ui::toast("“" + name + "” is out of the queue");
+}
+
 void openLocal(const library::Entry& entry)
 {
     scenes().emplace<LocalDetailsScene>(entry.path);

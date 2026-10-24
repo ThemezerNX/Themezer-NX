@@ -24,6 +24,8 @@ public:
 
 private:
     const library::Entry* entry() const;
+    // Its slot when it's what's queued there, else -1.
+    int queuedSlot() const;
     std::vector<ui::Hint> hints() const;
     void openMore();
     void leave();

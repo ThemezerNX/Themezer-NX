@@ -99,7 +99,8 @@ std::vector<ui::Hint> DetailsScene::hints() const
     if (!item_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
     hints.push_back({ui::key::kX, "More"});
-    hints.push_back({ui::key::kA, canInstall() ? "Install" : "Download"});
+    // queued, A takes it out again
+    hints.push_back({ui::key::kA, installs::isQueued(item_) ? "Unqueue" : canInstall() ? "Install" : "Download"});
     return hints;
 }
 
@@ -142,6 +143,11 @@ void DetailsScene::update(ui::Input& input, float dt)
     }
     else if (input.pressed(ui::key::kA))
     {
+        if (installs::isQueued(item_))
+        {
+            unqueueAndSay(installs::slotOf(item_));
+            return;
+        }
         sfx::play(sfx::Sound::Confirm);
         if (canInstall())
             install(item_, true);

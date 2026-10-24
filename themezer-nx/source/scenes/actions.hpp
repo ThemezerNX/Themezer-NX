@@ -34,6 +34,8 @@ void deleteLocal(const library::Entry& entry);
 void openLocalPack(const std::string& dir);
 void installLocalPack(const std::string& dir);
 void deleteLocalPack(const std::string& dir);
+// What's queued in a slot taken out of the queue, and said so.
+void unqueueAndSay(int slot);
 // What's installed in a slot taken out, asked first.
 void uninstallPart(int slot);
 // A Themezer item for a file on the SD card, for queueing it.

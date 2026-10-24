@@ -57,9 +57,23 @@ void LocalDetailsScene::leave()
     leaving_ = true;
 }
 
+int LocalDetailsScene::queuedSlot() const
+{
+    const library::Entry* found = entry();
+    if (!found)
+        return -1;
+    const int slot = found->kind == Kind::Splash ? installs::kSplashSlot : found->target;
+    const installs::Queued* queued = installs::queued(slot);
+    return queued && queued->path == found->path ? slot : -1;
+}
+
 std::vector<ui::Hint> LocalDetailsScene::hints() const
 {
-    return {{ui::key::kB, "Back"}, {ui::key::kY, "View"}, {ui::key::kX, "More"}, {ui::key::kA, "Install"}};
+    // queued, A takes it out again
+    return {{ui::key::kB, "Back"},
+            {ui::key::kY, "View"},
+            {ui::key::kX, "More"},
+            {ui::key::kA, queuedSlot() >= 0 ? "Unqueue" : "Install"}};
 }
 
 void LocalDetailsScene::openMore()
@@ -70,11 +84,6 @@ void LocalDetailsScene::openMore()
     const library::Entry current = *found;
     const int slot = current.kind == Kind::Splash ? installs::kSplashSlot : current.target;
     std::vector<ui::Action> actions;
-    if (const installs::Queued* queued = installs::queued(slot); queued && queued->path == current.path)
-        actions.push_back({Icon::Trash, "Take it out of the queue", "", true, false, [slot] {
-                               installs::unqueue(slot);
-                               sfx::play(sfx::Sound::Back);
-                           }});
     if (badgeOf(current) == Badge::Installed)
         actions.push_back({Icon::Trash, "Uninstall it", "", true, true, [slot] { uninstallPart(slot); }});
     if (!current.themezerId.empty())
@@ -124,8 +133,15 @@ void LocalDetailsScene::update(ui::Input& input, float)
     }
     else if (input.pressed(ui::key::kA))
     {
-        sfx::play(sfx::Sound::Confirm);
-        installLocal(*found);
+        if (const int slot = queuedSlot(); slot >= 0)
+        {
+            unqueueAndSay(slot);
+        }
+        else
+        {
+            sfx::play(sfx::Sound::Confirm);
+            installLocal(*found);
+        }
     }
     else if (input.pressed(ui::key::kX))
     {
