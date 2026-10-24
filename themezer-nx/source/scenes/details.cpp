@@ -110,11 +110,12 @@ void DetailsScene::openMore()
     const bool installable = canInstall();
     const themezer::Item item = item_;
     std::vector<ui::Action> actions;
-    // what A (install and keep it) and Y (view) don't do
-    actions.push_back({Icon::Install, "Install without keeping it", "", installable, false,
-                       [item] { install(item, false); }});
+    // the ways to get it, A's first: saved in /Themes/ThemezerNX or only until the next start, or only saved
+    actions.push_back({Icon::Install, "Install & Save", "", installable, false, [item] { install(item, true); }});
+    actions.push_back({Icon::Install, "Install only", "", installable, false, [item] { install(item, false); }});
     actions.push_back({Icon::Download, "Download only", "", true, false, [item] { download(item); }});
-    App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid);
+    App::get().scenes().emplace<ui::ActionSheet>(item_.name, std::move(actions), accentOf(item_.kind).solid,
+                                                 installable ? 0 : 2);
 }
 
 void DetailsScene::view()

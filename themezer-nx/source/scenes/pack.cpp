@@ -70,11 +70,11 @@ void PackScene::openInstall()
     const bool installable = canInstall();
     const themezer::Item pack = pack_;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, "Install all and keep them", "", installable, false,
+    actions.push_back({Icon::Install, "Install & Save", "", installable, false,
                        [pack] { installPack(pack, true); }});
-    actions.push_back({Icon::Install, "Install all without keeping them", "", installable, false,
+    actions.push_back({Icon::Install, "Install only", "", installable, false,
                        [pack] { installPack(pack, false); }});
-    actions.push_back({Icon::Download, "Download all", "", true, false, [pack] { downloadPack(pack); }});
+    actions.push_back({Icon::Download, "Download only", "", true, false, [pack] { downloadPack(pack); }});
     App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid,
                                                  installable ? 0 : 2);
 }
