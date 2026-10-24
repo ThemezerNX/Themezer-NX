@@ -111,7 +111,7 @@ void HomeScene::update(ui::Input& input, float dt)
     hints_ = page().hints();
     hints_.push_back({ui::key::kZR, "Quick ID"});
     hints_.push_back({ui::key::kPlus, "Menu"});
-    hints_.push_back({ui::key::kMinus, onlineMode_ ? "SD card" : "Themezer"});
+    hints_.push_back({ui::key::kMinus, onlineMode_ ? "SD card" : "Online"});
     hintBar_.update(input, hints_);
 
     // the mode button first: a tap on it isn't the tab bar's

@@ -79,8 +79,9 @@ std::vector<ui::Crumb> currentTrail()
 
 ui::Crumb modeCrumb(bool online)
 {
-    return {ui::Crumb::Kind::Mode, online ? "Themezer" : "SD card", online ? Icon::Globe : Icon::SdCard,
-            online ? accent::kApp : Accent{color::kText, color::kText}};
+    // "Online", not "Themezer": the logo next to it says that; and in white, the colours being the sections'
+    return {ui::Crumb::Kind::Mode, online ? "Online" : "SD card", online ? Icon::Globe : Icon::SdCard,
+            Accent{color::kText, color::kText}};
 }
 
 ui::Crumb sectionCrumb(themezer::Kind section)
@@ -118,7 +119,7 @@ float drawModePill(const ui::Crumb& mode, float x, float y, float width, ui::Key
                 12;
     icon(mode.icon, left, std::round(middle - metric::kIcon / 2), metric::kIcon, mode.accent.light);
     drawText(mode.text, left + metric::kIcon + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
-             color::kText);
+             mode.accent.light);
     return x + width;
 }
 
