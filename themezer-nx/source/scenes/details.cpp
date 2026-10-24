@@ -100,7 +100,8 @@ std::vector<ui::Hint> DetailsScene::hints() const
         hints.push_back({ui::key::kY, "View"});
     hints.push_back({ui::key::kX, "More"});
     // queued, A takes it out again
-    hints.push_back({ui::key::kA, installs::isQueued(item_) ? "Unqueue" : canInstall() ? "Install" : "Download"});
+    hints.push_back(
+        {ui::key::kA, installs::isQueued(item_) ? "Cancel install" : canInstall() ? "Install" : "Download"});
     return hints;
 }
 

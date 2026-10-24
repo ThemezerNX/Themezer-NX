@@ -60,6 +60,13 @@ void queueAndSay(const Item& item, const std::string& path)
               ui::ToastKind::Success);
 }
 
+// "3 themes queued. Exit through + to install them.", one or more
+std::string queuedMessage(size_t count)
+{
+    return count == 1 ? std::string("1 theme queued. Exit through + to install it.")
+                      : std::to_string(count) + " themes queued. Exit through + to install them.";
+}
+
 struct PackResult
 {
     std::vector<std::pair<int, std::string>> done; // the theme's index and where it went
@@ -132,8 +139,9 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
                     result.firstError.message);
                 return;
             }
-            ui::toast(queue ? std::to_string(result.done.size()) + " themes queued. Exit through + to install them."
-                            : std::to_string(result.done.size()) + " themes saved in /Themes/ThemezerNX",
+            const size_t done = result.done.size();
+            ui::toast(queue ? queuedMessage(done)
+                            : std::to_string(done) + (done == 1 ? " theme" : " themes") + " saved in /Themes/ThemezerNX",
                       ui::ToastKind::Success);
         });
     scenes().push(std::move(overlay));
@@ -275,7 +283,20 @@ void unqueueAndSay(int slot)
     const std::string name = queued->name;
     installs::unqueue(slot);
     sfx::play(sfx::Sound::Back);
-    ui::toast("“" + name + "” is out of the queue");
+    ui::toast("“" + name + "” won't be installed");
+}
+
+void unqueueAndSay(const std::vector<int>& slots)
+{
+    if (slots.size() == 1)
+    {
+        unqueueAndSay(slots.front());
+        return;
+    }
+    for (int slot : slots)
+        installs::unqueue(slot);
+    sfx::play(sfx::Sound::Back);
+    ui::toast(std::to_string(slots.size()) + " themes won't be installed");
 }
 
 void openLocal(const library::Entry& entry)
@@ -340,9 +361,7 @@ void installLocalPack(const std::string& dir)
             const Item& theme = (*themes)[static_cast<size_t>(index)];
             installs::queue(installs::slotOf(theme), paths[static_cast<size_t>(index)], theme);
         }
-        ui::toast(std::to_string(chosen.size()) + (chosen.size() == 1 ? " theme" : " themes") +
-                      " queued. Exit through + to install them.",
-                  ui::ToastKind::Success);
+        ui::toast(queuedMessage(chosen.size()), ui::ToastKind::Success);
     });
 }
 

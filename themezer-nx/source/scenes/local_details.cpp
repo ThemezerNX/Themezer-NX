@@ -73,7 +73,7 @@ std::vector<ui::Hint> LocalDetailsScene::hints() const
     return {{ui::key::kB, "Back"},
             {ui::key::kY, "View"},
             {ui::key::kX, "More"},
-            {ui::key::kA, queuedSlot() >= 0 ? "Unqueue" : "Install"}};
+            {ui::key::kA, queuedSlot() >= 0 ? "Cancel install" : "Install"}};
 }
 
 void LocalDetailsScene::openMore()

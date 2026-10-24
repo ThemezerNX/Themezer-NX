@@ -1,6 +1,7 @@
 #include "scenes/local_pack.hpp"
 
 #include "app/app.hpp"
+#include "domain/installs.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/actions.hpp"
@@ -94,14 +95,24 @@ void LocalPackScene::openMore()
 {
     std::vector<ui::Action> actions;
     const std::string dir = dir_;
-    actions.push_back({Icon::Install, "Install all", "", canInstall(), false, [dir] { installLocalPack(dir); }});
+    // queued, its themes come out again instead
+    std::vector<int> queued;
+    for (int slot = 0; slot < installs::kSlotCount; ++slot)
+    {
+        if (const installs::Queued* waiting = installs::queued(slot); waiting && waiting->path.starts_with(dir + "/"))
+            queued.push_back(slot);
+    }
+    if (!queued.empty())
+        actions.push_back({Icon::Trash, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
+    else
+        actions.push_back({Icon::Install, "Install all", "", canInstall(), false, [dir] { installLocalPack(dir); }});
     if (!last_.themezerId.empty())
         actions.push_back({Icon::Globe, "Show it on Themezer", "", true, false,
                            [quickId = "P" + last_.themezerId] { showOnThemezer(quickId); }});
     // the page goes by itself when the folder has
     actions.push_back({Icon::Trash, "Delete the pack", "", true, true, [dir] { deleteLocalPack(dir); }});
     App::get().scenes().emplace<ui::ActionSheet>(last_.name, std::move(actions), accentOf(Kind::Packs).solid,
-                                                 canInstall() ? 0 : 1);
+                                                 canInstall() || !queued.empty() ? 0 : 1);
 }
 
 void LocalPackScene::tick(float dt)

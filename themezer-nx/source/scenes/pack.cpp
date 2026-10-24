@@ -1,6 +1,7 @@
 #include "scenes/pack.hpp"
 
 #include "app/app.hpp"
+#include "domain/installs.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/actions.hpp"
@@ -39,12 +40,26 @@ PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack))
     grid_.setCount(static_cast<int>(pack_.themes.size()));
 }
 
+std::vector<int> PackScene::queuedSlots() const
+{
+    std::vector<int> slots;
+    for (const themezer::Item& theme : pack_.themes)
+    {
+        if (installs::isQueued(theme))
+            slots.push_back(installs::slotOf(theme));
+    }
+    return slots;
+}
+
 std::vector<ui::Hint> PackScene::hints() const
 {
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (!pack_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
-    hints.push_back({ui::key::kX, canInstall() ? "Install all" : "Download all"});
+    // queued, X takes its themes out again
+    hints.push_back({ui::key::kX, !queuedSlots().empty() ? "Cancel install"
+                                  : canInstall()         ? "Install all"
+                                                         : "Download all"});
     if (!pack_.themes.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
@@ -99,7 +114,10 @@ void PackScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kX))
     {
-        openInstall();
+        if (const std::vector<int> queued = queuedSlots(); !queued.empty())
+            unqueueAndSay(queued);
+        else
+            openInstall();
         return;
     }
     if (input.pressed(ui::key::kPlus))
