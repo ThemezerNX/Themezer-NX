@@ -83,15 +83,6 @@ void HomeScene::switchTo(int tab, int side)
     remember();
 }
 
-void HomeScene::openMenu()
-{
-    std::vector<ui::Action> actions{{onlineMode_ ? Icon::SdCard : Icon::Globe,
-                                     onlineMode_ ? "Show the SD card" : "Browse Themezer", "", true, false,
-                                     [this] { switchMode(); }, nullptr, ui::key::kMinus}};
-    for (ui::Action& action : page().menuActions())
-        actions.push_back(std::move(action));
-    scenes::openMenu(std::move(actions));
-}
 
 void HomeScene::onResume()
 {
@@ -139,7 +130,8 @@ void HomeScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kPlus))
     {
-        openMenu();
+        // without what the home screen has a button for: the mode, and Quick ID (ZR)
+        openMenu(false);
         return;
     }
     if (input.pressed(ui::key::kZR))

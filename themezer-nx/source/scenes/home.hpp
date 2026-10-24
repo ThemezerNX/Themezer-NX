@@ -30,7 +30,7 @@ private:
     void switchMode();
     void switchTo(int tab, int side);
     void remember();
-    void openMenu();
+
     // Draws it, its width from its label; returns where it ends.
     float drawModeButton(float x, float y, float height);
 

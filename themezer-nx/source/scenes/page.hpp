@@ -33,8 +33,7 @@ public:
     virtual gfx::Accent accent() const = 0;
     // The blurred picture behind the screen, for what's selected.
     virtual std::shared_ptr<gfx::Picture> backdrop() const { return nullptr; }
-    // What the menu (+) offers for this page, before what it always has.
-    virtual std::vector<ui::Action> menuActions() { return {}; }
+
 };
 
 // Where a page's content goes: under the top bar, above the hints.
