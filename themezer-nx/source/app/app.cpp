@@ -38,29 +38,49 @@ void App::applyConfig()
     sfx::setEnabled(config_.sfx);
 }
 
-void App::updateStatus(float dt)
+namespace
 {
-    statusAge_ += dt;
-    if (statusAge_ < 1)
-        return;
-    statusAge_ = 0;
+// The time, the battery and Wi-Fi: system calls that take up to tens of ms on the Switch.
+App::Status readStatus()
+{
+    App::Status status;
     const std::time_t now = std::time(nullptr);
     if (const std::tm* local = std::localtime(&now))
     {
-        status_.hour = local->tm_hour;
-        status_.minute = local->tm_min;
+        status.hour = local->tm_hour;
+        status.minute = local->tm_min;
     }
     u32 charge = 100;
     if (R_SUCCEEDED(psmGetBatteryChargePercentage(&charge)))
-        status_.battery = static_cast<int>(charge);
+        status.battery = static_cast<int>(charge);
     PsmChargerType charger = PsmChargerType_Unconnected;
     if (R_SUCCEEDED(psmGetChargerType(&charger)))
-        status_.charging = charger != PsmChargerType_Unconnected;
+        status.charging = charger != PsmChargerType_Unconnected;
     NifmInternetConnectionType type;
     u32 strength = 0;
     NifmInternetConnectionStatus connection;
-    status_.online = R_SUCCEEDED(nifmGetInternetConnectionStatus(&type, &strength, &connection)) &&
-                     connection == NifmInternetConnectionStatus_Connected;
+    status.online = R_SUCCEEDED(nifmGetInternetConnectionStatus(&type, &strength, &connection)) &&
+                    connection == NifmInternetConnectionStatus_Connected;
+    return status;
+}
+} // namespace
+
+void App::updateStatus(float dt)
+{
+    // each second, on a worker: on the main thread the calls were a stutter (28 ms logged on the Switch)
+    statusAge_ += dt;
+    if (statusAge_ < 1 || statusReading_)
+        return;
+    statusAge_ = 0;
+    statusReading_ = true;
+    jobs::run(jobs::Lane::Images, [] {
+        const Status status = readStatus();
+        jobs::post([status] {
+            App& app = App::get();
+            app.status_ = status;
+            app.statusReading_ = false;
+        });
+    });
 }
 
 int App::run()
@@ -74,6 +94,8 @@ int App::run()
     std::printf("Themezer-NX " APP_VERSION " starting\n");
     nifmInitialize(NifmServiceType_User);
     psmInitialize();
+    // the first at once, for the top bar's first frame
+    status_ = readStatus();
     if (!gfx::init() || !gfx::initText())
     {
         std::printf("Couldn't start the screen: %s\n", SDL_GetError());

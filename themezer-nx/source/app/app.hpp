@@ -36,7 +36,8 @@ private:
 
     ui::SceneStack scenes_;
     Status status_;
-    float statusAge_ = 1;
+    float statusAge_ = 0;
+    bool statusReading_ = false; // on a worker
     Config config_;
     bool quitting_ = false;
 };
