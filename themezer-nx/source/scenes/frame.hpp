@@ -9,7 +9,9 @@
 #include "services/themezer.hpp"
 #include "ui/input.hpp"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 namespace tz::scenes
@@ -100,6 +102,11 @@ std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 // end before right. Returns its width; 0 when there's no room for it.
 float filterChip(gfx::Icon icon, const std::string& text, bool highlighted, gfx::Accent accent, float x, float top,
                  float height, float right);
+
+// The filter on lists of themes, Themezer's and the SD card's, for whether a theme is in a pack: all of them (nullopt),
+// only standalone ones (false), only those from packs (true). Its sheet calls choose with another one.
+const char* packedLabel(std::optional<bool> inPack);
+void choosePacked(std::optional<bool> current, gfx::Color accent, std::function<void(std::optional<bool>)> choose);
 
 // The chips' keys, once up from the grid's top row has reached them (focus, the chip's index; -1 off them): left and
 // right along them, down or B back to the grid. Returns the chip A chose, or -1.

@@ -27,6 +27,9 @@ struct Pack
     int64_t modified = 0; // its newest theme's
 };
 
+// Whether a theme is in a pack: in a folder of its own, not loose in /Themes or in Themezer-NX's own folder.
+bool inPack(const library::Entry& entry);
+
 class Library
 {
 public:

@@ -8,6 +8,7 @@
 #include "gfx/text.hpp"
 #include "scenes/images.hpp"
 #include "sys/audio.hpp"
+#include "ui/overlays.hpp"
 #include "ui/widgets.hpp"
 
 #include <algorithm>
@@ -437,6 +438,39 @@ float filterChip(Icon which, const std::string& text, bool highlighted, Accent a
     icon(which, x + 16, std::round(middle - iconSize / 2), iconSize, highlighted ? accent.light : color::kTextDim);
     drawText(shown, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
     return width;
+}
+
+namespace
+{
+constexpr std::optional<bool> kPacked[] = {std::nullopt, false, true};
+constexpr const char* kPackedLabels[] = {"All themes", "Standalone only", "From packs only"};
+constexpr Icon kPackedIcons[] = {Icon::Layers, Icon::Theme, Icon::Pack};
+
+size_t packedIndex(std::optional<bool> inPack)
+{
+    return !inPack ? 0 : *inPack ? 2 : 1;
+}
+} // namespace
+
+const char* packedLabel(std::optional<bool> inPack)
+{
+    return kPackedLabels[packedIndex(inPack)];
+}
+
+void choosePacked(std::optional<bool> current, Color accent, std::function<void(std::optional<bool>)> choose)
+{
+    std::vector<ui::Action> actions;
+    for (size_t i = 0; i < std::size(kPacked); ++i)
+    {
+        ui::Action action{kPackedIcons[i], kPackedLabels[i], "", true, false, [choose, current, i] {
+                              if (current != kPacked[i])
+                                  choose(kPacked[i]);
+                          }};
+        action.checked = current == kPacked[i];
+        actions.push_back(std::move(action));
+    }
+    App::get().scenes().emplace<ui::ActionSheet>("Show", std::move(actions), accent,
+                                                 static_cast<int>(packedIndex(current)));
 }
 
 int chipKeys(ui::Input& input, int& focus, int count)

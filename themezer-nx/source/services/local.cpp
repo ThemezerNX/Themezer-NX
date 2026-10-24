@@ -21,6 +21,13 @@ std::string key(library::Kind kind, const std::string& id)
 
 } // namespace
 
+bool inPack(const library::Entry& entry)
+{
+    const std::string root = library::kRoot;
+    const std::string_view dir = std::string_view(entry.path).substr(0, entry.path.rfind('/'));
+    return dir != root && dir != root + "/ThemezerNX";
+}
+
 Library& Library::get()
 {
     static Library library;
@@ -66,7 +73,6 @@ void Library::index()
     ids_.clear();
     packs_.clear();
     std::unordered_map<std::string, size_t> byDir;
-    const std::string root = library::kRoot, own = root + "/ThemezerNX";
     for (size_t i = 0; i < entries_.size(); ++i)
     {
         const library::Entry& entry = entries_[i];
@@ -74,10 +80,9 @@ void Library::index()
             ids_.insert(key(entry.kind, entry.themezerId));
         if (entry.kind != library::Kind::Theme)
             continue;
-        // a folder's themes are a pack; the loose ones, in /Themes and in Themezer-NX's own folder, aren't
-        std::string dir = entry.path.substr(0, entry.path.rfind('/'));
-        if (dir == root || dir == own)
+        if (!inPack(entry))
             continue;
+        std::string dir = entry.path.substr(0, entry.path.rfind('/'));
         const auto [at, added] = byDir.try_emplace(dir, packs_.size());
         if (added)
         {

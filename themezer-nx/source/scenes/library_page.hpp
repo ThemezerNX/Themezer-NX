@@ -9,6 +9,7 @@
 #include "ui/grid_view.hpp"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,7 @@ private:
     void openFilter();
     void chooseSort();
     void chooseTarget();
+    void choosePacked();
     void search();
     void drawFilters(float top);
 
@@ -54,6 +56,7 @@ private:
     uint32_t generation_ = UINT32_MAX;
     Sort sort_ = Sort::Newest;
     int target_ = -1;
+    std::optional<bool> inPack_; // themes: only those in a pack, only those that aren't, or all
     std::string search_;
     ui::GridView grid_;
 
@@ -61,6 +64,7 @@ private:
     {
         Sort,
         Target,
+        Packed,
         Search,
     };
     struct Chip

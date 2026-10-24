@@ -158,6 +158,8 @@ void LibraryPage::rebuild()
             const library::Entry& entry = entries[i];
             if (entry.kind != kind)
                 continue;
+            if (kind_ == Kind::Themes && inPack_ && local::inPack(entry) != *inPack_)
+                continue;
             if (kind_ == Kind::Themes && target_ >= 0 && entry.target != target_)
             {
                 // a part not known yet is in its info.json: read it, it's sorted in when it's there
@@ -252,6 +254,15 @@ void LibraryPage::chooseTarget()
     App::get().scenes().emplace<ui::ActionSheet>("Show themes for", std::move(actions), accent().solid, target_ + 1);
 }
 
+void LibraryPage::choosePacked()
+{
+    scenes::choosePacked(inPack_, accent().solid, [this](std::optional<bool> inPack) {
+        inPack_ = inPack;
+        rebuild();
+        grid_.select(0, false);
+    });
+}
+
 void LibraryPage::openFilter()
 {
     if (kind_ != Kind::Themes)
@@ -267,6 +278,8 @@ void LibraryPage::openFilter()
                        std::string("Part of the HOME Menu: ") +
                            (target_ < 0 ? "Every part" : themezer::targetLabel(target_)),
                        "", true, false, [this] { chooseTarget(); }});
+    actions.push_back({Icon::Pack, std::string("Show: ") + packedLabel(inPack_), "", true, false,
+                       [this] { choosePacked(); }});
     App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
 
@@ -314,6 +327,9 @@ void LibraryPage::update(ui::Input& input, float dt)
             return;
         }
     }
+    // a finger on the screen takes the grid back from the keys on the chips
+    if (chipFocus_ >= 0 && input.touching)
+        chipFocus_ = -1;
     if (chipFocus_ >= 0)
     {
         if (const int chosen = chipKeys(input, chipFocus_, static_cast<int>(chips_.size())); chosen >= 0)
@@ -350,6 +366,8 @@ void LibraryPage::openChip(Filter filter)
         chooseSort();
     else if (filter == Filter::Target)
         chooseTarget();
+    else if (filter == Filter::Packed)
+        choosePacked();
     else
         search();
 }
@@ -380,6 +398,8 @@ void LibraryPage::drawFilters(float top)
     if (kind_ == Kind::Themes)
         chip(targetIcon(target_), target_ < 0 ? "Every part" : themezer::targetLabel(target_), target_ >= 0,
              Filter::Target);
+    if (kind_ == Kind::Themes)
+        chip(Icon::Pack, packedLabel(inPack_), inPack_.has_value(), Filter::Packed);
     if (!search_.empty())
         chip(Icon::Search, "“" + search_ + "”", true, Filter::Search);
     if (chipFocus_ >= 0 && chipFocus_ < static_cast<int>(chips_.size()))
@@ -420,7 +440,7 @@ void LibraryPage::draw()
             }
             if (entry)
                 content.picture = localPicture(*entry, kThumbWidth);
-            card::draw(content, x, y, w, h, selected, accent);
+            card::draw(content, x, y, w, h, selected && chipFocus_ < 0, accent);
         },
         [&](float x, float y, float w, float h, bool down) {
                 if (chipFocus_ < 0)
@@ -433,12 +453,12 @@ void LibraryPage::draw()
     }
     else if (rows_.empty())
     {
-        const bool filtered = !search_.empty() || target_ >= 0;
+        const bool filtered = !search_.empty() || target_ >= 0 || inPack_;
         const std::string what = nameOf(kind_, false);
         drawEmptyState(filtered ? Icon::SearchEmpty : Icon::SdCard, color::kTextDim,
                        filtered ? "No results" : "No " + what + " on the SD card yet",
-                       filtered ? (search_.empty() ? std::string("There are none for ") +
-                                                         themezer::targetLabel(target_) + " on the SD card."
+                       filtered ? (search_.empty() ? std::string("None of the themes on the SD card are shown with these "
+                                                                 "filters.")
                                                    : "Nothing matches “" + search_ + "”.")
                        : kind_ == Kind::Packs
                            ? std::string("The packs you download from Themezer show here, with any other folders of "

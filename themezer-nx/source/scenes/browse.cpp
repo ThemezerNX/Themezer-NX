@@ -194,35 +194,12 @@ void BrowsePage::chooseTarget()
                                                  query_.target + 1);
 }
 
-namespace
-{
-// whether the themes shown are in a pack: all of them, only those that aren't, only those that are
-constexpr std::optional<bool> kPacked[] = {std::nullopt, false, true};
-constexpr const char* kPackedLabels[] = {"All themes", "Standalone only", "From packs only"};
-constexpr Icon kPackedIcons[] = {Icon::Layers, Icon::Theme, Icon::Pack};
-
-size_t packedIndex(std::optional<bool> inPack)
-{
-    return !inPack ? 0 : *inPack ? 2 : 1;
-}
-} // namespace
-
 void BrowsePage::choosePacked()
 {
-    std::vector<ui::Action> actions;
-    for (size_t i = 0; i < std::size(kPacked); ++i)
-    {
-        ui::Action action{kPackedIcons[i], kPackedLabels[i], "", true, false, [this, i] {
-                              if (query_.inPack == kPacked[i])
-                                  return;
-                              query_.inPack = kPacked[i];
-                              reload();
-                          }};
-        action.checked = query_.inPack == kPacked[i];
-        actions.push_back(std::move(action));
-    }
-    App::get().scenes().emplace<ui::ActionSheet>("Show", std::move(actions), accent().solid,
-                                                 static_cast<int>(packedIndex(query_.inPack)));
+    scenes::choosePacked(query_.inPack, accent().solid, [this](std::optional<bool> inPack) {
+        query_.inPack = inPack;
+        reload();
+    });
 }
 
 void BrowsePage::openFilter()
@@ -240,8 +217,7 @@ void BrowsePage::openFilter()
                        std::string("Part of the HOME Menu: ") +
                            (query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target)),
                        "", true, false, [this] { chooseTarget(); }});
-    const size_t packed = packedIndex(query_.inPack);
-    actions.push_back({Icon::Pack, std::string("Show: ") + kPackedLabels[packed], "", true, false,
+    actions.push_back({Icon::Pack, std::string("Show: ") + packedLabel(query_.inPack), "", true, false,
                        [this] { choosePacked(); }});
     App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
@@ -311,6 +287,9 @@ void BrowsePage::update(ui::Input& input, float dt)
         return;
     }
 
+    // a finger on the screen takes the grid back from the keys on the chips
+    if (chipFocus_ >= 0 && input.touching)
+        chipFocus_ = -1;
     if (chipFocus_ >= 0)
     {
         if (const int chosen = chipKeys(input, chipFocus_, static_cast<int>(chips_.size())); chosen >= 0)
@@ -374,8 +353,7 @@ void BrowsePage::drawFilters(float top)
              query_.target >= 0, Filter::Target);
     if (query_.kind == Kind::Themes)
     {
-        const size_t packed = packedIndex(query_.inPack);
-        chip(Icon::Pack, kPackedLabels[packed], packed != 0, Filter::Packed);
+        chip(Icon::Pack, packedLabel(query_.inPack), query_.inPack.has_value(), Filter::Packed);
     }
     if (!query_.search.empty())
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
@@ -393,7 +371,8 @@ void BrowsePage::draw()
         const Layer layer(0, (1 - ease(contentFade_)) * 24, ease(contentFade_));
         grid_.draw(
             [&](int index, float x, float y, float w, float h, bool selected) {
-                card::draw(items_[static_cast<size_t>(index)], x, y, w, h, selected, accent, showTarget);
+                card::draw(items_[static_cast<size_t>(index)], x, y, w, h, selected && chipFocus_ < 0, accent,
+                           showTarget);
             },
             [&](float x, float y, float w, float h, bool down) {
                 if (chipFocus_ < 0)
