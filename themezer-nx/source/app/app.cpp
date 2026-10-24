@@ -138,7 +138,7 @@ int App::run()
         ui::drawToasts();
         const Uint64 drawn = SDL_GetPerformanceCounter();
         if (const double ms = 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
-            static_cast<double>(drawn - start) * ms > 50)
+            !scenes::tookKeyboard() && static_cast<double>(drawn - start) * ms > 50)
             std::printf("Slow frame: %.0f ms (posted work %.0f, update %.0f, draw %.0f)\n",
                         static_cast<double>(drawn - start) * ms, static_cast<double>(drained - start) * ms,
                         static_cast<double>(updated - drained) * ms, static_cast<double>(drawn - updated) * ms);

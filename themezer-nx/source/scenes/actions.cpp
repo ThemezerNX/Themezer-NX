@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace tz::scenes
@@ -291,8 +292,19 @@ void offerInstaller()
         std::vector<ui::DialogButton>{{"Not now", nullptr}, {"Download", [] { downloadInstaller(); }}});
 }
 
+namespace
+{
+bool keyboardUp = false;
+} // namespace
+
+bool tookKeyboard()
+{
+    return std::exchange(keyboardUp, false);
+}
+
 std::optional<std::string> askText(const char* guide, const std::string& initial, size_t maxLength)
 {
+    keyboardUp = true;
     SwkbdConfig config;
     if (R_FAILED(swkbdCreate(&config, 0)))
         return std::nullopt;

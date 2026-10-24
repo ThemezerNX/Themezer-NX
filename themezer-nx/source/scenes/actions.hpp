@@ -62,6 +62,8 @@ bool canInstall();
 // releases on GitHub, to sd:/switch/NXThemesInstaller.nro, as an app store would.
 void offerInstaller();
 
+// Whether the keyboard was up since the last call: the app waits for it, which isn't a stutter.
+bool tookKeyboard();
 // Text typed on the Switch's keyboard, its spaces at the ends cut; nothing when it was cancelled.
 std::optional<std::string> askText(const char* guide, const std::string& initial = {}, size_t maxLength = 128);
 
