@@ -24,7 +24,7 @@ public:
     void tick(float dt) override;
     void draw() override;
     void onResume() override;
-    std::string crumb() const override;
+    std::vector<ui::Crumb> crumbs() const override;
 
 private:
     Page& page();

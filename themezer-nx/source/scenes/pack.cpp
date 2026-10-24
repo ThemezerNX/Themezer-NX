@@ -30,7 +30,8 @@ constexpr int kColumns = 2;
 constexpr float kGap = 22;
 } // namespace
 
-PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack)), trail_(trailTo(pack_.name))
+PackScene::PackScene(themezer::Item pack, std::vector<ui::Crumb> trail)
+    : pack_(std::move(pack)), trail_(std::move(trail))
 {
     sfx::play(sfx::Sound::Open);
     backdrop_.set(placeholderOf(pack_), accentOf(Kind::Packs).solid);
@@ -38,6 +39,13 @@ PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack)), trail_(trail
     const float cellWidth = (metric::kWidth - kGridX - kSide - kGap * (kColumns - 1)) / kColumns;
     grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
     grid_.setCount(static_cast<int>(pack_.themes.size()));
+}
+
+std::vector<ui::Crumb> PackScene::crumbs() const
+{
+    std::vector<ui::Crumb> crumbs = trail_;
+    crumbs.push_back(pageCrumb(pack_.name));
+    return crumbs;
 }
 
 std::vector<int> PackScene::queuedSlots() const
@@ -149,6 +157,10 @@ void PackScene::draw()
             picture->drawCover(kSide, kTop, kColumnW, collageH, 16);
         else
             roundedRect(kSide, kTop, kColumnW, collageH, 16, color::kSurfaceRaised);
+        // what its card shows over its collage: how many themes, and what's become of them here
+        const size_t count = pack_.themes.size();
+        card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(pack_), kSide, kTop, kColumnW,
+                      collageH, accent, 12);
         float y = kTop + collageH + 16;
         // its description under it, as a theme's is; the facts closer together to make room for it
         const bool described = !pack_.description.empty();
@@ -160,12 +172,6 @@ void PackScene::draw()
         y += drawWrapped(pack_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
         drawText("by " + pack_.creator, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
         y += lineHeight(metric::kTextNormal) + (described ? 10 : 16);
-        const float iconSize = metric::kIcon * 0.75f;
-        const std::string count = std::to_string(pack_.themes.size()) + (pack_.themes.size() == 1 ? " theme" : " themes");
-        icon(Icon::Theme, kSide, std::round(y + row / 2 - iconSize / 2), iconSize, accent.light);
-        drawText(count, kSide + iconSize + 14, textTop(y + row / 2, metric::kTextSmall), metric::kTextSmall,
-                 color::kText);
-        y += row;
         drawFacts(pack_, kSide, y, kColumnW, accent, row);
     }
     {

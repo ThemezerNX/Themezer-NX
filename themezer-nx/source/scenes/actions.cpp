@@ -404,7 +404,7 @@ void showOnThemezer(const std::string& quickId)
         [quickId](ui::TaskProgress&, const CancelToken& token) { return themezer::lookupQuickId(quickId, token); },
         [](std::expected<Item, themezer::Error> result) {
             if (result)
-                openItem(*result);
+                openFound(*result);
             else
                 showError("Couldn't look it up", result.error());
         }));
@@ -475,6 +475,15 @@ void openItem(const Item& item)
         scenes().emplace<PackScene>(item);
     else
         scenes().emplace<DetailsScene>(item);
+}
+
+void openFound(const Item& item)
+{
+    std::vector<ui::Crumb> trail{modeCrumb(true), sectionCrumb(item.kind)};
+    if (item.kind == themezer::Kind::Packs)
+        scenes().emplace<PackScene>(item, std::move(trail));
+    else
+        scenes().emplace<DetailsScene>(item, std::move(trail));
 }
 
 void install(const Item& item, bool save)
@@ -593,7 +602,7 @@ void openQuickId()
         [quickId](ui::TaskProgress&, const CancelToken& token) { return themezer::lookupQuickId(quickId, token); },
         [](std::expected<Item, themezer::Error> result) {
             if (result)
-                openItem(*result);
+                openFound(*result);
             else if (result.error().notFound)
                 scenes().emplace<ui::Dialog>(Icon::SearchEmpty, color::kTextDim, "Nothing found",
                                              result.error().message);

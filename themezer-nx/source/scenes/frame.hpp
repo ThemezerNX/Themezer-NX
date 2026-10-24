@@ -8,6 +8,7 @@
 #include "services/local.hpp"
 #include "services/themezer.hpp"
 #include "ui/input.hpp"
+#include "ui/scene.hpp"
 
 #include <functional>
 #include <memory>
@@ -45,10 +46,25 @@ private:
 
 // The top bar: Themezer's logo on the left, the time, Wi-Fi and battery on the right. Returns where the status
 // starts, for what goes between.
-// With a trail, after the logo: where the screen is, "Themezer › Packs › Pixel Forest", the last part brightest.
-float drawTopBar(float alpha = 1.0f, const std::vector<std::string>& trail = {});
-// The trail to a screen opened now, called name: the screens' under it, then its own.
-std::vector<std::string> trailTo(std::string name);
+// With a trail, after the logo: where the screen is, its mode and section as the home screen shows them, then the pages
+// it was opened from ("Pixel Forest"), as text.
+float drawTopBar(float alpha = 1.0f, const std::vector<ui::Crumb>& trail = {});
+// Where a screen opened now is: the trail of the screen it's opened from.
+std::vector<ui::Crumb> currentTrail();
+
+// The crumbs of a mode, the SD card's or Themezer's, and a section; and a page, called name.
+ui::Crumb modeCrumb(bool online);
+ui::Crumb sectionCrumb(themezer::Kind section);
+ui::Crumb pageCrumb(std::string name);
+// The home screen's mode and section look, the same in every top bar: the mode in a plain pill (with the key that
+// switches it, on the home screen, sunk while it's down; width 0 for as wide as it needs), the section as the tab bar
+// shows the selected tab. Each returns where it ends.
+constexpr float kPillHeight = 52;
+float modePillWidth(const ui::Crumb& mode, ui::Keys key = 0);
+float drawModePill(const ui::Crumb& mode, float x, float y, float width = 0, ui::Keys key = 0, bool down = false);
+float drawSectionPill(const ui::Crumb& section, float x, float y);
+// Where the home screen's mode pill is, and the pages' trails start: after the logo.
+float pillsLeft();
 
 gfx::Accent accentOf(themezer::Kind kind);
 gfx::Icon iconOf(themezer::Kind kind);
@@ -91,6 +107,10 @@ void draw(const themezer::Item& item, float x, float y, float w, float h, bool s
           bool showTarget);
 // The selected card's key: a face on a ledge, with a ring in accent.
 void highlight(float x, float y, float w, float h, bool down, gfx::Accent accent);
+// What a card shows over its picture: the chip at its bottom left, the badge at its top right; inset from the corners.
+// A page shows the same over its big picture.
+void overlay(const std::string& chip, Badge badge, float x, float y, float w, float h, gfx::Accent accent,
+             float inset = 8);
 } // namespace card
 
 // A file's picture from the SD card, no wider than width, read on the images worker; nullptr until it's in.

@@ -45,7 +45,14 @@ LocalDetailsScene::LocalDetailsScene(std::string path) : path_(std::move(path))
     sfx::play(sfx::Sound::Open);
     if (const library::Entry* found = entry())
         last_ = *found;
-    trail_ = trailTo(last_.name);
+    trail_ = currentTrail();
+}
+
+std::vector<ui::Crumb> LocalDetailsScene::crumbs() const
+{
+    std::vector<ui::Crumb> crumbs = trail_;
+    crumbs.push_back(pageCrumb(last_.name));
+    return crumbs;
 }
 
 const library::Entry* LocalDetailsScene::entry() const
@@ -182,26 +189,17 @@ void LocalDetailsScene::draw()
             icon(entry.kind == Kind::Splash ? Icon::Splash : Icon::Theme, kPreviewX + (kPreviewW - metric::kIconLarge) / 2,
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
+        // what its card shows over its picture: its part, and what's become of it here
+        card::overlay(entry.kind == Kind::Theme && entry.target >= 0 ? themezer::targetLabel(entry.target) : "",
+                      badgeOf(entry), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16);
         // the file it's in, under the picture
         drawText(entry.fileName, kPreviewX + 4, kPreviewY + kPreviewH + 20, metric::kTextCaption, color::kTextFaint,
                  Align::Left, kPreviewW - 8);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);
-        float y = kPreviewY;
-        const float chipHeight = 40;
+        float y = kPreviewY - 6;
         const float iconSize = metric::kIcon * 0.75f;
-        const std::string kind = entry.kind == Kind::Splash
-                                     ? std::string("Hekate Splash")
-                                     : std::string("Theme · ") + (entry.target >= 0 ? themezer::targetLabel(entry.target)
-                                                                                    : "part not known");
-        const float chipWidth = iconSize + 10 + textWidth(kind, metric::kTextSmall) + 32;
-        roundedRect(kColumnX, y, chipWidth, chipHeight, chipHeight / 2, withAlpha(accent.solid, 0.35f));
-        icon(entry.kind == Kind::Splash ? Icon::Splash : targetIcon(entry.target), kColumnX + 16,
-             std::round(y + (chipHeight - iconSize) / 2), iconSize, accent.light);
-        drawText(kind, kColumnX + 16 + iconSize + 10, textTop(y + chipHeight / 2, metric::kTextSmall),
-                 metric::kTextSmall, accent.light);
-        y += chipHeight + 20;
         y += drawWrapped(entry.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;
         if (!entry.author.empty())
@@ -209,17 +207,7 @@ void LocalDetailsScene::draw()
             drawText("by " + entry.author, kColumnX, y, metric::kTextNormal, accent.light, Align::Left, kColumnW);
             y += lineHeight(metric::kTextNormal);
         }
-        y += 12;
-        // installed now, or queued to be
-        if (const Badge badge = badgeOf(entry); badge != Badge::None)
-        {
-            const float middle = y + 16;
-            icon(badgeIcon(badge), kColumnX, std::round(middle - iconSize / 2), iconSize, accent.light);
-            drawText(badge == Badge::Queued ? "Queued to install" : "Installed now", kColumnX + iconSize + 12,
-                     textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
-            y += 32;
-        }
-        y += 12;
+        y += 20;
         rect(kColumnX, y, kColumnW, 1, color::kDivider);
         y += 16;
         const float row = 44;

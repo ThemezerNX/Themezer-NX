@@ -16,6 +16,8 @@ namespace tz::scenes
 
 // Its page: a pack's themes, or a theme's or splash's details.
 void openItem(const themezer::Item& item);
+// The same, found by its Quick ID: it's on Themezer, in its section, wherever it was looked up from.
+void openFound(const themezer::Item& item);
 
 // Downloads it (unless it's on the SD card already) and queues it for NXThemes Installer; kept in /Themes/ThemezerNX
 // when save, else only until the next start.

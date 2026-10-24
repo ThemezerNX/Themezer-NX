@@ -38,7 +38,14 @@ LocalPackScene::LocalPackScene(std::string dir) : dir_(std::move(dir))
     const float cellWidth = (metric::kWidth - kGridX - kSide - kGap * (kColumns - 1)) / kColumns;
     grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
     rebuild();
-    trail_ = trailTo(last_.name);
+    trail_ = currentTrail();
+}
+
+std::vector<ui::Crumb> LocalPackScene::crumbs() const
+{
+    std::vector<ui::Crumb> crumbs = trail_;
+    crumbs.push_back(pageCrumb(last_.name));
+    return crumbs;
 }
 
 void LocalPackScene::rebuild()
@@ -197,6 +204,10 @@ void LocalPackScene::draw()
             icon(Icon::Pack, kSide + (kColumnW - metric::kIconLarge) / 2, kTop + (pictureH - metric::kIconLarge) / 2,
                  metric::kIconLarge, color::kTextFaint);
         }
+        // what its card shows over its picture: how many themes, and what's become of them here
+        const size_t count = last_.themes.size();
+        card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(last_), kSide, kTop,
+                      kColumnW, pictureH, accent, 12);
         float y = kTop + pictureH + 24;
         y += drawWrapped(last_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
         if (!last_.author.empty())
@@ -212,8 +223,6 @@ void LocalPackScene::draw()
                      Align::Left, kColumnW - iconSize - 14);
             y += 44;
         };
-        const size_t count = last_.themes.size();
-        fact(Icon::Theme, std::to_string(count) + (count == 1 ? " theme" : " themes"));
         fact(Icon::SdCard, megabytes(last_.size));
         if (!last_.themezerId.empty())
             fact(Icon::Hash, "Quick ID P" + last_.themezerId);

@@ -21,14 +21,15 @@ using ui::ease;
 namespace
 {
 constexpr int kTabs = 3; // in each mode
-constexpr float kBarHeight = 52;
+constexpr themezer::Kind kKinds[kTabs] = {themezer::Kind::Packs, themezer::Kind::Themes, themezer::Kind::Splashes};
+constexpr float kBarHeight = kPillHeight;
 // how far a page comes in from, from the side of its tab
 constexpr float kSlide = 32;
 } // namespace
 
 HomeScene::HomeScene()
 {
-    for (themezer::Kind kind : {themezer::Kind::Packs, themezer::Kind::Themes, themezer::Kind::Splashes})
+    for (themezer::Kind kind : kKinds)
     {
         local_.push_back(std::make_unique<LibraryPage>(kind));
         online_.push_back(std::make_unique<BrowsePage>(kind));
@@ -37,9 +38,14 @@ HomeScene::HomeScene()
     const int last = std::clamp(App::get().config().lastTab, 0, 2 * kTabs - 1);
     onlineMode_ = last >= kTabs;
     tab_ = last % kTabs;
-    tabs_.setTabs({{"Packs", accent::kPacks, Icon::Pack},
-                   {"Themes", accent::kThemes, Icon::Theme},
-                   {"Splashes", accent::kSplashes, Icon::Splash}});
+    // the sections, as every page's top bar names them
+    std::vector<ui::Tab> tabs;
+    for (themezer::Kind kind : kKinds)
+    {
+        const ui::Crumb section = sectionCrumb(kind);
+        tabs.push_back({section.text, section.accent, section.icon});
+    }
+    tabs_.setTabs(std::move(tabs));
     tabs_.select(tab_);
     page().onShow();
 }
@@ -142,49 +148,28 @@ void HomeScene::update(ui::Input& input, float dt)
     page().update(input, dt);
 }
 
-namespace
+std::vector<ui::Crumb> HomeScene::crumbs() const
 {
-const char* modeLabel(bool online)
-{
-    return online ? "Themezer" : "SD card";
+    return {modeCrumb(onlineMode_), sectionCrumb(kKinds[tab_])};
 }
 
+namespace
+{
 // as wide for both, so the tabs stay where they are
 float modeWidth()
 {
-    const float label = std::max(textWidth(modeLabel(true), metric::kTextNormal),
-                                 textWidth(modeLabel(false), metric::kTextNormal));
-    return std::round(16 + ui::buttonWidth(ui::key::kMinus, metric::kButtonGlyph) + 12 + metric::kIcon + 10 + label + 20);
+    return std::max(modePillWidth(modeCrumb(true), ui::key::kMinus), modePillWidth(modeCrumb(false), ui::key::kMinus));
 }
 } // namespace
 
-std::string HomeScene::crumb() const
-{
-    constexpr const char* kTabs[] = {"Packs", "Themes", "Splashes"};
-    return std::string(modeLabel(onlineMode_)) + "  ›  " + kTabs[tab_];
-}
-
 float HomeScene::drawModeButton(float x, float y, float height)
 {
-    const float width = modeWidth();
     modeX_ = x;
     modeY_ = y;
-    modeW_ = width;
+    modeW_ = modeWidth();
     modeH_ = height;
     // as the tab bar is: a pill with the key that switches it, which sinks and lights up pressed; then the mode it's in
-    const bool down = modePress_.down();
-    const float middle = y + height / 2;
-    roundedRect(x, y, width, height, height / 2, color::kSurface);
-    float left = x + 16;
-    left += ui::drawButton(ui::key::kMinus, left, textTop(middle, metric::kButtonGlyph) + (down ? ui::kKeyLip : 0),
-                           metric::kButtonGlyph, down ? color::kText : color::kTextDim) +
-            12;
-    const float iconSize = metric::kIcon;
-    icon(onlineMode_ ? Icon::Globe : Icon::SdCard, left, std::round(middle - iconSize / 2), iconSize,
-         onlineMode_ ? accent::kApp.light : color::kText);
-    drawText(modeLabel(onlineMode_), left + iconSize + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
-             color::kText);
-    return x + width;
+    return drawModePill(modeCrumb(onlineMode_), x, y, modeW_, ui::key::kMinus, modePress_.down());
 }
 
 void HomeScene::draw()
@@ -196,13 +181,9 @@ void HomeScene::draw()
         page().draw();
     }
     const float statusLeft = drawTopBar();
-    // the mode button and the tabs, in the middle of the bar where there's room, between the logo and the status
-    const float from = 32 + brandWidth(Brand::Logo) + 20;
-    const float to = statusLeft - 20;
-    const float modeW = modeWidth();
-    const float barWidth = std::min(tabs_.naturalWidth(metric::kTextNormal), to - from - modeW - 12);
-    const float total = modeW + 12 + barWidth;
-    const float left = std::round(std::clamp((metric::kWidth - total) / 2, from, to - total));
+    // the mode button and the tabs after the logo, where every page's top bar has its mode and section
+    const float left = pillsLeft();
+    const float barWidth = std::min(tabs_.naturalWidth(metric::kTextNormal), statusLeft - 20 - left - modeWidth() - 12);
     const float top = std::round((metric::kTopBarHeight - kBarHeight) / 2);
     const float tabsLeft = drawModeButton(left, top, kBarHeight) + 12;
     tabs_.draw(tabsLeft, top, barWidth, kBarHeight, metric::kTextNormal);

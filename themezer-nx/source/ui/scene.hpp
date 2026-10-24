@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "gfx/draw.hpp"
+#include "gfx/palette.hpp"
 #include "ui/input.hpp"
 
 #include <memory>
@@ -11,6 +13,22 @@
 
 namespace tz::ui
 {
+
+// A part of where a screen is, for its top bar: the mode and the section, which look as the home screen's controls do,
+// then the pages opened from them.
+struct Crumb
+{
+    enum class Kind : uint8_t
+    {
+        Mode,    // the SD card or Themezer
+        Section, // packs, themes, splashes
+        Page,
+    };
+    Kind kind = Kind::Page;
+    std::string text;
+    gfx::Icon icon = gfx::Icon::Count;
+    gfx::Accent accent{};
+};
 
 // A screen of the app. Only the scene on top gets input; overlays (dialogs, sheets) let the scenes under them show
 // through.
@@ -28,8 +46,8 @@ public:
     virtual void tick(float /*dt*/) {}
     // False while it's on its way out: the input goes to the scene under it.
     virtual bool acceptsInput() const { return true; }
-    // Where it is, for the breadcrumb of the screens opened from it: "Pixel Forest". Empty for overlays.
-    virtual std::string crumb() const { return {}; }
+    // Where it is, itself last: the trail of the screens opened from it. Empty for overlays.
+    virtual std::vector<Crumb> crumbs() const { return {}; }
 
     bool closed() const { return closed_; }
     void close() { closed_ = true; }
@@ -56,8 +74,8 @@ public:
     bool empty() const { return scenes_.empty() && pending_.empty(); }
     size_t size() const { return scenes_.size(); }
     Scene* top() const { return scenes_.empty() ? nullptr : scenes_.back().get(); }
-    // The scenes' crumbs, the bottom one first: where a scene opened now is.
-    std::vector<std::string> trail() const;
+    // Where a scene opened now is: the crumbs of the top one that has them.
+    std::vector<Crumb> trail() const;
     void clear();
 
 private:

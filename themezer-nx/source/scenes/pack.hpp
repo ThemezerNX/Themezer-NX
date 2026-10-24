@@ -14,12 +14,12 @@ namespace tz::scenes
 class PackScene final : public ui::Scene
 {
 public:
-    explicit PackScene(themezer::Item pack);
+    explicit PackScene(themezer::Item pack, std::vector<ui::Crumb> trail = currentTrail());
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
-    std::string crumb() const override { return trail_.back(); }
+    std::vector<ui::Crumb> crumbs() const override;
 
 private:
     std::vector<ui::Hint> hints() const;
@@ -29,7 +29,7 @@ private:
     void view();
 
     themezer::Item pack_;
-    std::vector<std::string> trail_; // where it is, for the top bar
+    std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar
     ui::GridView grid_;
     ui::HintBar hintBar_;
     Backdrop backdrop_;

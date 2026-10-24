@@ -23,7 +23,7 @@ public:
     void tick(float dt) override;
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
-    std::string crumb() const override { return trail_.back(); }
+    std::vector<ui::Crumb> crumbs() const override;
 
 private:
     void rebuild();
@@ -33,7 +33,7 @@ private:
     void openMore();
 
     std::string dir_;
-    std::vector<std::string> trail_; // where it is, for the top bar
+    std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar
     local::Pack last_;                // what it was, drawn while the page goes after the folder has
     std::vector<std::string> themes_; // its themes' files, in the parts' order
     uint32_t generation_ = UINT32_MAX;

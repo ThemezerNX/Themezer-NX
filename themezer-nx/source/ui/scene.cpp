@@ -9,18 +9,17 @@ void SceneStack::push(std::unique_ptr<Scene> scene)
     pending_.push_back(std::move(scene));
 }
 
-std::vector<std::string> SceneStack::trail() const
+std::vector<Crumb> SceneStack::trail() const
 {
-    std::vector<std::string> out;
-    for (const auto* scenes : {&scenes_, &pending_})
+    for (const auto* scenes : {&pending_, &scenes_})
     {
-        for (const auto& scene : *scenes)
+        for (auto it = scenes->rbegin(); it != scenes->rend(); ++it)
         {
-            if (std::string crumb = scene->crumb(); !crumb.empty() && !scene->closed())
-                out.push_back(std::move(crumb));
+            if (std::vector<Crumb> crumbs = (*it)->crumbs(); !crumbs.empty() && !(*it)->closed())
+                return crumbs;
         }
     }
-    return out;
+    return {};
 }
 
 void SceneStack::update(Input& input, float dt)

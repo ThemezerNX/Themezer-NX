@@ -31,15 +31,6 @@ constexpr float kColumnX = kPreviewX + kPreviewW + 40;
 constexpr float kColumnW = metric::kWidth - kColumnX - 48;
 
 
-std::string kindLabel(const themezer::Item& item)
-{
-    if (item.kind == Kind::Splashes)
-        return item.remote ? "Remote Splash" : "Hekate Splash";
-    if (item.kind == Kind::Packs)
-        return "Pack";
-    return std::string(item.remote ? "Remote theme · " : "Theme · ") + themezer::targetLabel(item.target);
-}
-
 } // namespace
 
 float drawFacts(const themezer::Item& item, float x, float y, float width, Accent accent, float row)
@@ -63,6 +54,7 @@ float drawFacts(const themezer::Item& item, float x, float y, float width, Accen
     }
     else
     {
+        fact(Icon::Globe, "A remote install, not on Themezer");
         fact(Icon::Calendar, "Added " + themezer::dateOf(item.createdAt));
     }
     if (!item.packName.empty() && item.kind == Kind::Themes)
@@ -71,17 +63,18 @@ float drawFacts(const themezer::Item& item, float x, float y, float width, Accen
     return y;
 }
 
-DetailsScene::DetailsScene(themezer::Item item) : item_(std::move(item)), trail_(trailTo(item_.name))
+DetailsScene::DetailsScene(themezer::Item item, std::vector<ui::Crumb> trail)
+    : item_(std::move(item)), trail_(std::move(trail))
 {
     sfx::play(sfx::Sound::Open);
     backdrop_.set(placeholderOf(item_), accentOf(item_.kind).solid);
-    saved_ = installs::exists(installs::savedPath(item_));
 }
 
-void DetailsScene::onResume()
+std::vector<ui::Crumb> DetailsScene::crumbs() const
 {
-    // back from a download, maybe
-    saved_ = installs::exists(installs::savedPath(item_));
+    std::vector<ui::Crumb> crumbs = trail_;
+    crumbs.push_back(pageCrumb(item_.name));
+    return crumbs;
 }
 
 std::shared_ptr<Picture> DetailsScene::picture() const
@@ -191,7 +184,10 @@ void DetailsScene::draw()
         }
         // the HD picture loading over the small one
         if (!item_.preview.hd.empty() && !images().get(item_.preview.hd))
-            spinner(kPreviewX + kPreviewW - 32, kPreviewY + 32, 14, color::kText);
+            spinner(kPreviewX + kPreviewW - 32, kPreviewY + kPreviewH - 32, 14, color::kText);
+        // what its card shows over its picture: its part, and what's become of it here
+        card::overlay(item_.kind == Kind::Themes && item_.target >= 0 ? themezer::targetLabel(item_.target) : "",
+                      badgeOf(item_), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16);
 
         if (!item_.description.empty())
             drawWrapped(item_.description, kPreviewX + 4, kPreviewY + kPreviewH + 20, kPreviewW - 8,
@@ -199,33 +195,11 @@ void DetailsScene::draw()
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);
-        float y = kPreviewY;
-        const float chipHeight = 40;
-        const std::string kind = kindLabel(item_);
-        const float chipWidth = metric::kIcon * 0.75f + 10 + textWidth(kind, metric::kTextSmall) + 32;
-        roundedRect(kColumnX, y, chipWidth, chipHeight, chipHeight / 2, withAlpha(accent.solid, 0.35f));
-        icon(iconOf(item_.kind), kColumnX + 16, std::round(y + (chipHeight - metric::kIcon * 0.75f) / 2),
-             metric::kIcon * 0.75f, accent.light);
-        drawText(kind, kColumnX + 16 + metric::kIcon * 0.75f + 10, textTop(y + chipHeight / 2, metric::kTextSmall),
-                 metric::kTextSmall, accent.light);
-        y += chipHeight + 20;
+        float y = kPreviewY - 6;
         y += drawWrapped(item_.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;
         drawText("by " + item_.creator, kColumnX, y, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-        y += lineHeight(metric::kTextNormal) + 12;
-        // what's become of it here: queued to install, or on the SD card
-        const bool queued = installs::isQueued(item_);
-        if (queued || saved_)
-        {
-            const float iconSize = metric::kIcon * 0.75f;
-            const float middle = y + 16;
-            icon(queued ? Icon::Queue : Icon::Check, kColumnX, std::round(middle - iconSize / 2), iconSize,
-                 queued ? accent.light : color::kTextDim);
-            drawText(queued ? "Queued to install" : "On the SD card", kColumnX + iconSize + 12,
-                     textTop(middle, metric::kTextSmall), metric::kTextSmall, queued ? color::kText : color::kTextDim);
-            y += 32;
-        }
-        y += 12;
+        y += lineHeight(metric::kTextNormal) + 20;
         rect(kColumnX, y, kColumnW, 1, color::kDivider);
         y += 16;
         drawFacts(item_, kColumnX, y, kColumnW, accent);

@@ -72,44 +72,116 @@ void Backdrop::draw(float dim) const
     fill(withAlpha(color::kBackground, dim));
 }
 
-std::vector<std::string> trailTo(std::string name)
+std::vector<ui::Crumb> currentTrail()
 {
-    std::vector<std::string> trail = App::get().scenes().trail();
-    trail.push_back(std::move(name));
-    return trail;
+    return App::get().scenes().trail();
+}
+
+ui::Crumb modeCrumb(bool online)
+{
+    return {ui::Crumb::Kind::Mode, online ? "Themezer" : "SD card", online ? Icon::Globe : Icon::SdCard,
+            online ? accent::kApp : Accent{color::kText, color::kText}};
+}
+
+ui::Crumb sectionCrumb(themezer::Kind section)
+{
+    const char* name = section == themezer::Kind::Packs ? "Packs" : section == themezer::Kind::Themes ? "Themes" : "Splashes";
+    return {ui::Crumb::Kind::Section, name, iconOf(section), accentOf(section)};
+}
+
+ui::Crumb pageCrumb(std::string name)
+{
+    return {ui::Crumb::Kind::Page, std::move(name)};
+}
+
+float pillsLeft()
+{
+    return 32 + brandWidth(Brand::Logo) + 20;
+}
+
+float modePillWidth(const ui::Crumb& mode, ui::Keys key)
+{
+    const float glyph = key ? ui::buttonWidth(key, metric::kButtonGlyph) + 12 : 0;
+    return std::round(16 + glyph + metric::kIcon + 10 + textWidth(mode.text, metric::kTextNormal) + 20);
+}
+
+float drawModePill(const ui::Crumb& mode, float x, float y, float width, ui::Keys key, bool down)
+{
+    if (width <= 0)
+        width = modePillWidth(mode, key);
+    const float middle = y + kPillHeight / 2;
+    roundedRect(x, y, width, kPillHeight, kPillHeight / 2, color::kSurface);
+    float left = x + 16;
+    if (key)
+        left += ui::drawButton(key, left, textTop(middle, metric::kButtonGlyph) + (down ? ui::kKeyLip : 0),
+                               metric::kButtonGlyph, down ? color::kText : color::kTextDim) +
+                12;
+    icon(mode.icon, left, std::round(middle - metric::kIcon / 2), metric::kIcon, mode.accent.light);
+    drawText(mode.text, left + metric::kIcon + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
+             color::kText);
+    return x + width;
+}
+
+float drawSectionPill(const ui::Crumb& section, float x, float y)
+{
+    // the tab bar with only the selected tab: its highlight inside the bar's pill
+    const float inner = std::round(16 + metric::kIcon + 10 + textWidth(section.text, metric::kTextNormal) + 16);
+    const float width = inner + 12;
+    const float middle = y + kPillHeight / 2;
+    roundedRect(x, y, width, kPillHeight, kPillHeight / 2, color::kSurface);
+    roundedRect(x + 6, y + 6, inner, kPillHeight - 12, (kPillHeight - 12) / 2, withAlpha(section.accent.solid, 0.4f));
+    icon(section.icon, x + 6 + 16, std::round(middle - metric::kIcon / 2), metric::kIcon, section.accent.light);
+    drawText(section.text, x + 6 + 16 + metric::kIcon + 10, textTop(middle, metric::kTextNormal), metric::kTextNormal,
+             section.accent.light);
+    return x + width;
 }
 
 namespace
 {
-// The trail, in the room from x to right: what doesn't fit goes from its start, as "…".
-void drawTrail(const std::vector<std::string>& trail, float x, float right, float middle)
+// The trail from x, before right: the pills, then the pages; the pages that don't fit go from the first, as "…".
+void drawTrail(const std::vector<ui::Crumb>& trail, float x, float right)
 {
-    constexpr const char* kSeparator = "  ›  ";
-    const float size = metric::kTextSmall;
+    const float y = std::round((metric::kTopBarHeight - kPillHeight) / 2);
+    const float middle = y + kPillHeight / 2;
+    std::vector<std::string> pages;
+    for (const ui::Crumb& crumb : trail)
+    {
+        if (crumb.kind == ui::Crumb::Kind::Mode)
+            x = drawModePill(crumb, x, y) + 12;
+        else if (crumb.kind == ui::Crumb::Kind::Section)
+            x = drawSectionPill(crumb, x, y) + 12;
+        else
+            pages.push_back(crumb.text);
+    }
+    if (pages.empty())
+        return;
+    constexpr const char* kSeparator = "›  ";
+    const float size = metric::kTextNormal;
     const float top = textTop(middle, size);
+    x += 4;
     size_t first = 0;
     const auto width = [&](size_t from) {
-        float total = from > 0 ? textWidth(std::string("…") + kSeparator, size) : 0;
-        for (size_t i = from; i < trail.size(); ++i)
-            total += textWidth(trail[i], size) + (i + 1 < trail.size() ? textWidth(kSeparator, size) : 0);
+        float total = from > 0 ? textWidth(std::string(kSeparator) + "…  ", size) : 0;
+        for (size_t i = from; i < pages.size(); ++i)
+            total += textWidth(kSeparator, size) + textWidth(pages[i], size) + 12;
         return total;
     };
-    while (first + 1 < trail.size() && width(first) > right - x)
+    while (first + 1 < pages.size() && width(first) > right - x)
         ++first;
     if (first > 0)
-        x += drawText(std::string("…") + kSeparator, x, top, size, color::kTextFaint);
-    for (size_t i = first; i < trail.size(); ++i)
     {
-        const bool last = i + 1 == trail.size();
-        const std::string shown = last ? ellipsize(trail[i], right - x, size) : trail[i];
-        x += drawText(shown, x, top, size, last ? color::kText : color::kTextDim);
-        if (!last)
-            x += drawText(kSeparator, x, top, size, color::kTextFaint);
+        x += drawText(kSeparator, x, top, size, color::kTextFaint);
+        x += drawText("…  ", x, top, size, color::kTextDim);
+    }
+    for (size_t i = first; i < pages.size(); ++i)
+    {
+        x += drawText(kSeparator, x, top, size, color::kTextFaint);
+        x += drawText(ellipsize(pages[i], right - x, size), x, top, size, color::kTextDim) + 12;
     }
 }
 } // namespace
 
-float drawTopBar(float alpha, const std::vector<std::string>& trail)
+float drawTopBar(float alpha, const std::vector<ui::Crumb>& trail)
 {
     const float height = metric::kTopBarHeight;
     const float middle = height / 2;
@@ -154,7 +226,7 @@ float drawTopBar(float alpha, const std::vector<std::string>& trail)
     drawText(clock, x, textTop(middle, metric::kTextNormal), metric::kTextNormal, color::kText, Align::Right);
     const float statusLeft = x - textWidth(clock, metric::kTextNormal);
     if (!trail.empty())
-        drawTrail(trail, 32 + brandWidth(Brand::Logo) + 28, statusLeft - 32, middle);
+        drawTrail(trail, pillsLeft(), statusLeft - 32);
     return statusLeft;
 }
 
@@ -342,6 +414,13 @@ void badge(Badge which, float right, float top, Accent accent)
 }
 } // namespace
 
+void overlay(const std::string& text, Badge which, float x, float y, float w, float h, Accent accent, float inset)
+{
+    badge(which, x + w - inset, y + inset, accent);
+    if (!text.empty())
+        chip(text, x + inset, y + h - inset);
+}
+
 void highlight(float x, float y, float w, float h, bool down, Accent accent)
 {
     // a little bigger than the card, so the ring is round it
@@ -367,9 +446,7 @@ void draw(const Content& content, float x, float y, float w, float h, bool selec
         icon(content.icon, px + (previewW - metric::kIcon) / 2, py + (previewH - metric::kIcon) / 2, metric::kIcon,
              color::kTextFaint);
     }
-    badge(content.badge, px + previewW - 8, py + 8, accent);
-    if (!content.chip.empty())
-        chip(content.chip, px + 8, py + previewH - 8);
+    overlay(content.chip, content.badge, px, py, previewW, previewH, accent);
 
     const float textLeft = x + kInset + 4;
     const float textWidthMax = w - 2 * kInset - 8;

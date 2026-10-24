@@ -17,13 +17,13 @@ namespace tz::scenes
 class DetailsScene final : public ui::Scene
 {
 public:
-    explicit DetailsScene(themezer::Item item);
+    // trail: where it was opened from, for its top bar
+    explicit DetailsScene(themezer::Item item, std::vector<ui::Crumb> trail = currentTrail());
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
-    void onResume() override;
-    std::string crumb() const override { return trail_.back(); }
+    std::vector<ui::Crumb> crumbs() const override;
 
 private:
     std::vector<ui::Hint> hints() const;
@@ -32,12 +32,11 @@ private:
     void view();
 
     themezer::Item item_;
-    std::vector<std::string> trail_; // where it is, for the top bar
+    std::vector<ui::Crumb> trail_; // where it was opened from, for the top bar
     ui::HintBar hintBar_;
     Backdrop backdrop_;
     float appear_ = 0;
     bool leaving_ = false;
-    bool saved_ = false; // on the SD card already
 };
 
 class PictureScene final : public ui::Scene
