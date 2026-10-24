@@ -427,8 +427,8 @@ void deleteLocalPack(const std::string& dir)
         return;
     const size_t count = pack->themes.size();
     scenes().emplace<ui::Dialog>(
-        Icon::Trash, color::kWarning, "Delete “" + pack->name + "”?",
-        "Its " + std::to_string(count) + (count == 1 ? " theme is" : " themes are") + " taken off the SD card.",
+        Icon::Trash, color::kDanger, "Delete “" + pack->name + "”?",
+        "This deletes its " + std::to_string(count) + (count == 1 ? " theme" : " themes") + " from the SD card.",
         std::vector<ui::DialogButton>{
             {"Keep it", nullptr},
             {"Delete",
@@ -475,7 +475,7 @@ void deleteLocal(const library::Entry& entry)
     const std::string path = entry.path;
     const int slot = entry.kind == library::Kind::Splash ? installs::kSplashSlot : entry.target;
     scenes().emplace<ui::Dialog>(
-        Icon::Trash, color::kWarning, "Delete “" + entry.name + "”?", "It's taken off the SD card.",
+        Icon::Trash, color::kDanger, "Delete “" + entry.name + "”?", "This deletes the file from the SD card.",
         std::vector<ui::DialogButton>{
             {"Keep it", nullptr},
             {"Delete",
@@ -509,7 +509,7 @@ void uninstallPart(int slot)
     const std::string what = part.name.empty() ? (splash ? "the splash" : "the " + installs::slotLabel(slot) + " theme")
                                                : "“" + part.name + "”";
     scenes().emplace<ui::Dialog>(
-        Icon::Trash, color::kWarning, "Uninstall " + what + "?",
+        Icon::Trash, color::kDanger, "Uninstall " + what + "?",
         splash ? "Hekate's own splash comes back after a restart."
                : "Nintendo's " + installs::slotLabel(slot) + " comes back after a restart.",
         std::vector<ui::DialogButton>{{"Keep it", nullptr},
@@ -550,7 +550,7 @@ void install(const Item& item, bool save)
     }
     if (installs::slotOf(item) < 0)
     {
-        ui::toast("The app doesn't know which part of the HOME Menu this is for", ui::ToastKind::Error);
+        ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
         return;
     }
     const std::string path = save ? installs::savedPath(item) : installs::temporaryPath(item);

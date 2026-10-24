@@ -380,7 +380,7 @@ void LibraryPage::drawFilters(float top)
     if (local::Library::get().scanned())
     {
         const int count = static_cast<int>(rows_.size());
-        const std::string text = thousands(count) + " " + nameOf(kind_, count == 1) + " on the SD card";
+        const std::string text = thousands(count) + " " + nameOf(kind_, count == 1);
         drawText(text, right, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kTextDim, Align::Right);
         right -= textWidth(text, metric::kTextSmall) + 24;
     }
