@@ -168,6 +168,19 @@ Result socketInitializeDefault(void);
 void socketExit(void);
 int nxlinkStdio(void);
 bool appletMainLoop(void);
+typedef enum
+{
+    AppletType_None = -2,
+    AppletType_Default = -1,
+    AppletType_Application = 0,
+    AppletType_SystemApplet = 1,
+    AppletType_LibraryApplet = 2,
+    AppletType_OverlayApplet = 3,
+    AppletType_SystemApplication = 4,
+} AppletType;
+AppletType appletGetAppletType(void);
+Result appletGetExpectedMasterVolume(float* mainAppletVolume, float* libraryAppletVolume);
+Result appletChangeMainAppletMasterVolume(float volume, u64 unk);
 Result envSetNextLoad(const char* path, const char* argv);
 
 #ifdef __cplusplus

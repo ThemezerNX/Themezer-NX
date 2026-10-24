@@ -478,6 +478,25 @@ int nxlinkStdio(void)
 {
     return -1;
 }
+// a library applet, as the app is from hbmenu, so the Mac takes the same path
+AppletType appletGetAppletType(void)
+{
+    return AppletType_LibraryApplet;
+}
+Result appletGetExpectedMasterVolume(float* mainAppletVolume, float* libraryAppletVolume)
+{
+    // as the console read it before anything had set it
+    if (mainAppletVolume)
+        *mainAppletVolume = 0.25f;
+    if (libraryAppletVolume)
+        *libraryAppletVolume = 1.0f;
+    return 0;
+}
+Result appletChangeMainAppletMasterVolume(float volume, u64 unk)
+{
+    std::printf("applet: HOME's volume to %.2f over %llu ms\n", volume, static_cast<unsigned long long>(unk / 1000000));
+    return 0;
+}
 bool appletMainLoop(void)
 {
     SDL_Event event;

@@ -1,6 +1,7 @@
 #include "sys/audio.hpp"
 
 #include <SDL2/SDL.h>
+#include <switch.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -157,6 +158,42 @@ void audio::setMusic(bool on)
     musicOn = on;
     if (device)
         SDL_UnlockAudioDevice(device);
+}
+
+namespace
+{
+uint64_t homeFade = 0;   // the fade HOME's volume was changed with, in ns; 0 while it wasn't
+float homeVolume = 1.0f; // what it goes back to
+} // namespace
+
+void audio::quietHome()
+{
+    if (appletGetAppletType() != AppletType_LibraryApplet)
+        return;
+    // the system's own level for HOME under a library applet (0.25 measured on 21.2.0)
+    if (float expected = 0;
+        R_SUCCEEDED(appletGetExpectedMasterVolume(&expected, nullptr)) && expected > 0 && expected <= 1)
+        homeVolume = expected;
+    // the fade is in ns: 1 s and 200 ms are taken, 2 s is refused (qlaunch-bgm's measurements); 1 s is slow
+    for (const uint64_t ms : {500, 200})
+    {
+        if (R_SUCCEEDED(appletChangeMainAppletMasterVolume(0.0f, ms * 1'000'000)))
+        {
+            homeFade = ms * 1'000'000;
+            std::printf("HOME's sound: off with a %llu ms fade, back to %.0f%% on the way out\n",
+                        static_cast<unsigned long long>(ms), homeVolume * 100);
+            return;
+        }
+    }
+    std::printf("HOME's sound: unchanged, its volume couldn't be set\n");
+}
+
+void audio::restoreHome()
+{
+    if (homeFade == 0)
+        return;
+    appletChangeMainAppletMasterVolume(homeVolume, homeFade);
+    homeFade = 0;
 }
 
 void sfx::setEnabled(bool enabled)

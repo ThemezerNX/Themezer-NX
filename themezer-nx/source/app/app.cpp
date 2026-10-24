@@ -90,6 +90,7 @@ int App::run()
 
     config_.load();
     audio::init();
+    audio::quietHome();
     applyConfig();
     net::init();
     jobs::init();
@@ -163,6 +164,7 @@ int App::run()
     jobs::exit();
     scenes::images().clear();
     net::exit();
+    audio::restoreHome();
     audio::exit();
     gfx::freeIcons();
     gfx::exitText();
