@@ -124,6 +124,13 @@ std::shared_ptr<gfx::Picture> localPicture(const library::Entry& entry, int widt
 // Its ThumbHash's picture, for the backdrop, as the website's pictures have.
 std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 
+// A page's big picture's corners, a pack's and a theme's alike.
+constexpr float kPictureRadius = 20;
+// A page's name, its creator ("by …", when there is one) and the line under them, the same on every page. Returns where
+// its facts go.
+float drawHeading(const std::string& name, const std::string& creator, float x, float y, float width,
+                  gfx::Accent accent, int maxLines);
+
 // A page's facts, beside or under its picture, a row each: an icon in the accent and a line; a link (a tap on it opens
 // something, as an entry of the page's options does) ends in "›". Returns the next row's top.
 constexpr float kFactRow = 40;

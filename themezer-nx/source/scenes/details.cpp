@@ -199,14 +199,14 @@ void DetailsScene::draw()
     const Accent accent = accentOf(item_.kind);
     {
         const Layer layer(0, (1 - shown) * 40, shown);
-        shadow(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20, 28);
+        shadow(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius, 28);
         if (auto picture = this->picture())
         {
-            picture->drawCover(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20);
+            picture->drawCover(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius);
         }
         else
         {
-            roundedRect(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20, color::kSurfaceRaised);
+            roundedRect(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius, color::kSurfaceRaised);
             icon(iconOf(item_.kind), kPreviewX + (kPreviewW - metric::kIconLarge) / 2,
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
@@ -223,13 +223,7 @@ void DetailsScene::draw()
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);
-        float y = kPreviewY - 6;
-        y += drawWrapped(item_.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
-        y += 4;
-        drawText("by " + item_.creator, kColumnX, y, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-        y += lineHeight(metric::kTextNormal) + 20;
-        rect(kColumnX, y, kColumnW, 1, color::kDivider);
-        y += 16;
+        const float y = drawHeading(item_.name, item_.creator, kColumnX, kPreviewY - 6, kColumnW, accent, 3);
         drawFacts(item_, kColumnX, y, kColumnW, accent, &packRow_);
     }
 

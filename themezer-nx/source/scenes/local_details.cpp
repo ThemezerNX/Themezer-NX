@@ -188,14 +188,14 @@ void LocalDetailsScene::draw()
     const Accent accent = accentOf(entry);
     {
         const Layer layer(0, (1 - shown) * 40, shown);
-        shadow(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20, 28);
+        shadow(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius, 28);
         if (auto picture = localPicture(entry, static_cast<int>(kPreviewW)))
         {
-            picture->drawCover(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20);
+            picture->drawCover(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius);
         }
         else
         {
-            roundedRect(kPreviewX, kPreviewY, kPreviewW, kPreviewH, 20, color::kSurfaceRaised);
+            roundedRect(kPreviewX, kPreviewY, kPreviewW, kPreviewH, kPictureRadius, color::kSurfaceRaised);
             icon(entry.kind == Kind::Splash ? Icon::Splash : Icon::Theme, kPreviewX + (kPreviewW - metric::kIconLarge) / 2,
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
@@ -208,17 +208,7 @@ void LocalDetailsScene::draw()
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);
-        float y = kPreviewY - 6;
-        y += drawWrapped(entry.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
-        y += 4;
-        if (!entry.author.empty())
-        {
-            drawText("by " + entry.author, kColumnX, y, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-            y += lineHeight(metric::kTextNormal);
-        }
-        y += 20;
-        rect(kColumnX, y, kColumnW, 1, color::kDivider);
-        y += 16;
+        float y = drawHeading(entry.name, entry.author, kColumnX, kPreviewY - 6, kColumnW, accent, 3);
         // as Themezer's page has them: the pack it's in (a link to it), then what its file says
         packRow_ = -1;
         if (entry.kind == Kind::Theme && local::inPack(entry))

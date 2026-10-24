@@ -193,15 +193,15 @@ void LocalPackScene::draw()
         // the pack: its Home Menu's picture, name, creator and what's in it
         const Layer layer(0, (1 - shown) * 40, shown);
         const float pictureH = std::round(kColumnW * 9 / 16);
-        shadow(kSide, kTop, kColumnW, pictureH, 16, 24);
+        shadow(kSide, kTop, kColumnW, pictureH, kPictureRadius, 24);
         const library::Entry* picture = cover();
         if (auto loaded = picture ? localPicture(*picture, kThumbWidth) : nullptr)
         {
-            loaded->drawCover(kSide, kTop, kColumnW, pictureH, 16);
+            loaded->drawCover(kSide, kTop, kColumnW, pictureH, kPictureRadius);
         }
         else
         {
-            roundedRect(kSide, kTop, kColumnW, pictureH, 16, color::kSurfaceRaised);
+            roundedRect(kSide, kTop, kColumnW, pictureH, kPictureRadius, color::kSurfaceRaised);
             icon(Icon::Pack, kSide + (kColumnW - metric::kIconLarge) / 2, kTop + (pictureH - metric::kIconLarge) / 2,
                  metric::kIconLarge, color::kTextFaint);
         }
@@ -209,14 +209,8 @@ void LocalPackScene::draw()
         const size_t count = last_.themes.size();
         card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(last_), kSide, kTop,
                       kColumnW, pictureH, accent, 12);
-        float y = kTop + pictureH + 24;
-        y += drawWrapped(last_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
-        if (!last_.author.empty())
-        {
-            drawText("by " + last_.author, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-            y += lineHeight(metric::kTextNormal);
-        }
-        y += 16;
+        // as Themezer's pack page has them, where its description would be: the space under the picture
+        float y = drawHeading(last_.name, last_.author, kSide, kTop + pictureH + 24, kColumnW, accent, 2);
         y = drawFact(Icon::SdCard, megabytes(last_.size), kSide, y, kColumnW, accent);
         if (!last_.themezerId.empty())
             y = drawFact(Icon::Hash, "Quick ID P" + last_.themezerId, kSide, y, kColumnW, accent);

@@ -558,6 +558,21 @@ std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
     });
 }
 
+float drawHeading(const std::string& name, const std::string& creator, float x, float y, float width, Accent accent,
+                  int maxLines)
+{
+    y += drawWrapped(name, x, y, width, metric::kTextTitle, color::kText, maxLines);
+    y += 4;
+    if (!creator.empty())
+    {
+        drawText("by " + creator, x, y, metric::kTextNormal, accent.light, Align::Left, width);
+        y += lineHeight(metric::kTextNormal);
+    }
+    y += 16;
+    rect(x, y, width, 1, color::kDivider);
+    return y + 10;
+}
+
 float drawFact(Icon which, const std::string& text, float x, float y, float width, Accent accent, bool link)
 {
     if (text.empty())

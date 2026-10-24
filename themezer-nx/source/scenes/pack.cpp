@@ -149,29 +149,30 @@ void PackScene::draw()
         // the pack: its collage, name, creator and facts
         const Layer layer(0, (1 - shown) * 40, shown);
         const float collageH = std::round(kColumnW * 9 / 16);
-        shadow(kSide, kTop, kColumnW, collageH, 16, 24);
+        shadow(kSide, kTop, kColumnW, collageH, kPictureRadius, 24);
         std::shared_ptr<Picture> picture = images().get(pack_.preview.thumb);
         if (!picture)
             picture = placeholderOf(pack_);
         if (picture)
-            picture->drawCover(kSide, kTop, kColumnW, collageH, 16);
+            picture->drawCover(kSide, kTop, kColumnW, collageH, kPictureRadius);
         else
-            roundedRect(kSide, kTop, kColumnW, collageH, 16, color::kSurfaceRaised);
+            roundedRect(kSide, kTop, kColumnW, collageH, kPictureRadius, color::kSurfaceRaised);
         // what its card shows over its collage: how many themes, and what's become of them here
         const size_t count = pack_.themes.size();
         card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(pack_), kSide, kTop, kColumnW,
                       collageH, accent, 12);
         float y = kTop + collageH + 16;
-        // its description under it, as a theme's is; the facts closer together to make room for it
-        const bool described = !pack_.description.empty();
-        if (described)
+        // its description under it, as a theme's is
+        if (!pack_.description.empty())
             y += drawWrapped(pack_.description, kSide + 4, y, kColumnW - 8, metric::kTextCaption, color::kTextDim, 2) + 12;
         else
             y += 8;
-        y += drawWrapped(pack_.name, kSide, y, kColumnW, metric::kTextLarge, color::kText, 2);
-        drawText("by " + pack_.creator, kSide, y + 2, metric::kTextNormal, accent.light, Align::Left, kColumnW);
-        y += lineHeight(metric::kTextNormal) + (described ? 10 : 16);
-        drawFacts(pack_, kSide, y, kColumnW, accent);
+        // its name on two lines where they fit over its four facts, else on one
+        const float under = 4 + lineHeight(metric::kTextNormal) + 26 + 4 * kFactRow;
+        const float room = metric::kHeight - metric::kHintBarHeight - 4 - y - under;
+        const int lines = room >= 2 * lineHeight(metric::kTextTitle) ? 2 : 1;
+        drawFacts(pack_, kSide, drawHeading(pack_.name, pack_.creator, kSide, y, kColumnW, accent, lines), kColumnW,
+                  accent);
     }
     {
         const Layer layer((1 - shown) * 40, 0, shown);
