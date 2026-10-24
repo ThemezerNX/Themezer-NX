@@ -27,7 +27,7 @@ public:
 private:
     std::vector<ui::Hint> hints() const;
     std::shared_ptr<gfx::Picture> picture() const;
-    void openMore();
+    void openInstall();
     void view();
 
     themezer::Item item_;

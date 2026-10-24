@@ -98,19 +98,18 @@ std::vector<ui::Hint> DetailsScene::hints() const
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (!item_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
-    hints.push_back({ui::key::kX, "More"});
-    // queued, A takes it out again
+    // A opens the install sheet, as a pack's X does; queued, A takes it out again
     hints.push_back(
         {ui::key::kA, installs::isQueued(item_) ? "Cancel install" : canInstall() ? "Install" : "Download"});
     return hints;
 }
 
-void DetailsScene::openMore()
+void DetailsScene::openInstall()
 {
     const bool installable = canInstall();
     const themezer::Item item = item_;
     std::vector<ui::Action> actions;
-    // the ways to get it, A's first: saved in /Themes/ThemezerNX or only until the next start, or only saved
+    // the ways to get it, as a pack's sheet has: saved in /Themes/ThemezerNX or only until the next start, or only saved
     actions.push_back({Icon::Install, "Install & Save", "", installable, false, [item] { install(item, true); }});
     actions.push_back({Icon::Install, "Install only", "", installable, false, [item] { install(item, false); }});
     actions.push_back({Icon::Download, "Download only", "", true, false, [item] { download(item); }});
@@ -150,15 +149,7 @@ void DetailsScene::update(ui::Input& input, float dt)
             unqueueAndSay(installs::slotOf(item_));
             return;
         }
-        sfx::play(sfx::Sound::Confirm);
-        if (canInstall())
-            install(item_, true);
-        else
-            download(item_);
-    }
-    else if (input.pressed(ui::key::kX))
-    {
-        openMore();
+        openInstall();
     }
     else if (input.pressed(ui::key::kY) && !item_.preview.hd.empty())
     {
