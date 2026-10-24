@@ -368,5 +368,7 @@ themezer-nx/assets/
 
 .DS_Store
 themezer-nx/desktop/build/
+themezer-nx/desktop/build-asan/
 themezer-nx/desktop/themezer-nx-desktop
+themezer-nx/desktop/themezer-nx-desktop-asan
 themezer-nx/romfs:

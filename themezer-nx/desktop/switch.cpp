@@ -218,8 +218,42 @@ const char* desktopSd(const char* path)
     return mapped.c_str();
 }
 
+namespace
+{
+
+// How long each frame's work took (from the end of the last frame's wait to its present, not counting a screenshot's
+// saving or the present itself), said at the end: the spikes are the main thread stopping, which the Switch, some times
+// slower, shows as a stutter.
+struct FrameTimes
+{
+    std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
+    std::vector<std::pair<float, int>> times; // ms, frame
+
+    void add(std::chrono::steady_clock::time_point now)
+    {
+        times.emplace_back(std::chrono::duration<float, std::milli>(now - started).count(),
+                           static_cast<int>(times.size()));
+    }
+
+    ~FrameTimes()
+    {
+        if (times.size() < 10)
+            return;
+        std::vector<std::pair<float, int>> sorted = times;
+        std::sort(sorted.begin(), sorted.end());
+        const auto at = [&](double share) { return sorted[static_cast<size_t>(share * (sorted.size() - 1))].first; };
+        std::printf("frames: %zu, median %.1f ms, 99%% %.1f ms, slowest", sorted.size(), at(0.5), at(0.99));
+        for (size_t i = 0; i < 5 && i < sorted.size(); ++i)
+            std::printf(" %.0f (frame %d)", sorted[sorted.size() - 1 - i].first, sorted[sorted.size() - 1 - i].second);
+        std::printf("\n");
+    }
+} frames;
+
+} // namespace
+
 extern "C" void desktopPresent(SDL_Renderer* renderer)
 {
+    frames.add(std::chrono::steady_clock::now());
     if (!pendingShot.empty())
     {
         const char* folder = std::getenv("THEMEZER_SHOTS");
@@ -243,6 +277,7 @@ extern "C" void desktopPresent(SDL_Renderer* renderer)
         std::this_thread::sleep_until(next);
     else
         next = now;
+    frames.started = std::chrono::steady_clock::now();
 }
 
 extern "C" {

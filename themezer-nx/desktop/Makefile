@@ -1,34 +1,43 @@
 # The app built for a computer with SDL2, to look at the UI without a Switch: make -C desktop, then
 # ./desktop/themezer-nx-desktop from themezer-nx/ (where romfs: is). Needs SDL2, SDL2_image, SDL2_ttf and curl.
 
-SOURCES := $(wildcard ../source/*.cpp ../source/*/*.cpp) switch.cpp
+# make -C desktop asan: the same with AddressSanitizer and UndefinedBehaviorSanitizer, as themezer-nx-desktop-asan.
+BUILD ?= build
+TARGET ?= themezer-nx-desktop
+SANITIZE ?=
+
+SOURCES := $(wildcard ../source/*.cpp ../source/*/*.cpp)
 C_SOURCES := $(wildcard ../source/libs/*.c)
-OBJECTS := $(patsubst ../source/%,build/%,$(SOURCES:.cpp=.o)) $(patsubst ../source/%,build/%,$(C_SOURCES:.c=.o))
-OBJECTS := $(subst build/switch.o,build/desktop/switch.o,$(OBJECTS:switch.o=build/desktop/switch.o))
+OBJECTS := $(patsubst ../source/%,$(BUILD)/%,$(SOURCES:.cpp=.o)) $(patsubst ../source/%,$(BUILD)/%,$(C_SOURCES:.c=.o)) \
+           $(BUILD)/desktop/switch.o
 
 SDL_CFLAGS := -I/opt/homebrew/include -I/opt/homebrew/include/SDL2
 SDL_LIBS := -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lSDL2_ttf
-FLAGS := -g -O1 -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
+FLAGS := -g -O1 $(SANITIZE) -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
 
-themezer-nx-desktop: $(OBJECTS)
-	$(CXX) -o $@ $^ $(SDL_LIBS) -lcurl -lz
+$(TARGET): $(OBJECTS)
+	$(CXX) $(SANITIZE) -o $@ $^ $(SDL_LIBS) -lcurl -lz
 
-build/%.o: ../source/%.cpp
+$(BUILD)/%.o: ../source/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 $(FLAGS) -c $< -o $@
 
-build/%.o: ../source/%.c
+$(BUILD)/%.o: ../source/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(FLAGS) -c $< -o $@
 
-build/desktop/switch.o: switch.cpp
+$(BUILD)/desktop/switch.o: switch.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 $(FLAGS) -c $< -o $@
 
 -include $(OBJECTS:.o=.d)
 
+asan:
+	$(MAKE) BUILD=build-asan TARGET=themezer-nx-desktop-asan \
+	    SANITIZE="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
+
 clean:
-	rm -rf build themezer-nx-desktop
+	rm -rf build build-asan themezer-nx-desktop themezer-nx-desktop-asan
 
 # The reader of .nxtheme archives, on archives the test makes, and the ThumbHash encoder.
 test: build/tests/archive_test build/tests/thumbhash_test
