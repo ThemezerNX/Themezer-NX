@@ -12,10 +12,10 @@ bool init();
 void exit();
 void setMusic(bool on);
 
-// The HOME Menu's own sound (its background music, with the qlaunch BGM mod) silent under the app's, faded out, while
-// the app runs in a library applet's slot (hbmenu's): as an application, HOME is suspended, its sound with it. On the
-// way out it's faded back to what the system gives HOME under a library applet, as under the real Album, or full
-// when that can't be read. The system resets it anyway when the slot closes.
+// The HOME Menu's own sound (its background music, with the qlaunch BGM mod) silent under the app's, faded out in
+// 200 ms, while the app runs in a library applet's slot (hbmenu's): as an application, HOME is suspended, its sound
+// with it. On the way out it's faded back to what the system gives HOME under a library applet, as under the real
+// Album, or full when that can't be read. The system resets it anyway when the slot closes.
 void quietHome();
 void restoreHome();
 

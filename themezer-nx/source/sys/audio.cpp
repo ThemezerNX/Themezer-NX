@@ -174,18 +174,15 @@ void audio::quietHome()
     if (float expected = 0;
         R_SUCCEEDED(appletGetExpectedMasterVolume(&expected, nullptr)) && expected > 0 && expected <= 1)
         homeVolume = expected;
-    // the fade is in ns: 1 s and 200 ms are taken, 2 s is refused (qlaunch-bgm's measurements); 1 s is slow
-    for (const uint64_t ms : {500, 200})
+    // a fade of 200 ms, in ns: up to 1 s is taken, 2 s refused (qlaunch-bgm's measurements)
+    constexpr uint64_t kFade = 200'000'000;
+    if (R_FAILED(appletChangeMainAppletMasterVolume(0.0f, kFade)))
     {
-        if (R_SUCCEEDED(appletChangeMainAppletMasterVolume(0.0f, ms * 1'000'000)))
-        {
-            homeFade = ms * 1'000'000;
-            std::printf("HOME's sound: off with a %llu ms fade, back to %.0f%% on the way out\n",
-                        static_cast<unsigned long long>(ms), homeVolume * 100);
-            return;
-        }
+        std::printf("HOME's sound: unchanged, its volume couldn't be set\n");
+        return;
     }
-    std::printf("HOME's sound: unchanged, its volume couldn't be set\n");
+    homeFade = kFade;
+    std::printf("HOME's sound: off, back to %.0f%% on the way out\n", homeVolume * 100);
 }
 
 void audio::restoreHome()
