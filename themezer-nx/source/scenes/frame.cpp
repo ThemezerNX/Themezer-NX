@@ -71,7 +71,44 @@ void Backdrop::draw(float dim) const
     fill(withAlpha(color::kBackground, dim));
 }
 
-float drawTopBar(float alpha)
+std::vector<std::string> trailTo(std::string name)
+{
+    std::vector<std::string> trail = App::get().scenes().trail();
+    trail.push_back(std::move(name));
+    return trail;
+}
+
+namespace
+{
+// The trail, in the room from x to right: what doesn't fit goes from its start, as "…".
+void drawTrail(const std::vector<std::string>& trail, float x, float right, float middle)
+{
+    constexpr const char* kSeparator = "  ›  ";
+    const float size = metric::kTextSmall;
+    const float top = textTop(middle, size);
+    size_t first = 0;
+    const auto width = [&](size_t from) {
+        float total = from > 0 ? textWidth(std::string("…") + kSeparator, size) : 0;
+        for (size_t i = from; i < trail.size(); ++i)
+            total += textWidth(trail[i], size) + (i + 1 < trail.size() ? textWidth(kSeparator, size) : 0);
+        return total;
+    };
+    while (first + 1 < trail.size() && width(first) > right - x)
+        ++first;
+    if (first > 0)
+        x += drawText(std::string("…") + kSeparator, x, top, size, color::kTextFaint);
+    for (size_t i = first; i < trail.size(); ++i)
+    {
+        const bool last = i + 1 == trail.size();
+        const std::string shown = last ? ellipsize(trail[i], right - x, size) : trail[i];
+        x += drawText(shown, x, top, size, last ? color::kText : color::kTextDim);
+        if (!last)
+            x += drawText(kSeparator, x, top, size, color::kTextFaint);
+    }
+}
+} // namespace
+
+float drawTopBar(float alpha, const std::vector<std::string>& trail)
 {
     const float height = metric::kTopBarHeight;
     const float middle = height / 2;
@@ -114,7 +151,10 @@ float drawTopBar(float alpha)
     std::snprintf(clock, sizeof(clock), "%02d:%02d", status.hour, status.minute);
     x -= 20;
     drawText(clock, x, textTop(middle, metric::kTextNormal), metric::kTextNormal, color::kText, Align::Right);
-    return x - textWidth(clock, metric::kTextNormal);
+    const float statusLeft = x - textWidth(clock, metric::kTextNormal);
+    if (!trail.empty())
+        drawTrail(trail, 32 + brandWidth(Brand::Logo) + 28, statusLeft - 32, middle);
+    return statusLeft;
 }
 
 Accent accentOf(themezer::Kind kind)

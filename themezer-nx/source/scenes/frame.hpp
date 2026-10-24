@@ -43,7 +43,10 @@ private:
 
 // The top bar: Themezer's logo on the left, the time, Wi-Fi and battery on the right. Returns where the status
 // starts, for what goes between.
-float drawTopBar(float alpha = 1.0f);
+// With a trail, after the logo: where the screen is, "Themezer › Packs › Pixel Forest", the last part brightest.
+float drawTopBar(float alpha = 1.0f, const std::vector<std::string>& trail = {});
+// The trail to a screen opened now, called name: the screens' under it, then its own.
+std::vector<std::string> trailTo(std::string name);
 
 gfx::Accent accentOf(themezer::Kind kind);
 gfx::Icon iconOf(themezer::Kind kind);

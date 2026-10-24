@@ -5,6 +5,7 @@
 #include "ui/input.hpp"
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -27,6 +28,8 @@ public:
     virtual void tick(float /*dt*/) {}
     // False while it's on its way out: the input goes to the scene under it.
     virtual bool acceptsInput() const { return true; }
+    // Where it is, for the breadcrumb of the screens opened from it: "Pixel Forest". Empty for overlays.
+    virtual std::string crumb() const { return {}; }
 
     bool closed() const { return closed_; }
     void close() { closed_ = true; }
@@ -53,6 +56,8 @@ public:
     bool empty() const { return scenes_.empty() && pending_.empty(); }
     size_t size() const { return scenes_.size(); }
     Scene* top() const { return scenes_.empty() ? nullptr : scenes_.back().get(); }
+    // The scenes' crumbs, the bottom one first: where a scene opened now is.
+    std::vector<std::string> trail() const;
     void clear();
 
 private:

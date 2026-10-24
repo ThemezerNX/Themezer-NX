@@ -45,6 +45,7 @@ LocalDetailsScene::LocalDetailsScene(std::string path) : path_(std::move(path))
     sfx::play(sfx::Sound::Open);
     if (const library::Entry* found = entry())
         last_ = *found;
+    trail_ = trailTo(last_.name);
 }
 
 const library::Entry* LocalDetailsScene::entry() const
@@ -241,7 +242,7 @@ void LocalDetailsScene::draw()
     }
     {
         const Layer layer(0, 0, shown);
-        drawTopBar();
+        drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
     hintBar_.draw(hints(), 1.0f, accent.solid);

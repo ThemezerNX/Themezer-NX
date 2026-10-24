@@ -38,6 +38,7 @@ LocalPackScene::LocalPackScene(std::string dir) : dir_(std::move(dir))
     const float cellWidth = (metric::kWidth - kGridX - kSide - kGap * (kColumns - 1)) / kColumns;
     grid_.setLayout(kColumns, std::round((cellWidth - 20) * 9 / 16) + 20 + card::kTextHeight, kGap);
     rebuild();
+    trail_ = trailTo(last_.name);
 }
 
 void LocalPackScene::rebuild()
@@ -238,7 +239,7 @@ void LocalPackScene::draw()
     }
     {
         const Layer layer(0, 0, shown);
-        drawTopBar();
+        drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
     hintBar_.draw(hints(), 1.0f, accent.solid);

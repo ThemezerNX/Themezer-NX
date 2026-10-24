@@ -23,6 +23,7 @@ public:
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
     void onResume() override;
+    std::string crumb() const override { return trail_.back(); }
 
 private:
     std::vector<ui::Hint> hints() const;
@@ -31,6 +32,7 @@ private:
     void view();
 
     themezer::Item item_;
+    std::vector<std::string> trail_; // where it is, for the top bar
     ui::HintBar hintBar_;
     Backdrop backdrop_;
     float appear_ = 0;

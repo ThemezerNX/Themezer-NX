@@ -158,6 +158,12 @@ float modeWidth()
 }
 } // namespace
 
+std::string HomeScene::crumb() const
+{
+    constexpr const char* kTabs[] = {"Packs", "Themes", "Splashes"};
+    return std::string(modeLabel(onlineMode_)) + "  ›  " + kTabs[tab_];
+}
+
 float HomeScene::drawModeButton(float x, float y, float height)
 {
     const float width = modeWidth();

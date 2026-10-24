@@ -71,7 +71,7 @@ float drawFacts(const themezer::Item& item, float x, float y, float width, Accen
     return y;
 }
 
-DetailsScene::DetailsScene(themezer::Item item) : item_(std::move(item))
+DetailsScene::DetailsScene(themezer::Item item) : item_(std::move(item)), trail_(trailTo(item_.name))
 {
     sfx::play(sfx::Sound::Open);
     backdrop_.set(placeholderOf(item_), accentOf(item_.kind).solid);
@@ -233,7 +233,7 @@ void DetailsScene::draw()
 
     {
         const Layer layer(0, 0, shown);
-        drawTopBar();
+        drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
     hintBar_.draw(hints(), 1.0f, accent.solid);

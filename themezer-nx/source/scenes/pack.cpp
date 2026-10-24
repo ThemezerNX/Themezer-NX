@@ -30,7 +30,7 @@ constexpr int kColumns = 2;
 constexpr float kGap = 22;
 } // namespace
 
-PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack))
+PackScene::PackScene(themezer::Item pack) : pack_(std::move(pack)), trail_(trailTo(pack_.name))
 {
     sfx::play(sfx::Sound::Open);
     backdrop_.set(placeholderOf(pack_), accentOf(Kind::Packs).solid);
@@ -180,7 +180,7 @@ void PackScene::draw()
     }
     {
         const Layer layer(0, 0, shown);
-        drawTopBar();
+        drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
     hintBar_.draw(hints(), 1.0f, accent.solid);

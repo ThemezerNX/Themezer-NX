@@ -21,6 +21,7 @@ public:
     void tick(float dt) override;
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
+    std::string crumb() const override { return trail_.back(); }
 
 private:
     const library::Entry* entry() const;
@@ -31,6 +32,7 @@ private:
     void leave();
 
     std::string path_;
+    std::vector<std::string> trail_; // where it is, for the top bar
     library::Entry last_; // what it was, drawn while the page goes after the file has
     ui::HintBar hintBar_;
     Backdrop backdrop_;

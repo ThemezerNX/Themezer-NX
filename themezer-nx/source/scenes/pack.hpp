@@ -19,6 +19,7 @@ public:
     void tick(float dt) override;
     void draw() override;
     bool acceptsInput() const override { return !leaving_; }
+    std::string crumb() const override { return trail_.back(); }
 
 private:
     std::vector<ui::Hint> hints() const;
@@ -28,6 +29,7 @@ private:
     void view();
 
     themezer::Item pack_;
+    std::vector<std::string> trail_; // where it is, for the top bar
     ui::GridView grid_;
     ui::HintBar hintBar_;
     Backdrop backdrop_;
