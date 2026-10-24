@@ -11,10 +11,22 @@
 #include "ui/widgets.hpp"
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace tz::scenes
 {
+
+// What a page's list is narrowed to, which goes with it to the other mode's page of the same section: the search, and
+// for themes the part of the HOME Menu and whether they're from packs. Not the sort: the two modes' sorts differ.
+struct Filters
+{
+    std::string search;
+    int target = -1;
+    std::optional<bool> inPack;
+    bool operator==(const Filters&) const = default;
+};
 
 class Page
 {
@@ -31,6 +43,9 @@ public:
     virtual void draw() = 0;
     virtual std::vector<ui::Hint> hints() const = 0;
     virtual gfx::Accent accent() const = 0;
+    virtual Filters filters() const { return {}; }
+    // Before it's shown, when the other mode's page of its section was.
+    virtual void setFilters(const Filters& /*filters*/) {}
     // The blurred picture behind the screen, for what's selected.
     virtual std::shared_ptr<gfx::Picture> backdrop() const { return nullptr; }
 

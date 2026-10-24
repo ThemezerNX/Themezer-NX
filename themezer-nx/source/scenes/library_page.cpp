@@ -85,6 +85,25 @@ void LibraryPage::tick(float)
     selected_ = keyAt(grid_.selected());
 }
 
+Filters LibraryPage::filters() const
+{
+    return {search_, target_, inPack_};
+}
+
+void LibraryPage::setFilters(const Filters& filters)
+{
+    if (this->filters() == filters)
+        return;
+    search_ = filters.search;
+    if (kind_ == Kind::Themes)
+    {
+        target_ = filters.target;
+        inPack_ = filters.inPack;
+    }
+    rebuild();
+    grid_.select(0, false);
+}
+
 void LibraryPage::showTarget(int target)
 {
     target_ = target;

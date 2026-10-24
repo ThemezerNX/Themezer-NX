@@ -80,6 +80,26 @@ std::shared_ptr<Picture> BrowsePage::backdrop() const
     return items_.empty() ? nullptr : placeholderOf(items_[static_cast<size_t>(grid_.selected())]);
 }
 
+Filters BrowsePage::filters() const
+{
+    return {query_.search, query_.target, query_.inPack};
+}
+
+void BrowsePage::setFilters(const Filters& filters)
+{
+    if (this->filters() == filters)
+        return;
+    query_.search = filters.search;
+    if (query_.kind == Kind::Themes)
+    {
+        query_.target = filters.target;
+        query_.inPack = filters.inPack;
+    }
+    // loaded already: again, with them; else as it's shown
+    if (state_ != State::NotLoaded)
+        reload();
+}
+
 void BrowsePage::reload()
 {
     token_.cancel();

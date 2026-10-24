@@ -27,6 +27,8 @@ public:
     std::vector<ui::Hint> hints() const override;
     gfx::Accent accent() const override;
     std::shared_ptr<gfx::Picture> backdrop() const override;
+    Filters filters() const override;
+    void setFilters(const Filters& filters) override;
 
 private:
     enum class Sort : uint8_t

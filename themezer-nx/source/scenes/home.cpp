@@ -96,6 +96,9 @@ void HomeScene::show(bool online, int tab)
     tab = std::clamp(tab, 0, kTabs - 1);
     if (online == onlineMode_ && tab == tab_)
         return;
+    // the list's search and filters go with it to the other mode, on the same section
+    const bool carry = online != onlineMode_ && tab == tab_;
+    const Filters filters = page().filters();
     page().onHide();
     // back on the SD card: what changed there while away (a download, the files changed elsewhere)
     if (online != onlineMode_ && !online)
@@ -103,6 +106,8 @@ void HomeScene::show(bool online, int tab)
     onlineMode_ = online;
     tab_ = tab;
     tabs_.select(tab_);
+    if (carry)
+        page().setFilters(filters);
     page().onShow();
     appear_ = 0;
     side_ = 0;
