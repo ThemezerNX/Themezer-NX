@@ -26,6 +26,7 @@ struct Crumb
     };
     Kind kind = Kind::Page;
     std::string text;
+    int value = 0; // a mode: 1 online, 0 the SD card; a section: its themezer::Kind
     gfx::Icon icon = gfx::Icon::Count;
     gfx::Accent accent{};
 };
@@ -76,6 +77,8 @@ public:
     Scene* top() const { return scenes_.empty() ? nullptr : scenes_.back().get(); }
     // Where a scene opened now is: the crumbs of the top one that has them.
     std::vector<Crumb> trail() const;
+    // Closes the scenes over this one, and drops the ones about to open.
+    void closeAbove(const Scene* scene);
     void clear();
 
 private:

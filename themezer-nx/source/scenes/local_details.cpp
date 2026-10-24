@@ -130,7 +130,9 @@ void LocalDetailsScene::update(ui::Input& input, float)
     if (leaving_)
         return;
     const auto shown = hints();
-    hintBar_.update(input, shown);
+    updateHints(hintBar_, input, shown);
+    if (trailKeys(input, trail_))
+        return;
     const library::Entry* found = entry();
     if (!found)
         return;
@@ -233,7 +235,7 @@ void LocalDetailsScene::draw()
         drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
-    hintBar_.draw(hints(), 1.0f, accent.solid);
+    drawHints(hintBar_, hints(), accent.solid);
 }
 
 } // namespace tz::scenes

@@ -9,6 +9,7 @@
 #include "services/themezer.hpp"
 #include "ui/input.hpp"
 #include "ui/scene.hpp"
+#include "ui/widgets.hpp"
 
 #include <functional>
 #include <memory>
@@ -65,6 +66,11 @@ float drawModePill(const ui::Crumb& mode, float x, float y, float width = 0, ui:
 float drawSectionPill(const ui::Crumb& section, float x, float y);
 // Where the home screen's mode pill is, and the pages' trails start: after the logo.
 float pillsLeft();
+// A page's trail is the way home: - or its mode pill goes back to the home screen in the other mode, its section pill
+// to that section's list. True when it did (the page is closing). Before a page handles its own keys.
+bool trailKeys(ui::Input& input, const std::vector<ui::Crumb>& trail);
+// The home screen, in that mode (true: online) and section, with the screens over it closed. In home.cpp.
+void goHome(bool online, themezer::Kind section);
 
 gfx::Accent accentOf(themezer::Kind kind);
 gfx::Icon iconOf(themezer::Kind kind);
@@ -117,6 +123,10 @@ void overlay(const std::string& chip, Badge badge, float x, float y, float w, fl
 std::shared_ptr<gfx::Picture> localPicture(const library::Entry& entry, int width);
 // Its ThumbHash's picture, for the backdrop, as the website's pictures have.
 std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
+
+// The hint bar every screen has, with what's queued to install at its left end ("2 queued"), which a tap opens.
+void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>& hints);
+void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, gfx::Color accent = gfx::color::kPrimary);
 
 // One of the chips under the tabs that say what a list is (its sort, its filter, its search), from x, its text cut to
 // end before right. Returns its width; 0 when there's no room for it.

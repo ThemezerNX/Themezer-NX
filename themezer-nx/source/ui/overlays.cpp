@@ -477,7 +477,8 @@ void updateToasts(float dt)
 
 void drawToasts()
 {
-    float bottom = metric::kHeight - metric::kHintBarHeight - 16;
+    // at the top, under the top bar, as the Switch shows its own: the sheets, dialogs and hints are below
+    float top = metric::kTopBarHeight + 6;
     for (auto it = toasts.rbegin(); it != toasts.rend(); ++it)
     {
         const Toast& t = *it;
@@ -493,7 +494,7 @@ void drawToasts()
             width = std::max(width, textWidth(line, size));
         width += 96;
         const float x = std::round((metric::kWidth - width) / 2);
-        const float y = std::round(bottom - height + (1 - ease(in)) * 16);
+        const float y = std::round(top - (1 - ease(in)) * 16);
 
         Icon which = Icon::Info;
         Color tint = color::kTextDim;
@@ -521,7 +522,7 @@ void drawToasts()
         const float textTopY =
             lines.size() == 1 ? textTop(y + height / 2, size) : y + (height - lineHeight(size) * 2) / 2;
         drawWrapped(t.message, x + 72, textTopY, wrapWidth, size, color::kText, 2);
-        bottom = y - 12;
+        top = y + height + 12;
     }
 }
 

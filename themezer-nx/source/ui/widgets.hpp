@@ -59,6 +59,8 @@ public:
     void update(Input& input, const std::vector<Hint>& hints);
     // A's key in accent.
     void draw(const std::vector<Hint>& hints, float alpha = 1.0f, gfx::Color accent = gfx::color::kPrimary);
+    // Where the last frame's hints started, for something at the bar's left end not to run into them.
+    float left() const { return left_; }
 
 private:
     struct Spot
@@ -71,6 +73,7 @@ private:
     std::vector<Spot> spots_;
     float y_ = 0;
     float height_ = 0;
+    float left_ = gfx::metric::kWidth;
     Keys pressedKey_ = 0;
     float pressedAt_ = -1;
     Keys held_ = 0;

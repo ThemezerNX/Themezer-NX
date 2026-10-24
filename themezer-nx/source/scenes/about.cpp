@@ -63,7 +63,7 @@ public:
 
     void update(ui::Input& input, float dt) override
     {
-        hintBar_.update(input, hints_);
+        updateHints(hintBar_, input, hints_);
         if (input.pressed(ui::key::kB))
         {
             sfx::play(sfx::Sound::Back);
@@ -164,7 +164,7 @@ public:
             drawTopBar();
         }
         // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
-        hintBar_.draw(hints_);
+        drawHints(hintBar_, hints_);
     }
 
 private:

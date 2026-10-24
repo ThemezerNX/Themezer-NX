@@ -613,34 +613,27 @@ void openQuickId()
 
 void openQueue()
 {
+    const int count = installs::queuedCount();
+    if (count == 0)
+    {
+        ui::toast("Nothing is queued yet. Install a theme or a splash to queue it.");
+        return;
+    }
+    // what's queued, each with its part's icon; then leaving to install them, last, so a quick A doesn't
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Power, "Exit and install (" + std::to_string(installs::queuedCount()) + ")", "",
-                       canInstall(), false, exitApp, nullptr, ui::key::kPlus});
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
     {
         const installs::Queued* queued = installs::queued(slot);
         if (!queued)
             continue;
-        const std::string label = installs::slotLabel(slot) + ": " + queued->name;
-        actions.push_back({Icon::Trash, label, "", true, false, [slot, label] {
-                               scenes().emplace<ui::Dialog>(
-                                   Icon::Trash, color::kWarning, "Take it out of the queue?", label,
-                                   std::vector<ui::DialogButton>{{"Keep it", nullptr},
-                                                                 {"Take out",
-                                                                  [slot] {
-                                                                      installs::unqueue(slot);
-                                                                      sfx::play(sfx::Sound::Back);
-                                                                  },
-                                                                  true}});
-                           }});
+        actions.push_back({slot == installs::kSplashSlot ? Icon::Splash : targetIcon(slot), queued->name,
+                           installs::slotLabel(slot) + " · A cancels its install", true, false,
+                           [slot] { unqueueAndSay(slot); }});
     }
-    if (actions.size() == 1)
-    {
-        ui::toast("Nothing is queued yet. Install a theme or a splash to queue it.");
-        return;
-    }
-    // on the first install, not on leaving: a quick A doesn't exit
-    scenes().emplace<ui::ActionSheet>("Queued installs", std::move(actions), color::kPrimary, 1);
+    actions.push_back({Icon::Power, "Exit and install", "Themezer-NX closes and NXThemes Installer installs them",
+                       canInstall(), false, exitApp, nullptr, ui::key::kPlus});
+    scenes().emplace<ui::ActionSheet>("Queued installs (" + std::to_string(count) + ")", std::move(actions),
+                                      color::kPrimary, 0);
 }
 
 void openMenu()

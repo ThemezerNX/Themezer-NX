@@ -6,6 +6,7 @@
 #include "services/local.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
+#include "scenes/actions.hpp"
 #include "scenes/images.hpp"
 #include "sys/audio.hpp"
 #include "ui/overlays.hpp"
@@ -80,14 +81,14 @@ std::vector<ui::Crumb> currentTrail()
 ui::Crumb modeCrumb(bool online)
 {
     // "Online", not "Themezer": the logo next to it says that; and in white, the colours being the sections'
-    return {ui::Crumb::Kind::Mode, online ? "Online" : "SD card", online ? Icon::Globe : Icon::SdCard,
+    return {ui::Crumb::Kind::Mode, online ? "Online" : "SD card", online ? 1 : 0, online ? Icon::Globe : Icon::SdCard,
             Accent{color::kText, color::kText}};
 }
 
 ui::Crumb sectionCrumb(themezer::Kind section)
 {
     const char* name = section == themezer::Kind::Packs ? "Packs" : section == themezer::Kind::Themes ? "Themes" : "Splashes";
-    return {ui::Crumb::Kind::Section, name, iconOf(section), accentOf(section)};
+    return {ui::Crumb::Kind::Section, name, static_cast<int>(section), iconOf(section), accentOf(section)};
 }
 
 ui::Crumb pageCrumb(std::string name)
@@ -139,6 +140,15 @@ float drawSectionPill(const ui::Crumb& section, float x, float y)
 
 namespace
 {
+// Where the last frame drew a page's mode and section pills, for a tap; and whether - is down, to sink its key.
+struct Spot
+{
+    float x = 0, y = 0, w = 0, h = 0;
+    bool contains(float px, float py) const { return px >= x && px < x + w && py >= y && py < y + h; }
+};
+Spot modeSpot, sectionSpot;
+bool minusDown = false;
+
 // The trail from x, before right: the pills, then the pages; the pages that don't fit go from the first, as "…".
 void drawTrail(const std::vector<ui::Crumb>& trail, float x, float right)
 {
@@ -147,12 +157,22 @@ void drawTrail(const std::vector<ui::Crumb>& trail, float x, float right)
     std::vector<std::string> pages;
     for (const ui::Crumb& crumb : trail)
     {
+        const float start = x;
         if (crumb.kind == ui::Crumb::Kind::Mode)
-            x = drawModePill(crumb, x, y) + 12;
+        {
+            // with its key, as on the home screen: - goes there
+            x = drawModePill(crumb, x, y, 0, ui::key::kMinus, minusDown) + 12;
+            modeSpot = {start, y, x - 12 - start, kPillHeight};
+        }
         else if (crumb.kind == ui::Crumb::Kind::Section)
+        {
             x = drawSectionPill(crumb, x, y) + 12;
+            sectionSpot = {start, y, x - 12 - start, kPillHeight};
+        }
         else
+        {
             pages.push_back(crumb.text);
+        }
     }
     if (pages.empty())
         return;
@@ -181,6 +201,42 @@ void drawTrail(const std::vector<ui::Crumb>& trail, float x, float right)
     }
 }
 } // namespace
+
+bool trailKeys(ui::Input& input, const std::vector<ui::Crumb>& trail)
+{
+    const ui::Crumb* mode = nullptr;
+    const ui::Crumb* section = nullptr;
+    for (const ui::Crumb& crumb : trail)
+    {
+        if (crumb.kind == ui::Crumb::Kind::Mode)
+            mode = &crumb;
+        else if (crumb.kind == ui::Crumb::Kind::Section)
+            section = &crumb;
+    }
+    if (!mode || !section)
+        return false;
+    minusDown = (input.held & ui::key::kMinus) != 0;
+    const auto tapped = [&](const Spot& spot) {
+        return input.tap && spot.contains(input.x, input.y) && spot.contains(input.startX, input.startY);
+    };
+    const bool online = mode->value != 0;
+    const auto kind = static_cast<themezer::Kind>(section->value);
+    if (input.pressed(ui::key::kMinus) || tapped(modeSpot))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Tab);
+        goHome(!online, kind);
+        return true;
+    }
+    if (tapped(sectionSpot))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Back);
+        goHome(online, kind);
+        return true;
+    }
+    return false;
+}
 
 float drawTopBar(float alpha, const std::vector<ui::Crumb>& trail)
 {
@@ -500,6 +556,50 @@ std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
         SDL_FreeSurface(small);
         return blur;
     });
+}
+
+namespace
+{
+// where the queue's pill was last drawn (0 wide when it wasn't), and whether a finger is on it
+Spot queueSpot;
+bool queueDown = false;
+} // namespace
+
+void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>& hints)
+{
+    queueDown = input.touching && !input.dragging && queueSpot.contains(input.x, input.y) &&
+                queueSpot.contains(input.startX, input.startY);
+    if (input.tap && queueSpot.contains(input.x, input.y) && queueSpot.contains(input.startX, input.startY))
+    {
+        input.consumeTouch();
+        sfx::play(sfx::Sound::Confirm);
+        openQueue();
+    }
+    bar.update(input, hints);
+}
+
+void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, Color accent)
+{
+    bar.draw(hints, 1.0f, accent);
+    queueSpot = {};
+    const int queued = installs::queuedCount();
+    if (queued == 0)
+        return;
+    // a key as the hints are, at the other end of the bar, where it's free
+    const std::string label = std::to_string(queued) + " queued";
+    const float iconSize = metric::kIcon * 0.75f;
+    const float height = 44;
+    const float width = std::round(18 + iconSize + 10 + textWidth(label, metric::kTextSmall) + 18);
+    const float x = 16;
+    if (x + width + 16 > bar.left())
+        return;
+    const float top = std::round(metric::kHeight - metric::kHintBarHeight +
+                                 (metric::kHintBarHeight - height - ui::kKeyLip) / 2);
+    const float face = ui::drawKey(x, top, width, height, color::kSurfaceHigh, queueDown);
+    icon(Icon::Queue, x + 18, std::round(face + (height - iconSize) / 2), iconSize, accent::kApp.light);
+    drawText(label, x + 18 + iconSize + 10, textTop(face + height / 2, metric::kTextSmall), metric::kTextSmall,
+             color::kText);
+    queueSpot = {x, top, width, height + ui::kKeyLip};
 }
 
 float filterChip(Icon which, const std::string& text, bool highlighted, Accent accent, float x, float top, float height,

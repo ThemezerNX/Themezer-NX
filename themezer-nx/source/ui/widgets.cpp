@@ -224,6 +224,7 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     height_ = metric::kHintBarHeight;
     y_ = metric::kHeight - height_;
     spots_.clear();
+    left_ = metric::kWidth;
     if (hints.empty() || alpha <= 0)
         return;
     const Layer layer(0, 0, alpha);
@@ -243,6 +244,7 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     for (const Hint* hint : order)
         total += keyWidth(*hint) + kHintGap;
     float x = metric::kWidth - kHintMargin - (total - kHintGap);
+    left_ = x;
     const float top = std::round(y_ + (height_ - kKeyHeight - kKeyLip) / 2);
     const bool justPressed = time() - pressedAt_ < kPressTime;
     for (const Hint* hint : order)

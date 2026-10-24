@@ -27,8 +27,28 @@ constexpr float kBarHeight = kPillHeight;
 constexpr float kSlide = 32;
 } // namespace
 
+namespace
+{
+// the one there is, for goHome
+HomeScene* current = nullptr;
+} // namespace
+
+void goHome(bool online, themezer::Kind section)
+{
+    if (!current)
+        return;
+    App::get().scenes().closeAbove(current);
+    current->show(online, static_cast<int>(std::find(std::begin(kKinds), std::end(kKinds), section) - std::begin(kKinds)));
+}
+
+HomeScene::~HomeScene()
+{
+    current = nullptr;
+}
+
 HomeScene::HomeScene()
 {
+    current = this;
     for (themezer::Kind kind : kKinds)
     {
         local_.push_back(std::make_unique<LibraryPage>(kind));
@@ -68,11 +88,21 @@ void HomeScene::remember()
 
 void HomeScene::switchMode()
 {
+    show(!onlineMode_, tab_);
+}
+
+void HomeScene::show(bool online, int tab)
+{
+    tab = std::clamp(tab, 0, kTabs - 1);
+    if (online == onlineMode_ && tab == tab_)
+        return;
     page().onHide();
-    onlineMode_ = !onlineMode_;
     // back on the SD card: what changed there while away (a download, the files changed elsewhere)
-    if (!onlineMode_)
+    if (online != onlineMode_ && !online)
         local::Library::get().rescan();
+    onlineMode_ = online;
+    tab_ = tab;
+    tabs_.select(tab_);
     page().onShow();
     appear_ = 0;
     side_ = 0;
@@ -111,8 +141,7 @@ void HomeScene::update(ui::Input& input, float dt)
     hints_ = page().hints();
     hints_.push_back({ui::key::kZR, "Quick ID"});
     hints_.push_back({ui::key::kPlus, "Menu"});
-    hints_.push_back({ui::key::kMinus, onlineMode_ ? "SD card" : "Online"});
-    hintBar_.update(input, hints_);
+    updateHints(hintBar_, input, hints_);
 
     // the mode button first: a tap on it isn't the tab bar's
     const auto onModeButton = [&](float x, float y) {
@@ -187,7 +216,7 @@ void HomeScene::draw()
     const float top = std::round((metric::kTopBarHeight - kBarHeight) / 2);
     const float tabsLeft = drawModeButton(left, top, kBarHeight) + 12;
     tabs_.draw(tabsLeft, top, barWidth, kBarHeight, metric::kTextNormal);
-    hintBar_.draw(hints_, 1.0f, page().accent().solid);
+    drawHints(hintBar_, hints_, page().accent().solid);
 }
 
 } // namespace tz::scenes

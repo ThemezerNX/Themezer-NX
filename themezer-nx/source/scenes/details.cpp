@@ -129,7 +129,9 @@ void DetailsScene::update(ui::Input& input, float dt)
     if (leaving_)
         return;
     const auto shown = hints();
-    hintBar_.update(input, shown);
+    updateHints(hintBar_, input, shown);
+    if (trailKeys(input, trail_))
+        return;
     if (input.pressed(ui::key::kB))
     {
         sfx::play(sfx::Sound::Back);
@@ -210,7 +212,7 @@ void DetailsScene::draw()
         drawTopBar(1.0f, trail_);
     }
     // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
-    hintBar_.draw(hints(), 1.0f, accent.solid);
+    drawHints(hintBar_, hints(), accent.solid);
 }
 
 PictureScene::PictureScene(std::string url, std::string thumbUrl, std::string thumbHash)

@@ -22,6 +22,18 @@ std::vector<Crumb> SceneStack::trail() const
     return {};
 }
 
+void SceneStack::closeAbove(const Scene* scene)
+{
+    bool above = false;
+    for (auto& open : scenes_)
+    {
+        if (above)
+            open->close();
+        above = above || open.get() == scene;
+    }
+    pending_.clear();
+}
+
 void SceneStack::update(Input& input, float dt)
 {
     for (auto& scene : pending_)

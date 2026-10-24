@@ -20,6 +20,9 @@ class HomeScene final : public ui::Scene
 {
 public:
     HomeScene();
+    ~HomeScene() override;
+    // In a mode (true: online) on a tab, at once: for goHome.
+    void show(bool online, int tab);
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;
     void draw() override;
