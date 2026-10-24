@@ -69,6 +69,8 @@ private:
         Filter filter;
     };
     std::vector<Chip> chips_;
+    int chipFocus_ = -1; // the chip the keys are on, -1 while they're on the grid
+    void openChip(Filter filter);
 };
 
 } // namespace tz::scenes

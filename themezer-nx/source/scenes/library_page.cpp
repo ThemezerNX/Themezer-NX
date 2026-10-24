@@ -275,7 +275,9 @@ std::vector<ui::Hint> LibraryPage::hints() const
     std::vector<ui::Hint> hints{{ui::key::kY, "Search"}, {ui::key::kX, "Sort"}};
     if (!search_.empty())
         hints.push_back({ui::key::kB, "Clear search"});
-    if (!rows_.empty())
+    if (chipFocus_ >= 0)
+        hints.push_back({ui::key::kA, "Choose"});
+    else if (!rows_.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
@@ -308,16 +310,23 @@ void LibraryPage::update(ui::Input& input, float dt)
             if (input.x < chip.x || input.x >= chip.x + chip.width)
                 continue;
             input.consumeTouch();
-            if (chip.filter == Filter::Sort)
-                chooseSort();
-            else if (chip.filter == Filter::Target)
-                chooseTarget();
-            else
-                search();
+            openChip(chip.filter);
             return;
         }
     }
-    if (grid_.update(input, dt) == ui::GridView::Event::Activated)
+    if (chipFocus_ >= 0)
+    {
+        if (const int chosen = chipKeys(input, chipFocus_, static_cast<int>(chips_.size())); chosen >= 0)
+            openChip(chips_[static_cast<size_t>(chosen)].filter);
+        return;
+    }
+    const auto event = grid_.update(input, dt);
+    if (event == ui::GridView::Event::Above && !chips_.empty())
+    {
+        chipFocus_ = 0;
+        sfx::play(sfx::Sound::Cursor);
+    }
+    if (event == ui::GridView::Event::Activated)
     {
         if (const local::Pack* pack = packAt(grid_.selected()))
             openLocalPack(pack->dir);
@@ -333,6 +342,16 @@ void LibraryPage::update(ui::Input& input, float dt)
         if (row >= 0 && row < static_cast<int>(rows_.size()))
             library.wantInfo(rows_[static_cast<size_t>(row)]);
     }
+}
+
+void LibraryPage::openChip(Filter filter)
+{
+    if (filter == Filter::Sort)
+        chooseSort();
+    else if (filter == Filter::Target)
+        chooseTarget();
+    else
+        search();
 }
 
 void LibraryPage::drawFilters(float top)
@@ -363,6 +382,9 @@ void LibraryPage::drawFilters(float top)
              Filter::Target);
     if (!search_.empty())
         chip(Icon::Search, "“" + search_ + "”", true, Filter::Search);
+    if (chipFocus_ >= 0 && chipFocus_ < static_cast<int>(chips_.size()))
+        chipRing(chips_[static_cast<size_t>(chipFocus_)].x, top, chips_[static_cast<size_t>(chipFocus_)].width,
+                 kFiltersHeight, accent());
 }
 
 void LibraryPage::draw()
@@ -400,7 +422,10 @@ void LibraryPage::draw()
                 content.picture = localPicture(*entry, kThumbWidth);
             card::draw(content, x, y, w, h, selected, accent);
         },
-        [&](float x, float y, float w, float h, bool down) { card::highlight(x, y, w, h, down, accent); });
+        [&](float x, float y, float w, float h, bool down) {
+                if (chipFocus_ < 0)
+                    card::highlight(x, y, w, h, down, accent);
+            });
 
     if (!library.scanned())
     {

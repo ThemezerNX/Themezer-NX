@@ -7,6 +7,7 @@
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/images.hpp"
+#include "sys/audio.hpp"
 #include "ui/widgets.hpp"
 
 #include <algorithm>
@@ -386,6 +387,39 @@ float filterChip(Icon which, const std::string& text, bool highlighted, Accent a
     icon(which, x + 16, std::round(middle - iconSize / 2), iconSize, highlighted ? accent.light : color::kTextDim);
     drawText(shown, x + 16 + iconSize + 10, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText);
     return width;
+}
+
+int chipKeys(ui::Input& input, int& focus, int count)
+{
+    focus = std::min(focus, count - 1);
+    if (focus < 0)
+        return -1;
+    if (input.pressed(ui::key::kDown) || input.pressed(ui::key::kB))
+    {
+        focus = -1;
+        sfx::play(sfx::Sound::Cursor);
+    }
+    else if (input.repeated(ui::key::kLeft) && focus > 0)
+    {
+        --focus;
+        sfx::play(sfx::Sound::Cursor);
+    }
+    else if (input.repeated(ui::key::kRight) && focus + 1 < count)
+    {
+        ++focus;
+        sfx::play(sfx::Sound::Cursor);
+    }
+    else if (input.pressed(ui::key::kA))
+    {
+        sfx::play(sfx::Sound::Confirm);
+        return focus;
+    }
+    return -1;
+}
+
+void chipRing(float x, float top, float width, float height, Accent accent)
+{
+    roundedOutline(x - 5, top - 5, width + 10, height + 10, height / 2 + 5, 3, accent.solid);
 }
 
 std::string thousands(int number)

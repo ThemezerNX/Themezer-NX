@@ -7,6 +7,7 @@
 #include "domain/library.hpp"
 #include "services/local.hpp"
 #include "services/themezer.hpp"
+#include "ui/input.hpp"
 
 #include <memory>
 #include <string_view>
@@ -96,6 +97,12 @@ std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 // end before right. Returns its width; 0 when there's no room for it.
 float filterChip(gfx::Icon icon, const std::string& text, bool highlighted, gfx::Accent accent, float x, float top,
                  float height, float right);
+
+// The chips' keys, once up from the grid's top row has reached them (focus, the chip's index; -1 off them): left and
+// right along them, down or B back to the grid. Returns the chip A chose, or -1.
+int chipKeys(ui::Input& input, int& focus, int count);
+// The ring round the chip the keys are on.
+void chipRing(float x, float top, float width, float height, gfx::Accent accent);
 
 // The number with thousands apart: 5,004.
 std::string thousands(int number);

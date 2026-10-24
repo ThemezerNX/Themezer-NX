@@ -258,7 +258,9 @@ std::vector<ui::Hint> BrowsePage::hints() const
     hints.push_back({ui::key::kX, "Sort"});
     if (!query_.search.empty())
         hints.push_back({ui::key::kB, "Clear search"});
-    if (!items_.empty())
+    if (chipFocus_ >= 0)
+        hints.push_back({ui::key::kA, "Choose"});
+    else if (!items_.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
@@ -297,14 +299,7 @@ void BrowsePage::update(ui::Input& input, float dt)
             if (input.x < chip.x || input.x >= chip.x + chip.width)
                 continue;
             input.consumeTouch();
-            if (chip.filter == Filter::Sort)
-                chooseSort();
-            else if (chip.filter == Filter::Target)
-                chooseTarget();
-            else if (chip.filter == Filter::Packed)
-                choosePacked();
-            else
-                search();
+            openChip(chip.filter);
             return;
         }
     }
@@ -316,7 +311,19 @@ void BrowsePage::update(ui::Input& input, float dt)
         return;
     }
 
-    if (grid_.update(input, dt) == ui::GridView::Event::Activated && !items_.empty())
+    if (chipFocus_ >= 0)
+    {
+        if (const int chosen = chipKeys(input, chipFocus_, static_cast<int>(chips_.size())); chosen >= 0)
+            openChip(chips_[static_cast<size_t>(chosen)].filter);
+        return;
+    }
+    const auto event = grid_.update(input, dt);
+    if (event == ui::GridView::Event::Above && !chips_.empty())
+    {
+        chipFocus_ = 0;
+        sfx::play(sfx::Sound::Cursor);
+    }
+    if (event == ui::GridView::Event::Activated && !items_.empty())
         openItem(items_[static_cast<size_t>(grid_.selected())]);
 
     // near the end: the next page, or again after it failed when the selection moves on to the end
@@ -327,6 +334,18 @@ void BrowsePage::update(ui::Input& input, float dt)
         fetchMore();
     if (!moreError_.empty() && input.pressed(ui::key::kA) && rowsLeft == 0)
         fetchMore();
+}
+
+void BrowsePage::openChip(Filter filter)
+{
+    if (filter == Filter::Sort)
+        chooseSort();
+    else if (filter == Filter::Target)
+        chooseTarget();
+    else if (filter == Filter::Packed)
+        choosePacked();
+    else
+        search();
 }
 
 void BrowsePage::drawFilters(float top)
@@ -360,6 +379,9 @@ void BrowsePage::drawFilters(float top)
     }
     if (!query_.search.empty())
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
+    if (chipFocus_ >= 0 && chipFocus_ < static_cast<int>(chips_.size()))
+        chipRing(chips_[static_cast<size_t>(chipFocus_)].x, top, chips_[static_cast<size_t>(chipFocus_)].width,
+                 kFiltersHeight, accent());
 }
 
 void BrowsePage::draw()
@@ -373,7 +395,10 @@ void BrowsePage::draw()
             [&](int index, float x, float y, float w, float h, bool selected) {
                 card::draw(items_[static_cast<size_t>(index)], x, y, w, h, selected, accent, showTarget);
             },
-            [&](float x, float y, float w, float h, bool down) { card::highlight(x, y, w, h, down, accent); },
+            [&](float x, float y, float w, float h, bool down) {
+                if (chipFocus_ < 0)
+                    card::highlight(x, y, w, h, down, accent);
+            },
             [&](float x, float y, float w, float h) {
                 const float middle = y + h / 2;
                 if (!moreError_.empty())

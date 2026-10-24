@@ -159,6 +159,8 @@ std::pair<int, int> GridView::visibleRange() const
 
 GridView::Event GridView::update(Input& input, float dt)
 {
+    if (input.pressed(key::kUp) && selected_ < columns_)
+        return Event::Above;
     Event event = Event::None;
     if (count_ > 0)
     {

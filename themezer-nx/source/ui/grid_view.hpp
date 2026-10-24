@@ -19,6 +19,7 @@ public:
         None,
         Moved,
         Activated,
+        Above, // up on the top row: for what's over the grid
     };
 
     void setBounds(float x, float y, float width, float height);
