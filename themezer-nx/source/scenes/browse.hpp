@@ -44,6 +44,7 @@ private:
     void openFilter();
     void chooseSort();
     void chooseTarget();
+    void choosePacked();
     void drawFilters(float top);
 
     themezer::Query query_;
@@ -64,6 +65,7 @@ private:
     {
         Sort,
         Target,
+        Packed,
         Search,
     };
     struct Chip

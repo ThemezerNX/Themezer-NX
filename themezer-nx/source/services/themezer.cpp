@@ -46,8 +46,8 @@ constexpr const char* kPacksQuery =
     "query Packs($paginationArgs:PaginationInput,$sort:ItemSort,$order:SortOrder,$query:String){switch{packs(" PAGE_ARGS
     "){nodes{" PACK_FIELDS "}" PAGE_INFO "}}}";
 constexpr const char* kThemesQuery =
-    "query Themes($target:Target,$paginationArgs:PaginationInput,$sort:ItemSort,$order:SortOrder,$query:String){switch{"
-    "themes(target:$target," PAGE_ARGS "){nodes{" THEME_FIELDS " pack{hexId name creator{username}}}" PAGE_INFO "}}}";
+    "query Themes($target:Target,$isPartOfPack:Boolean,$paginationArgs:PaginationInput,$sort:ItemSort,$order:SortOrder,"
+    "$query:String){switch{themes(target:$target,isPartOfPack:$isPartOfPack," PAGE_ARGS "){nodes{" THEME_FIELDS " pack{hexId name creator{username}}}" PAGE_INFO "}}}";
 constexpr const char* kSplashesQuery =
     "query Splashes($paginationArgs:PaginationInput,$sort:ItemSort,$order:SortOrder,$query:String){switch{splashes(" PAGE_ARGS
     "){nodes{" SPLASH_FIELDS "}" PAGE_INFO "}}}";
@@ -268,6 +268,8 @@ std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& toke
         variables += query.target >= 0 && query.target < kTargetCount
                          ? "\"" + std::string(kTargetApiNames[query.target]) + "\""
                          : std::string("null");
+        variables += ",\"isPartOfPack\":";
+        variables += !query.inPack ? "null" : *query.inPack ? "true" : "false";
     }
     else if (query.kind == Kind::Splashes)
     {

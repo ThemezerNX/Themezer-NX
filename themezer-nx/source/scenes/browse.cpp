@@ -194,6 +194,37 @@ void BrowsePage::chooseTarget()
                                                  query_.target + 1);
 }
 
+namespace
+{
+// whether the themes shown are in a pack: all of them, only those that aren't, only those that are
+constexpr std::optional<bool> kPacked[] = {std::nullopt, false, true};
+constexpr const char* kPackedLabels[] = {"All themes", "Standalone only", "From packs only"};
+constexpr Icon kPackedIcons[] = {Icon::Layers, Icon::Theme, Icon::Pack};
+
+size_t packedIndex(std::optional<bool> inPack)
+{
+    return !inPack ? 0 : *inPack ? 2 : 1;
+}
+} // namespace
+
+void BrowsePage::choosePacked()
+{
+    std::vector<ui::Action> actions;
+    for (size_t i = 0; i < std::size(kPacked); ++i)
+    {
+        ui::Action action{kPackedIcons[i], kPackedLabels[i], "", true, false, [this, i] {
+                              if (query_.inPack == kPacked[i])
+                                  return;
+                              query_.inPack = kPacked[i];
+                              reload();
+                          }};
+        action.checked = query_.inPack == kPacked[i];
+        actions.push_back(std::move(action));
+    }
+    App::get().scenes().emplace<ui::ActionSheet>("Show", std::move(actions), accent().solid,
+                                                 static_cast<int>(packedIndex(query_.inPack)));
+}
+
 void BrowsePage::openFilter()
 {
     // packs and splashes are only sorted: their sorts straight away
@@ -209,6 +240,9 @@ void BrowsePage::openFilter()
                        std::string("Part of the HOME Menu: ") +
                            (query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target)),
                        "", true, false, [this] { chooseTarget(); }});
+    const size_t packed = packedIndex(query_.inPack);
+    actions.push_back({kPackedIcons[packed], std::string("Show: ") + kPackedLabels[packed], "", true, false,
+                       [this] { choosePacked(); }});
     App::get().scenes().emplace<ui::ActionSheet>("Sort and filter", std::move(actions), accent().solid);
 }
 
@@ -267,6 +301,8 @@ void BrowsePage::update(ui::Input& input, float dt)
                 chooseSort();
             else if (chip.filter == Filter::Target)
                 chooseTarget();
+            else if (chip.filter == Filter::Packed)
+                choosePacked();
             else
                 search();
             return;
@@ -317,6 +353,11 @@ void BrowsePage::drawFilters(float top)
     if (query_.kind == Kind::Themes)
         chip(targetIcon(query_.target), query_.target < 0 ? "Every part" : themezer::targetLabel(query_.target),
              query_.target >= 0, Filter::Target);
+    if (query_.kind == Kind::Themes)
+    {
+        const size_t packed = packedIndex(query_.inPack);
+        chip(kPackedIcons[packed], kPackedLabels[packed], packed != 0, Filter::Packed);
+    }
     if (!query_.search.empty())
         chip(Icon::Search, "“" + query_.search + "”", true, Filter::Search);
 }

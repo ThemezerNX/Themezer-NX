@@ -7,6 +7,7 @@
 #include "sys/net.hpp"
 
 #include <expected>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -72,6 +73,7 @@ struct Query
 {
     Kind kind = Kind::Packs;
     int target = -1; // themes: one part of the HOME Menu, or -1 for all
+    std::optional<bool> inPack; // themes: only those in a pack, only those that aren't, or all
     Sort sort = Sort::Trending;
     bool ascending = false;
     std::string search;
