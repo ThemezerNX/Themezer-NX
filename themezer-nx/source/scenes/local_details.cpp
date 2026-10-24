@@ -175,7 +175,7 @@ void LocalDetailsScene::draw()
         const float chipHeight = 40;
         const float iconSize = metric::kIcon * 0.75f;
         const std::string kind = entry.kind == Kind::Splash
-                                     ? std::string("Hekate splash")
+                                     ? std::string("Hekate Splash")
                                      : std::string("Theme · ") + (entry.target >= 0 ? themezer::targetLabel(entry.target)
                                                                                     : "part not known");
         const float chipWidth = iconSize + 10 + textWidth(kind, metric::kTextSmall) + 32;
@@ -183,7 +183,7 @@ void LocalDetailsScene::draw()
         icon(entry.kind == Kind::Splash ? Icon::Splash : targetIcon(entry.target), kColumnX + 16,
              std::round(y + (chipHeight - iconSize) / 2), iconSize, accent.light);
         drawText(kind, kColumnX + 16 + iconSize + 10, textTop(y + chipHeight / 2, metric::kTextSmall),
-                 metric::kTextSmall, color::kText);
+                 metric::kTextSmall, accent.light);
         y += chipHeight + 20;
         y += drawWrapped(entry.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;

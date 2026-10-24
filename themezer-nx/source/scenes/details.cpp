@@ -34,7 +34,7 @@ constexpr float kColumnW = metric::kWidth - kColumnX - 48;
 std::string kindLabel(const themezer::Item& item)
 {
     if (item.kind == Kind::Splashes)
-        return item.remote ? "Remote splash" : "Hekate splash";
+        return item.remote ? "Remote Splash" : "Hekate Splash";
     if (item.kind == Kind::Packs)
         return "Pack";
     return std::string(item.remote ? "Remote theme · " : "Theme · ") + themezer::targetLabel(item.target);
@@ -208,7 +208,7 @@ void DetailsScene::draw()
         icon(iconOf(item_.kind), kColumnX + 16, std::round(y + (chipHeight - metric::kIcon * 0.75f) / 2),
              metric::kIcon * 0.75f, accent.light);
         drawText(kind, kColumnX + 16 + metric::kIcon * 0.75f + 10, textTop(y + chipHeight / 2, metric::kTextSmall),
-                 metric::kTextSmall, color::kText);
+                 metric::kTextSmall, accent.light);
         y += chipHeight + 20;
         y += drawWrapped(item_.name, kColumnX, y, kColumnW, metric::kTextTitle, color::kText, 3);
         y += 4;
