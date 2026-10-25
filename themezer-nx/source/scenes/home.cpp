@@ -54,10 +54,6 @@ HomeScene::HomeScene()
         local_.push_back(std::make_unique<LibraryPage>(kind));
         online_.push_back(std::make_unique<BrowsePage>(kind));
     }
-    // where it was last: 0 to 2 are the SD card's tabs, 3 to 5 Themezer's
-    const int last = std::clamp(App::get().config().lastTab, 0, 2 * kTabs - 1);
-    onlineMode_ = last >= kTabs;
-    tab_ = last % kTabs;
     // the sections, as every page's top bar names them
     std::vector<ui::Tab> tabs;
     for (themezer::Kind kind : kKinds)
@@ -73,17 +69,6 @@ HomeScene::HomeScene()
 Page& HomeScene::page()
 {
     return *(onlineMode_ ? online_ : local_)[static_cast<size_t>(tab_)];
-}
-
-void HomeScene::remember()
-{
-    Config& config = App::get().config();
-    const int tab = onlineMode_ ? kTabs + tab_ : tab_;
-    if (config.lastTab != tab)
-    {
-        config.lastTab = tab;
-        config.save();
-    }
 }
 
 void HomeScene::switchMode()
@@ -111,7 +96,6 @@ void HomeScene::show(bool online, int tab)
     page().onShow();
     appear_ = 0;
     side_ = 0;
-    remember();
 }
 
 void HomeScene::switchTo(int tab, int side)
@@ -121,9 +105,7 @@ void HomeScene::switchTo(int tab, int side)
     page().onShow();
     appear_ = 0;
     side_ = side;
-    remember();
 }
-
 
 void HomeScene::onResume()
 {

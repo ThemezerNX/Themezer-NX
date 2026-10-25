@@ -26,8 +26,6 @@ void Config::load()
         music = cJSON_IsTrue(item);
     if (const cJSON* item = cJSON_GetObjectItem(root, "sfx"); cJSON_IsBool(item))
         sfx = cJSON_IsTrue(item);
-    if (const cJSON* item = cJSON_GetObjectItem(root, "lastTab"); cJSON_IsNumber(item))
-        lastTab = item->valueint;
     cJSON_Delete(root);
 }
 
@@ -36,8 +34,7 @@ void Config::save() const
     FILE* file = std::fopen(kPath, "wb");
     if (!file)
         return;
-    std::fprintf(file, "{\"music\":%s,\"sfx\":%s,\"lastTab\":%d}\n", music ? "true" : "false",
-                 sfx ? "true" : "false", lastTab);
+    std::fprintf(file, "{\"music\":%s,\"sfx\":%s}\n", music ? "true" : "false", sfx ? "true" : "false");
     std::fclose(file);
 }
 

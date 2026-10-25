@@ -33,14 +33,13 @@ private:
     Page& page();
     void switchMode();
     void switchTo(int tab, int side);
-    void remember();
 
     // Draws it, its width from its label; returns where it ends.
     float drawModeButton(float x, float y, float height);
 
     std::vector<std::unique_ptr<Page>> local_;
     std::vector<std::unique_ptr<Page>> online_;
-    bool onlineMode_ = true;
+    bool onlineMode_ = false; // it starts on the SD card's packs
     int tab_ = 0;
 
     ui::TabBar tabs_;
