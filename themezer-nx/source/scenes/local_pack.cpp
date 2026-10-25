@@ -113,7 +113,7 @@ void LocalPackScene::openOptions()
     if (!queued.empty())
         actions.push_back({Icon::Error, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
     else
-        actions.push_back({Icon::Install, "Install all", "", true, false, [dir] { installLocalPack(dir); }});
+        actions.push_back({Icon::Install, "Install All", "", true, false, [dir] { installLocalPack(dir); }});
     if (!last_.themezerId.empty())
         actions.push_back({Icon::Globe, "Show on Themezer", "", true, false,
                            [quickId = "P" + last_.themezerId] { showOnThemezer(quickId); }});

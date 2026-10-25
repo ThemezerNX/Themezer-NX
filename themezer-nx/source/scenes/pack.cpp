@@ -64,27 +64,21 @@ std::vector<ui::Hint> PackScene::hints() const
     std::vector<ui::Hint> hints{{ui::key::kB, "Back"}};
     if (!pack_.preview.hd.empty())
         hints.push_back({ui::key::kY, "View"});
-    hints.push_back({ui::key::kX, "Options"});
+    // queued, X takes its themes out again, as a theme's A does
+    hints.push_back({ui::key::kX, queuedSlots().empty() ? "Install All" : "Cancel install"});
     if (!pack_.themes.empty())
         hints.push_back({ui::key::kA, "Open"});
     return hints;
 }
 
-void PackScene::openOptions()
+void PackScene::openInstall()
 {
     const themezer::Item pack = pack_;
+    // a theme's install sheet, for all of them
     std::vector<ui::Action> actions;
-    // queued, its themes come out again; else the ways to get them all, as a theme's install sheet has them
-    if (const std::vector<int> queued = queuedSlots(); !queued.empty())
-    {
-        actions.push_back({Icon::Error, "Cancel install", "", true, false, [queued] { unqueueAndSay(queued); }});
-    }
-    else
-    {
-        actions.push_back({Icon::Install, "Install & Save", "", true, false, [pack] { installPack(pack, true); }});
-        actions.push_back({Icon::Install, "Install only", "", true, false, [pack] { installPack(pack, false); }});
-    }
-    actions.push_back({Icon::Download, "Download only", "", true, false, [pack] { downloadPack(pack); }});
+    actions.push_back({Icon::Install, "Install & Save All", "", true, false, [pack] { installPack(pack, true); }});
+    actions.push_back({Icon::Install, "Install All only", "", true, false, [pack] { installPack(pack, false); }});
+    actions.push_back({Icon::Download, "Download All only", "", true, false, [pack] { downloadPack(pack); }});
     App::get().scenes().emplace<ui::ActionSheet>(pack_.name, std::move(actions), accentOf(Kind::Packs).solid, 0);
 }
 
@@ -125,7 +119,10 @@ void PackScene::update(ui::Input& input, float dt)
     }
     if (input.pressed(ui::key::kX))
     {
-        openOptions();
+        if (const std::vector<int> queued = queuedSlots(); !queued.empty())
+            unqueueAndSay(queued);
+        else
+            openInstall();
         return;
     }
     if (input.pressed(ui::key::kPlus))

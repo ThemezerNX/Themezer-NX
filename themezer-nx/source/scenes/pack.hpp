@@ -25,8 +25,8 @@ private:
     std::vector<ui::Hint> hints() const;
     // The slots its themes are queued in.
     std::vector<int> queuedSlots() const;
-    // X: the ways to get it all, or to cancel its install.
-    void openOptions();
+    // X: the ways to get all its themes, as a theme's A has them for it.
+    void openInstall();
     void view();
 
     themezer::Item pack_;
