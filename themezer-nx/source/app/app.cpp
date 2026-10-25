@@ -185,6 +185,9 @@ int App::run(const char* self)
     }
 
     const char* installer = installs::installerPath();
+    // what the installer can't be given as it is, copied where it can
+    if (installer && installs::queuedCount() > 0)
+        installs::copyForInstaller();
     if (installer && installs::queuedCount() > 0)
     {
         const std::string args = installs::installerArgs(installer);

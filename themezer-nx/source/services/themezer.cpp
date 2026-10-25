@@ -1,11 +1,13 @@
 #include "services/themezer.hpp"
 
+#include "domain/names.hpp"
 #include "libs/cJSON.h"
 
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -327,21 +329,25 @@ std::expected<Item, Error> lookupQuickId(const std::string& quickId, const Cance
     return std::unexpected(Error{"This Quick ID is for something the Switch app can't install.", type, false, true});
 }
 
-std::expected<void, Error> download(const std::string& url, const std::string& path, const CancelToken& token,
-                                    net::Progress* progress)
+namespace
 {
-    net::Response response = net::get(url, &token, progress);
+
+// What went wrong with a download, when something did: a theme or splash comes as a file, JSON is the API saying what.
+std::optional<Error> downloadError(const net::Response& response)
+{
     if (response.curlCode != 0)
-        return std::unexpected(connectionError(response));
-    // a theme or splash comes as a file; JSON is the API saying what went wrong
-    if (!response.ok() || response.contentType.find("json") != std::string::npos)
-    {
-        Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));
-        std::string message = root ? apiError(root.get()) : std::string();
-        if (!message.empty())
-            return std::unexpected(Error{std::move(message), {}, false, false});
-        return std::unexpected(connectionError(response));
-    }
+        return connectionError(response);
+    if (response.ok() && response.contentType.find("json") == std::string::npos)
+        return std::nullopt;
+    Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));
+    std::string message = root ? apiError(root.get()) : std::string();
+    if (!message.empty())
+        return Error{std::move(message), {}, false, false};
+    return connectionError(response);
+}
+
+std::expected<void, Error> save(const net::Response& response, const std::string& path)
+{
     if (!makeFolders(path))
         return std::unexpected(Error{"Couldn't make a folder for it on the SD card.", path, false, false});
     FILE* file = std::fopen(path.c_str(), "wb");
@@ -354,6 +360,35 @@ std::expected<void, Error> download(const std::string& url, const std::string& p
         return std::unexpected(Error{"Couldn't write it to the SD card. Is it full?", path, false, false});
     }
     return {};
+}
+
+} // namespace
+
+std::expected<void, Error> download(const std::string& url, const std::string& path, const CancelToken& token,
+                                    net::Progress* progress)
+{
+    const net::Response response = net::get(url, &token, progress);
+    if (auto error = downloadError(response))
+        return std::unexpected(std::move(*error));
+    return save(response, path);
+}
+
+std::expected<std::string, Error> downloadInto(const std::string& url, const std::string& folder,
+                                               const std::string& fallback, const CancelToken& token,
+                                               net::Progress* progress)
+{
+    const net::Response response = net::get(url, &token, progress);
+    if (auto error = downloadError(response))
+        return std::unexpected(std::move(*error));
+    // the name Themezer gives it, as on its website; the one made here when it gives none, or one of another kind
+    std::string name = names::fromDisposition(response.contentDisposition);
+    const std::string extension = fallback.substr(fallback.rfind('.'));
+    if (name.size() <= extension.size() || !name.ends_with(extension))
+        name = fallback;
+    const std::string path = folder + "/" + name;
+    if (auto saved = save(response, path); !saved)
+        return std::unexpected(saved.error());
+    return path;
 }
 
 std::string dateOf(const std::string& iso)

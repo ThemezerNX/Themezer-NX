@@ -1,11 +1,16 @@
 #include "domain/installs.hpp"
 
+#include "domain/names.hpp"
+
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
+#include <cstdio>
 #include <optional>
+#include <vector>
 
 namespace tz::installs
 {
@@ -24,40 +29,34 @@ constexpr const char* kInstallerPaths[] = {
 
 std::array<std::optional<Queued>, kSlotCount> slots;
 
-// in the names of the files, as the app has always named them (the website's names differ a little)
-constexpr const char* kFileLabels[themezer::kTargetCount] = {"Home Menu",     "Lock Screen", "All Apps", "Settings",
-                                                             "Player Select", "User Page",   "News"};
-
-const char* fileLabel(int target)
+// A file for NXThemes Installer copied out of the way, as installs::copyForInstaller makes them.
+bool copyFile(const std::string& from, const std::string& to)
 {
-    return target >= 0 && target < themezer::kTargetCount ? kFileLabels[target] : "Unknown";
-}
-
-// A name safe for the SD card's FAT: no characters it forbids, nothing outside ASCII, single spaces.
-std::string safe(const std::string& name)
-{
-    static const std::string kForbidden = "\\~#*{}/:<>?|\",";
-    std::string out;
-    bool lastWasSpace = true;
-    for (unsigned char c : name)
+    FILE* in = std::fopen(from.c_str(), "rb");
+    if (!in)
+        return false;
+    FILE* out = std::fopen(to.c_str(), "wb");
+    if (!out)
     {
-        if (c == ' ' || (c >= 9 && c <= 13))
+        std::fclose(in);
+        return false;
+    }
+    std::vector<char> buffer(256 * 1024);
+    bool ok = true;
+    for (size_t read; (read = std::fread(buffer.data(), 1, buffer.size(), in)) > 0;)
+    {
+        if (std::fwrite(buffer.data(), 1, read, out) != read)
         {
-            if (!lastWasSpace)
-                out += ' ';
-            lastWasSpace = true;
-        }
-        else
-        {
-            out += kForbidden.find(static_cast<char>(c)) != std::string::npos || c < 32 || c > 126
-                       ? '_'
-                       : static_cast<char>(c);
-            lastWasSpace = false;
+            ok = false;
+            break;
         }
     }
-    while (!out.empty() && out.back() == ' ')
-        out.pop_back();
-    return out.empty() ? "_" : out;
+    ok = ok && !std::ferror(in);
+    std::fclose(in);
+    ok = std::fclose(out) == 0 && ok;
+    if (!ok)
+        unlink(to.c_str());
+    return ok;
 }
 
 } // namespace
@@ -70,16 +69,6 @@ const char* installerPath()
             return path;
     }
     return nullptr;
-}
-
-int targetFromFileLabel(std::string_view label)
-{
-    for (int target = 0; target < themezer::kTargetCount; ++target)
-    {
-        if (label == kFileLabels[target])
-            return target;
-    }
-    return -1;
 }
 
 std::string slotLabel(int slot)
@@ -96,24 +85,13 @@ int slotOf(const themezer::Item& item)
     return -1;
 }
 
-std::string savedPath(const themezer::Item& item)
-{
-    const std::string name = safe(item.name) + " by " + safe(item.creator);
-    if (item.kind == themezer::Kind::Splashes)
-        return std::string(kFolder) + "/Splashes/" + name + " (" + (item.remote ? "remote-splash-" : "splash-") +
-               safe(item.id) + ").bmp";
-    const std::string file = name + " (" + safe(fileLabel(item.target)) + "-" + safe(item.id) + ").nxtheme";
-    if (!item.packId.empty())
-        return std::string(kFolder) + "/" + safe(item.packName) + " by " + safe(item.packCreator) + " (" +
-               safe(item.packId) + ")/" + file;
-    return std::string(kFolder) + "/" + file;
-}
-
 std::string temporaryPath(const themezer::Item& item)
 {
     if (item.kind == themezer::Kind::Splashes)
-        return std::string(kTemporaryFolder) + (item.remote ? "/remote-splash-" : "/splash-") + safe(item.id) + ".bmp";
-    return std::string(kTemporaryFolder) + (item.remote ? "/remote-theme-" : "/theme-") + safe(item.id) + ".nxtheme";
+        return std::string(kTemporaryFolder) + (item.remote ? "/remote-splash-" : "/splash-") + names::safe(item.id) +
+               ".bmp";
+    return std::string(kTemporaryFolder) + (item.remote ? "/remote-theme-" : "/theme-") + names::safe(item.id) +
+           ".nxtheme";
 }
 
 void removeTemporary()
@@ -185,7 +163,33 @@ int queuedCount()
 
 bool installerTakes(const std::string& path)
 {
-    return path.find(',') == std::string::npos && path.find("(_)") == std::string::npos;
+    return path.find(',') == std::string::npos && path.find("(_)") == std::string::npos &&
+           std::all_of(path.begin(), path.end(), [](char c) { return static_cast<unsigned char>(c) < 0x80; });
+}
+
+std::string pathForInstaller(int slot)
+{
+    const Queued* waiting = queued(slot);
+    if (!waiting || installerTakes(waiting->path))
+        return waiting ? waiting->path : std::string();
+    const size_t dot = waiting->path.rfind('.');
+    return std::string(kTemporaryFolder) + "/install-" + std::to_string(slot) +
+           (dot == std::string::npos ? std::string() : waiting->path.substr(dot));
+}
+
+void copyForInstaller()
+{
+    for (int slot = 0; slot < kSlotCount; ++slot)
+    {
+        const Queued* waiting = queued(slot);
+        if (!waiting || installerTakes(waiting->path))
+            continue;
+        if (!copyFile(waiting->path, pathForInstaller(slot)))
+        {
+            std::printf("Couldn't copy %s for NXThemes Installer: not installed\n", waiting->path.c_str());
+            unqueue(slot);
+        }
+    }
 }
 
 std::string installerArgs(const char* installer)
@@ -193,14 +197,14 @@ std::string installerArgs(const char* installer)
     // the installer splits its arguments at spaces: it reads "(_)" in a path as one
     std::string out = std::string(installer) + " installtheme=";
     bool first = true;
-    for (const auto& slot : slots)
+    for (int slot = 0; slot < kSlotCount; ++slot)
     {
-        if (!slot)
+        if (!queued(slot))
             continue;
         if (!first)
             out += ',';
         first = false;
-        for (char c : slot->path)
+        for (char c : pathForInstaller(slot))
             out += c == ' ' ? std::string("(_)") : std::string(1, c);
     }
     return out;

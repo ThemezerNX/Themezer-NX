@@ -1,10 +1,12 @@
 #include "sys/net.hpp"
 
 #include <curl/curl.h>
+#include <strings.h>
 #include <switch.h>
 
 #include <cstdio>
 #include <memory>
+#include <string_view>
 
 namespace tz::net
 {
@@ -41,6 +43,29 @@ size_t write(char* data, size_t size, size_t count, void* user)
     auto* transfer = static_cast<Transfer*>(user);
     const size_t length = size * count;
     transfer->response->body.insert(transfer->response->body.end(), data, data + length);
+    return length;
+}
+
+// The headers' lines: of each response a redirect goes through, the last one's Content-Disposition is kept.
+size_t header(char* data, size_t size, size_t count, void* user)
+{
+    auto* transfer = static_cast<Transfer*>(user);
+    const size_t length = size * count;
+    std::string_view line(data, length);
+    constexpr std::string_view kName = "content-disposition:";
+    if (line.starts_with("HTTP/"))
+    {
+        transfer->response->contentDisposition.clear();
+    }
+    else if (line.size() > kName.size() && strncasecmp(line.data(), kName.data(), kName.size()) == 0)
+    {
+        line.remove_prefix(kName.size());
+        while (!line.empty() && (line.front() == ' ' || line.front() == '\t'))
+            line.remove_prefix(1);
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' '))
+            line.remove_suffix(1);
+        transfer->response->contentDisposition = line;
+    }
     return length;
 }
 
@@ -120,6 +145,8 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
         curl_easy_setopt(easy, CURLOPT_SHARE, share);
     curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, write);
     curl_easy_setopt(easy, CURLOPT_WRITEDATA, &transfer);
+    curl_easy_setopt(easy, CURLOPT_HEADERFUNCTION, header);
+    curl_easy_setopt(easy, CURLOPT_HEADERDATA, &transfer);
     curl_easy_setopt(easy, CURLOPT_XFERINFOFUNCTION, progressed);
     curl_easy_setopt(easy, CURLOPT_XFERINFODATA, &transfer);
     curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 0L);

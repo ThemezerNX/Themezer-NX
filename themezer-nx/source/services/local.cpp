@@ -1,5 +1,6 @@
 #include "services/local.hpp"
 
+#include "domain/names.hpp"
 #include "sys/jobs.hpp"
 
 #include <unistd.h>
@@ -88,8 +89,7 @@ void Library::index()
         {
             Pack pack;
             const std::string folder = dir.substr(dir.rfind('/') + 1);
-            library::NameParts parts;
-            if (library::parseFolderName(folder, parts))
+            if (names::Parts parts; names::parseFolder(folder, parts))
             {
                 pack.name = parts.name;
                 pack.author = parts.author;
@@ -149,6 +149,26 @@ const library::Entry* Library::find(const std::string& path) const
     {
         if (entry.path == path)
             return &entry;
+    }
+    return nullptr;
+}
+
+const library::Entry* Library::findItem(library::Kind kind, const std::string& id) const
+{
+    for (const library::Entry& entry : entries_)
+    {
+        if (entry.kind == kind && !id.empty() && entry.themezerId == id)
+            return &entry;
+    }
+    return nullptr;
+}
+
+const Pack* Library::findPackById(const std::string& id) const
+{
+    for (const Pack& pack : packs_)
+    {
+        if (!id.empty() && pack.themezerId == id)
+            return &pack;
     }
     return nullptr;
 }

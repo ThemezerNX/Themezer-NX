@@ -104,6 +104,11 @@ std::expected<Item, Error> lookupQuickId(const std::string& quickId, const Cance
 // Downloads an item's file to path (its folder made first).
 std::expected<void, Error> download(const std::string& url, const std::string& path, const CancelToken& token,
                                     net::Progress* progress);
+// The same into folder, under the name Themezer gives it (its Content-Disposition, as the website's downloads have),
+// else fallback. Where it went.
+std::expected<std::string, Error> downloadInto(const std::string& url, const std::string& folder,
+                                               const std::string& fallback, const CancelToken& token,
+                                               net::Progress* progress);
 
 // The date of an ISO 8601 time: "2026-10-21".
 std::string dateOf(const std::string& iso);

@@ -1,7 +1,7 @@
 #include "domain/library.hpp"
 
 #include "core/archive.hpp"
-#include "domain/installs.hpp"
+#include "domain/names.hpp"
 #include "libs/cJSON.h"
 
 #include <SDL2/SDL_image.h>
@@ -118,14 +118,13 @@ void walk(const std::string& dir, const std::string& folder, int depth, std::vec
             entry.size = static_cast<uint64_t>(info.st_size);
             entry.modified = static_cast<int64_t>(info.st_mtime);
         }
-        NameParts parts;
-        if (parseFileName(name, parts))
+        if (names::Parts parts; names::parseFile(name, parts))
         {
             entry.name = parts.name;
             entry.author = parts.author;
             entry.themezerId = parts.id;
             if (kind == Kind::Theme)
-                entry.target = installs::targetFromFileLabel(parts.tag);
+                entry.target = parts.target;
         }
         else
         {
@@ -203,46 +202,6 @@ std::string cut(const char* text, size_t most)
 }
 
 } // namespace
-
-bool parseFileName(const std::string& fileName, NameParts& parts)
-{
-    const std::string base = stem(fileName);
-    const size_t open = base.rfind(" (");
-    if (open == std::string::npos || base.back() != ')')
-        return false;
-    const std::string inside = base.substr(open + 2, base.size() - open - 3);
-    const size_t dash = inside.rfind('-');
-    if (dash == std::string::npos || dash == 0 || dash + 1 >= inside.size())
-        return false;
-    const std::string front = base.substr(0, open);
-    const size_t by = front.rfind(" by ");
-    if (by == std::string::npos)
-        return false;
-    parts.name = front.substr(0, by);
-    parts.author = front.substr(by + 4);
-    parts.tag = inside.substr(0, dash);
-    parts.id = inside.substr(dash + 1);
-    return true;
-}
-
-bool parseFolderName(const std::string& folder, NameParts& parts)
-{
-    const size_t open = folder.rfind(" (");
-    if (open == std::string::npos || folder.back() != ')')
-        return false;
-    const std::string id = folder.substr(open + 2, folder.size() - open - 3);
-    const std::string front = folder.substr(0, open);
-    const size_t by = front.rfind(" by ");
-    // Themezer's IDs are hex: "My themes (old)" is someone's own folder
-    if (id.empty() || by == std::string::npos ||
-        !std::all_of(id.begin(), id.end(), [](char c) { return std::isxdigit(static_cast<unsigned char>(c)); }))
-        return false;
-    parts.name = front.substr(0, by);
-    parts.author = front.substr(by + 4);
-    parts.tag.clear();
-    parts.id = id;
-    return true;
-}
 
 std::vector<Entry> scan()
 {

@@ -25,7 +25,8 @@ struct Entry
     std::string fileName;
     uint64_t size = 0;
     int64_t modified = 0; // when the file last changed: when it came, for a download
-    // From the file name when Themezer-NX gave it, else from the theme's info.json (readInfo), else the file name.
+    // From the file name when Themezer or Themezer-NX gave it (see names), else from the theme's info.json (readInfo),
+    // else the file name.
     std::string name;
     std::string author;
     int target = -1;         // themes: the part of the HOME Menu (themezer::targetLabel), -1 when not known yet
@@ -52,16 +53,5 @@ bool remove(const Entry& entry);
 // there.
 std::string fingerprint(const std::string& path);
 
-// What Themezer-NX's file names say: "<name> by <author> (<part>-<ID>).nxtheme", "<name> by <author> (splash-<ID>).bmp".
-struct NameParts
-{
-    std::string name;
-    std::string author;
-    std::string tag; // "Home Menu", "splash", "remote-splash"...
-    std::string id;
-};
-bool parseFileName(const std::string& fileName, NameParts& parts);
-// And a pack's folder: "<name> by <author> (<ID>)", without a tag.
-bool parseFolderName(const std::string& folder, NameParts& parts);
 
 } // namespace tz::library

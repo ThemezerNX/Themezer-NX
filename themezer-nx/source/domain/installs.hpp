@@ -1,12 +1,11 @@
-// Where downloads go on the SD card, and the installs queued for NXThemes Installer, which the app starts on its way
-// out with the queued files.
+// The installs queued for NXThemes Installer, which the app starts on its way out with the queued files, and where a
+// download goes to be installed only.
 
 #pragma once
 
 #include "services/themezer.hpp"
 
 #include <string>
-#include <string_view>
 
 namespace tz::installs
 {
@@ -19,14 +18,10 @@ constexpr int kSlotCount = themezer::kTargetCount + 1;
 const char* installerPath();
 
 std::string slotLabel(int slot);
-// The part of the HOME Menu a file name's label is for ("Lock Screen", as Themezer-NX names its files), or -1.
-int targetFromFileLabel(std::string_view label);
 // The slot an item goes in, or -1.
 int slotOf(const themezer::Item& item);
 
-// Where an item is kept: in /Themes/ThemezerNX, a pack's themes in a folder of their own.
-std::string savedPath(const themezer::Item& item);
-// Where it's put to be installed only, cleared at the next start.
+// Where an item's put to be installed only, cleared at the next start.
 std::string temporaryPath(const themezer::Item& item);
 void removeTemporary();
 bool exists(const std::string& path);
@@ -51,8 +46,12 @@ int queuedCount();
 std::string installerArgs(const char* installer);
 // The homebrew loader keeps the next program's arguments in 2 KiB, their 0 included: any longer would overrun it.
 constexpr size_t kMaxArgs = 2047;
-// NXThemes Installer takes its files as one list split at commas, "(_)" in a path read as a space: a path with
-// either in it can't be given to it.
+// NXThemes Installer takes its files as one list split at commas, "(_)" in a path read as a space: a path with either
+// in it, or with a character outside ASCII (which it isn't known to take), can't be given to it.
 bool installerTakes(const std::string& path);
+// What NXThemes Installer is given for a slot: its file, or for one it can't take, a copy in /Themes/ThemezerNX/.tmp.
+std::string pathForInstaller(int slot);
+// On the way out: those copies made; a slot whose copy can't be made is taken out of the queue. Blocks.
+void copyForInstaller();
 
 } // namespace tz::installs

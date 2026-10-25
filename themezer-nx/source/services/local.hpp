@@ -49,8 +49,13 @@ public:
     // The entry at path, or nullptr.
     const library::Entry* find(const std::string& path) const;
 
+    // A Themezer item's file on the SD card, wherever it is and whatever it's called; nullptr when there's none.
+    const library::Entry* findItem(library::Kind kind, const std::string& id) const;
+
     const std::vector<Pack>& packs() const { return packs_; }
     const Pack* findPack(const std::string& dir) const;
+    // A Themezer pack's folder on the SD card, by the pack's ID.
+    const Pack* findPackById(const std::string& id) const;
     // The theme that shows for a pack: its Home Menu's, else its first.
     const library::Entry* cover(const Pack& pack) const;
     // Takes a pack's themes off the SD card, and its folder when nothing else is in it. False when one couldn't be.

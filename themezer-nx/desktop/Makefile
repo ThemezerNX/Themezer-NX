@@ -40,11 +40,12 @@ asan:
 clean:
 	rm -rf build build-asan themezer-nx-desktop themezer-nx-desktop-asan
 
-# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, and versions.
-test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test
+# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, versions, and file names.
+test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test build/tests/names_test
 	./build/tests/archive_test
 	./build/tests/thumbhash_test
 	./build/tests/version_test
+	./build/tests/names_test
 
 build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 	@mkdir -p $(dir $@)
@@ -56,5 +57,9 @@ build/tests/thumbhash_test: tests/thumbhash_test.cpp ../source/libs/thumbhash.c
 	$(CXX) -std=c++23 -g -O1 -I../source tests/thumbhash_test.cpp build/tests/thumbhash.o -o $@
 
 build/tests/version_test: tests/version_test.cpp ../source/core/version.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@
+
+build/tests/names_test: tests/names_test.cpp ../source/domain/names.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@

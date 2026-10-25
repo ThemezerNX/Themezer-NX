@@ -29,6 +29,7 @@ struct Response
     int curlCode = 0; // 0 when the request went through, whatever the status
     long status = 0;
     std::string contentType;
+    std::string contentDisposition; // the last response's, after redirects; empty when it had none
     std::vector<uint8_t> body;
     std::string error; // curl's words for what went wrong
 

@@ -4,6 +4,7 @@
 #include "core/version.hpp"
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
+#include "domain/names.hpp"
 #include "scenes/local_details.hpp"
 #include "scenes/local_pack.hpp"
 #include "services/local.hpp"
@@ -72,6 +73,39 @@ std::string queuedMessage(size_t count)
                       : std::to_string(count) + " themes queued. Exit through + to install them.";
 }
 
+// Where a download is kept: a pack's themes in the pack's folder (the one on the SD card already, else one named as
+// Themezer names the pack's zip), splashes in Splashes, the rest in /Themes/ThemezerNX. Main thread.
+std::string folderFor(const Item& item)
+{
+    const std::string root = "/Themes/ThemezerNX";
+    if (item.kind == themezer::Kind::Splashes)
+        return root + "/Splashes";
+    if (item.packId.empty())
+        return root;
+    if (const local::Pack* pack = local::Library::get().findPackById(item.packId))
+        return pack->dir;
+    return root + "/" + names::packFolder(item.packName, item.packCreator, item.packId);
+}
+
+// Its name when the download doesn't say, as Themezer would name it.
+std::string fileFor(const Item& item)
+{
+    const std::string id = item.remote ? std::string() : item.id;
+    return item.kind == themezer::Kind::Splashes ? names::splashFile(item.name, item.creator, id)
+                                                 : names::themeFile(item.name, item.creator, item.target, id);
+}
+
+// The item's file on the SD card already, wherever it is and whatever it's called (downloaded here, or from the
+// website); empty when there's none. Main thread.
+std::string onSdCard(const Item& item)
+{
+    if (item.remote)
+        return {};
+    const auto kind = item.kind == themezer::Kind::Splashes ? library::Kind::Splash : library::Kind::Theme;
+    const library::Entry* entry = local::Library::get().findItem(kind, item.id);
+    return entry ? entry->path : std::string();
+}
+
 struct PackResult
 {
     std::vector<std::pair<int, std::string>> done; // the theme's index and where it went
@@ -84,9 +118,17 @@ struct PackResult
 void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, bool save)
 {
     auto themes = std::make_shared<std::vector<Item>>(pack.themes);
+    // what's there already, and where the rest go: the Library is the main thread's
+    std::vector<std::string> there, folders;
+    for (int index : chosen)
+    {
+        const Item& theme = (*themes)[static_cast<size_t>(index)];
+        there.push_back(onSdCard(theme));
+        folders.push_back(folderFor(theme));
+    }
     auto overlay = ui::ProgressOverlay::start<PackResult>(
         {queue ? "Installing " + pack.name : "Downloading " + pack.name, true, accentOf(themezer::Kind::Packs).solid},
-        [themes, chosen, save](ui::TaskProgress& progress, const CancelToken& token) {
+        [themes, chosen, save, there, folders](ui::TaskProgress& progress, const CancelToken& token) {
             PackResult result;
             const int total = static_cast<int>(chosen.size());
             for (int i = 0; i < total; ++i)
@@ -97,21 +139,33 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
                 progress.download.total = 0;
                 progress.setStatus("Theme " + std::to_string(i + 1) + " of " + std::to_string(total) + ": " +
                                    theme.name);
-                const std::string path = save ? installs::savedPath(theme) : installs::temporaryPath(theme);
-                if (!installs::exists(path))
+                std::string path = there[static_cast<size_t>(i)];
+                std::expected<void, themezer::Error> done;
+                if (path.empty() && save)
                 {
-                    auto done = themezer::download(theme.downloadUrl, path, token, &progress.download);
-                    if (!done)
+                    auto saved = themezer::downloadInto(theme.downloadUrl, folders[static_cast<size_t>(i)],
+                                                        fileFor(theme), token, &progress.download);
+                    if (saved)
+                        path = *saved;
+                    else
+                        done = std::unexpected(saved.error());
+                }
+                else if (path.empty())
+                {
+                    path = installs::temporaryPath(theme);
+                    if (!installs::exists(path))
+                        done = themezer::download(theme.downloadUrl, path, token, &progress.download);
+                }
+                if (!done)
+                {
+                    if (done.error().cancelled)
                     {
-                        if (done.error().cancelled)
-                        {
-                            result.cancelled = true;
-                            break;
-                        }
-                        if (result.failed++ == 0)
-                            result.firstError = done.error();
-                        continue;
+                        result.cancelled = true;
+                        break;
                     }
+                    if (result.failed++ == 0)
+                        result.firstError = done.error();
+                    continue;
                 }
                 result.done.emplace_back(chosen[static_cast<size_t>(i)], path);
             }
@@ -146,7 +200,7 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
             }
             const size_t done = result.done.size();
             ui::toast(queue ? queuedMessage(done)
-                            : std::to_string(done) + (done == 1 ? " theme" : " themes") + " saved in /Themes/ThemezerNX",
+                            : std::to_string(done) + (done == 1 ? " theme" : " themes") + " saved on the SD card",
                       ui::ToastKind::Success);
         });
     scenes().push(std::move(overlay));
@@ -194,15 +248,6 @@ void exitApp()
         return;
     }
     App::get().quit();
-}
-
-// NXThemes Installer can't be given a file with a comma or "(_)" in its path; says so.
-bool installerTakes(const std::string& path)
-{
-    if (installs::installerTakes(path))
-        return true;
-    ui::toast("NXThemes Installer can't take a file with a comma or “(_)” in its name or folder", ui::ToastKind::Error);
-    return false;
 }
 
 // Which of the pack's themes to install, one for each part (asked where it has more than one), then whether to
@@ -374,8 +419,7 @@ void installLocal(const library::Entry& entry)
         ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
         return;
     }
-    if (installerTakes(known.path))
-        queueAndSay(localItem(known), known.path);
+    queueAndSay(localItem(known), known.path);
 }
 
 void openLocalPack(const std::string& dir)
@@ -405,8 +449,6 @@ void installLocalPack(const std::string& dir)
     for (size_t index : found->themes)
     {
         library::Entry theme = library.entries()[index];
-        if (!installerTakes(theme.path))
-            return;
         // a theme whose file name doesn't say its part: its info.json does
         if (theme.target < 0 && !theme.infoRead)
             library::readInfo(theme);
@@ -557,21 +599,43 @@ void install(const Item& item, bool save)
         ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
         return;
     }
-    const std::string path = save ? installs::savedPath(item) : installs::temporaryPath(item);
-    if (installs::exists(path))
+    // on the SD card already, downloaded here or from the website
+    if (const std::string there = onSdCard(item); !there.empty())
     {
-        queueAndSay(item, path);
+        queueAndSay(item, there);
         return;
     }
-    scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+    if (!save)
+    {
+        const std::string path = installs::temporaryPath(item);
+        if (installs::exists(path))
+        {
+            queueAndSay(item, path);
+            return;
+        }
+        scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+            {"Downloading " + item.name, true, accentOf(item.kind).solid},
+            [url = item.downloadUrl, path](ui::TaskProgress& progress, const CancelToken& token) {
+                return themezer::download(url, path, token, &progress.download);
+            },
+            [item, path](std::expected<void, themezer::Error> result) {
+                if (result)
+                    queueAndSay(item, path);
+                else
+                    showError("Couldn't download it", result.error());
+            }));
+        return;
+    }
+    scenes().push(ui::ProgressOverlay::start<std::expected<std::string, themezer::Error>>(
         {"Downloading " + item.name, true, accentOf(item.kind).solid},
-        [url = item.downloadUrl, path](ui::TaskProgress& progress, const CancelToken& token) {
-            return themezer::download(url, path, token, &progress.download);
+        [url = item.downloadUrl, folder = folderFor(item), file = fileFor(item)](ui::TaskProgress& progress,
+                                                                                  const CancelToken& token) {
+            return themezer::downloadInto(url, folder, file, token, &progress.download);
         },
-        [item, path](std::expected<void, themezer::Error> result) {
+        [item](std::expected<std::string, themezer::Error> result) {
             local::Library::get().rescan();
             if (result)
-                queueAndSay(item, path);
+                queueAndSay(item, *result);
             else
                 showError("Couldn't download it", result.error());
         }));
@@ -579,21 +643,21 @@ void install(const Item& item, bool save)
 
 void download(const Item& item)
 {
-    const std::string path = installs::savedPath(item);
-    if (installs::exists(path))
+    if (!onSdCard(item).empty())
     {
-        ui::toast("“" + item.name + "” is on the SD card already, in /Themes/ThemezerNX");
+        ui::toast("“" + item.name + "” is on the SD card already");
         return;
     }
-    scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+    scenes().push(ui::ProgressOverlay::start<std::expected<std::string, themezer::Error>>(
         {"Downloading " + item.name, true, accentOf(item.kind).solid},
-        [url = item.downloadUrl, path](ui::TaskProgress& progress, const CancelToken& token) {
-            return themezer::download(url, path, token, &progress.download);
+        [url = item.downloadUrl, folder = folderFor(item), file = fileFor(item)](ui::TaskProgress& progress,
+                                                                                  const CancelToken& token) {
+            return themezer::downloadInto(url, folder, file, token, &progress.download);
         },
-        [name = item.name](std::expected<void, themezer::Error> result) {
+        [name = item.name](std::expected<std::string, themezer::Error> result) {
             local::Library::get().rescan();
             if (result)
-                ui::toast("“" + name + "” is saved in /Themes/ThemezerNX", ui::ToastKind::Success);
+                ui::toast("“" + name + "” is saved on the SD card", ui::ToastKind::Success);
             else
                 showError("Couldn't download it", result.error());
         }));
