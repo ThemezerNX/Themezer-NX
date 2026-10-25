@@ -162,18 +162,13 @@ void audio::setMusic(bool on)
 
 namespace
 {
-uint64_t homeFade = 0;   // the fade HOME's volume was changed with, in ns; 0 while it wasn't
-float homeVolume = 1.0f; // what it goes back to
+uint64_t homeFade = 0; // the fade HOME's volume was changed with, in ns; 0 while it wasn't
 } // namespace
 
 void audio::quietHome()
 {
     if (appletGetAppletType() != AppletType_LibraryApplet)
         return;
-    // the system's own level for HOME under a library applet (0.25 measured on 21.2.0)
-    if (float expected = 0;
-        R_SUCCEEDED(appletGetExpectedMasterVolume(&expected, nullptr)) && expected > 0 && expected <= 1)
-        homeVolume = expected;
     // a fade of 200 ms, in ns: up to 1 s is taken, 2 s refused (qlaunch-bgm's measurements)
     constexpr uint64_t kFade = 200'000'000;
     if (R_FAILED(appletChangeMainAppletMasterVolume(0.0f, kFade)))
@@ -182,14 +177,16 @@ void audio::quietHome()
         return;
     }
     homeFade = kFade;
-    std::printf("HOME's sound: off, back to %.0f%% on the way out\n", homeVolume * 100);
+    std::printf("HOME's sound: off, back to full on the way out\n");
 }
 
 void audio::restoreHome()
 {
     if (homeFade == 0)
         return;
-    appletChangeMainAppletMasterVolume(homeVolume, homeFade);
+    // Back to full: hbmenu in the Album's slot never lowers HOME, and the level stays after hbmenu closes.
+    // appletGetExpectedMasterVolume's 0.25 is what the Album's own code would set, not HOME's level here.
+    appletChangeMainAppletMasterVolume(1.0f, homeFade);
     homeFade = 0;
 }
 
