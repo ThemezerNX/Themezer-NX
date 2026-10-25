@@ -1,11 +1,13 @@
 #include "scenes/actions.hpp"
 
 #include "app/app.hpp"
+#include "core/version.hpp"
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
 #include "scenes/local_details.hpp"
 #include "scenes/local_pack.hpp"
 #include "services/local.hpp"
+#include "services/updates.hpp"
 #include "scenes/details.hpp"
 #include "scenes/frame.hpp"
 #include "scenes/pack.hpp"
@@ -13,6 +15,7 @@
 #include "ui/overlays.hpp"
 
 #include <switch.h>
+#include <sys/stat.h>
 
 #include <cstring>
 #include <unistd.h>
@@ -249,24 +252,13 @@ constexpr const char* kInstallerUrl =
     "https://github.com/exelix11/SwitchThemeInjector/releases/latest/download/NXThemesInstaller.nro";
 constexpr const char* kInstallerPath = "/switch/NXThemesInstaller.nro";
 
-// Whether the file is a homebrew app: an .nro has "NRO0" 16 bytes in, where an error page wouldn't.
-bool isNro(const char* path)
-{
-    char magic[4] = {};
-    FILE* file = std::fopen(path, "rb");
-    const bool read = file && std::fseek(file, 16, SEEK_SET) == 0 && std::fread(magic, 1, 4, file) == 4;
-    if (file)
-        std::fclose(file);
-    return read && std::memcmp(magic, "NRO0", 4) == 0;
-}
-
 void downloadInstaller()
 {
     scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
         {"Downloading NXThemes Installer", true, color::kPrimary},
         [](ui::TaskProgress& progress, const CancelToken& token) -> std::expected<void, themezer::Error> {
             auto done = themezer::download(kInstallerUrl, kInstallerPath, token, &progress.download);
-            if (done && !isNro(kInstallerPath))
+            if (done && !version::isNro(kInstallerPath))
             {
                 unlink(kInstallerPath);
                 return std::unexpected(
@@ -701,6 +693,104 @@ void openQueue()
                                       color::kPrimary, 0);
 }
 
+namespace
+{
+// A release's .nro, downloaded to staged: kept only when it's an app and as big as GitHub said, so a cut download
+// never takes the old one's place.
+std::expected<void, themezer::Error> downloadNro(const updates::Release& release, const std::string& staged,
+                                                 ui::TaskProgress& progress, const CancelToken& token)
+{
+    if (auto done = themezer::download(release.url, staged, token, &progress.download); !done)
+        return done;
+    struct stat info;
+    const bool whole = release.size == 0 ||
+                       (stat(staged.c_str(), &info) == 0 && static_cast<uint64_t>(info.st_size) == release.size);
+    if (whole && version::isNro(staged.c_str()))
+        return {};
+    unlink(staged.c_str());
+    return std::unexpected(themezer::Error{"What came wasn't the whole app. Try again later.", {}, false, false});
+}
+
+void updateApp()
+{
+    const updates::Release* found = updates::available(updates::Program::App);
+    if (!found)
+        return;
+    const updates::Release release = *found;
+    const std::string staged = App::get().updatePath();
+    scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+        {"Updating Themezer-NX to " + release.version, true, color::kPrimary},
+        [release, staged](ui::TaskProgress& progress, const CancelToken& token) {
+            return downloadNro(release, staged, progress, token);
+        },
+        [release](std::expected<void, themezer::Error> result) {
+            if (!result)
+            {
+                showError("Couldn't download Themezer-NX " + release.version, result.error());
+                return;
+            }
+            updates::done(updates::Program::App);
+            // it goes in place as the app closes: at once, into the new version; with installs queued, on the way
+            // out to NXThemes Installer, and it opens the next time
+            const bool restart = installs::queuedCount() == 0;
+            App::get().updateOnExit(restart);
+            if (restart)
+                App::get().quit();
+            else
+                ui::toast("Themezer-NX " + release.version + " is ready: it opens the next time you start it",
+                          ui::ToastKind::Success);
+        }));
+}
+
+void updateInstaller()
+{
+    const updates::Release* found = updates::available(updates::Program::Installer);
+    const char* installed = installs::installerPath();
+    if (!found || !installed)
+        return;
+    const updates::Release release = *found;
+    const std::string path = installed;
+    scenes().push(ui::ProgressOverlay::start<std::expected<void, themezer::Error>>(
+        {"Updating NXThemes Installer to " + release.version, true, color::kPrimary},
+        [release, path](ui::TaskProgress& progress, const CancelToken& token) -> std::expected<void, themezer::Error> {
+            const std::string staged = path + ".new";
+            if (auto done = downloadNro(release, staged, progress, token); !done)
+                return done;
+            if (!updates::replace(staged, path))
+                return std::unexpected(
+                    themezer::Error{"Couldn't put it in place of the old one on the SD card.", path, false, false});
+            return {};
+        },
+        [release](std::expected<void, themezer::Error> result) {
+            if (!result)
+            {
+                showError("Couldn't update NXThemes Installer", result.error());
+                return;
+            }
+            updates::done(updates::Program::Installer);
+            ui::toast("NXThemes Installer " + release.version + " is installed", ui::ToastKind::Success);
+        }));
+}
+} // namespace
+
+void openUpdates()
+{
+    std::vector<ui::Action> actions;
+    if (const updates::Release* app = updates::available(updates::Program::App))
+        actions.push_back({Icon::Refresh, "Themezer-NX " + app->version,
+                           "You have " + app->current + ". Themezer-NX restarts into it.", true, false,
+                           [] { updateApp(); }});
+    if (const updates::Release* installer = updates::available(updates::Program::Installer))
+        actions.push_back({Icon::Refresh, "NXThemes Installer " + installer->version,
+                           "You have " + installer->current + ".", true, false, [] { updateInstaller(); }});
+    if (actions.empty())
+    {
+        ui::toast("Themezer-NX and NXThemes Installer are up to date");
+        return;
+    }
+    scenes().emplace<ui::ActionSheet>("Updates", std::move(actions), color::kPrimary, 0);
+}
+
 void openMenu()
 {
     const int queued = installs::queuedCount();
@@ -708,6 +798,9 @@ void openMenu()
     if (queued > 0)
         actions.push_back(
             {Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false, [] { openQueue(); }});
+    if (const int newer = updates::availableCount(); newer > 0)
+        actions.push_back(
+            {Icon::Refresh, "Updates (" + std::to_string(newer) + ")", "", true, false, [] { openUpdates(); }});
 
     actions.push_back({Icon::Settings, "Settings", "", true, false, [] { openSettings(); }});
     actions.push_back({Icon::Info, "About and licenses", "", true, false, [] { openAbout(); }});

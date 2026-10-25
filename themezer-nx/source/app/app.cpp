@@ -8,6 +8,7 @@
 #include "scenes/actions.hpp"
 #include "scenes/home.hpp"
 #include "services/local.hpp"
+#include "services/updates.hpp"
 #include "scenes/images.hpp"
 #include "sys/audio.hpp"
 #include "sys/jobs.hpp"
@@ -21,6 +22,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 
 namespace tz
@@ -83,8 +85,10 @@ void App::updateStatus(float dt)
     });
 }
 
-int App::run()
+int App::run(const char* self)
 {
+    // hbmenu and nxlink start it as "sdmc:/switch/themezer-nx.nro"; hbmenu's own place for it otherwise
+    selfPath_ = self && std::strncmp(self, "sdmc:/", 6) == 0 ? std::string(self + 5) : "/switch/themezer-nx.nro";
     romfsInit();
     socketInitializeDefault();
     // started by nxlink: the logs go back to it
@@ -116,6 +120,15 @@ int App::run()
     applyConfig();
     net::init();
     jobs::init();
+    // an update left from a run that didn't get to close, and what's newer now
+    unlink(updatePath().c_str());
+    updates::check([] {
+        const updates::Release* app = updates::available(updates::Program::App);
+        const updates::Release* installer = updates::available(updates::Program::Installer);
+        ui::toast(app && installer ? std::string("2 updates available")
+                  : app            ? "Update available: Themezer-NX " + app->version
+                                   : "Update available: NXThemes Installer " + installer->version);
+    });
 
     ui::InputReader reader;
     reader.init();
@@ -182,7 +195,14 @@ int App::run()
             installed::noteQueued();
             std::printf("Starting %s\n", args.c_str());
             envSetNextLoad(installer, args.c_str());
+            restartAfterUpdate_ = false;
         }
+    }
+    // into the new version, as hbmenu starts it
+    if (updateStaged_ && restartAfterUpdate_)
+    {
+        const std::string arg = "sdmc:" + selfPath_;
+        envSetNextLoad(selfPath_.c_str(), (arg.find(' ') != std::string::npos ? "\"" + arg + "\"" : arg).c_str());
     }
 
     scenes_.clear();
@@ -197,6 +217,9 @@ int App::run()
     psmExit();
     nifmExit();
     romfsExit();
+    // with the app's own file closed (romfs reads from it), the update can go in its place
+    if (updateStaged_)
+        std::printf("Update %s\n", updates::replace(updatePath(), selfPath_) ? "in place" : "couldn't go in place");
     std::printf("Themezer-NX done\n");
     // Started by nxlink, stdout and stderr are copies of its socket. They go before the sockets do: else the C
     // library's closing of stdout at exit closes a socket after socketExit, which crashed the app, and with the

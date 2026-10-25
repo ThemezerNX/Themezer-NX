@@ -22,6 +22,8 @@
 #include <ctime>
 #include <deque>
 #include <expected>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iterator>
 #include <map>
@@ -47,6 +49,8 @@ inline const char* desktopSd(const std::string& path)
 #define opendir(path) opendir(desktopSd(path))
 #define unlink(path) unlink(desktopSd(path))
 #define rmdir(path) rmdir(desktopSd(path))
+int desktopRename(const char* from, const char* to);
+#define rename(from, to) desktopRename(from, to)
 #define fopen(path, mode) fopen(desktopSd(path), mode)
 #define stat(path, out) stat(desktopSd(path), out)
 #endif

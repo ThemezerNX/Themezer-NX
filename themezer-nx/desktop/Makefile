@@ -13,7 +13,8 @@ OBJECTS := $(patsubst ../source/%,$(BUILD)/%,$(SOURCES:.cpp=.o)) $(patsubst ../s
 
 SDL_CFLAGS := -I/opt/homebrew/include -I/opt/homebrew/include/SDL2
 SDL_LIBS := -L/opt/homebrew/lib -lSDL2 -lSDL2_image -lSDL2_ttf
-FLAGS := -g -O1 $(SANITIZE) -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"4.0.0-desktop\" -DTZ_DESKTOP -include hooks.h
+APP_VERSION ?= 4.0.0-desktop
+FLAGS := -g -O1 $(SANITIZE) -MMD -MP -Iinclude -I../source $(SDL_CFLAGS) -DAPP_VERSION=\"$(APP_VERSION)\" -DTZ_DESKTOP -include hooks.h
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(SANITIZE) -o $@ $^ $(SDL_LIBS) -lcurl -lz
@@ -39,10 +40,11 @@ asan:
 clean:
 	rm -rf build build-asan themezer-nx-desktop themezer-nx-desktop-asan
 
-# The reader of .nxtheme archives, on archives the test makes, and the ThumbHash encoder.
-test: build/tests/archive_test build/tests/thumbhash_test
+# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, and versions.
+test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test
 	./build/tests/archive_test
 	./build/tests/thumbhash_test
+	./build/tests/version_test
 
 build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 	@mkdir -p $(dir $@)
@@ -52,3 +54,7 @@ build/tests/thumbhash_test: tests/thumbhash_test.cpp ../source/libs/thumbhash.c
 	@mkdir -p $(dir $@)
 	$(CC) -std=c11 -g -O1 -c ../source/libs/thumbhash.c -o build/tests/thumbhash.o
 	$(CXX) -std=c++23 -g -O1 -I../source tests/thumbhash_test.cpp build/tests/thumbhash.o -o $@
+
+build/tests/version_test: tests/version_test.cpp ../source/core/version.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@

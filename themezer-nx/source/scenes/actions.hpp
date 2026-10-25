@@ -52,6 +52,8 @@ void showOnThemezer(const std::string& quickId);
 void openMenu();
 // What's queued to install, each to be taken out.
 void openQueue();
+// What's newer, Themezer-NX and NXThemes Installer, each to be updated.
+void openUpdates();
 void openSettings();
 void openAbout();
 void openQuickId();

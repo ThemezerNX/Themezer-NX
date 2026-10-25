@@ -218,6 +218,14 @@ const char* desktopSd(const char* path)
     return mapped.c_str();
 }
 
+int desktopRename(const char* from, const char* to)
+{
+    // each mapped into a string of its own: desktopSd's buffer is one
+    const std::string mappedFrom = desktopSd(from);
+    const std::string mappedTo = desktopSd(to);
+    return (rename)(mappedFrom.c_str(), mappedTo.c_str());
+}
+
 namespace
 {
 

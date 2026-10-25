@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "app/config.hpp"
 #include "ui/scene.hpp"
 
@@ -22,13 +24,25 @@ public:
         bool online = true;
     };
 
-    int run();
+    // self: the .nro it was started from (argv[0]), for updating it.
+    int run(const char* self);
     ui::SceneStack& scenes() { return scenes_; }
     const Status& status() const { return status_; }
     Config& config() { return config_; }
     void applyConfig();
     // Leaves at the end of the frame, starting NXThemes Installer when installs are queued.
     void quit() { quitting_ = true; }
+
+    // The .nro it runs from, and where a new one goes until the app closes: it can't be replaced while it runs.
+    const std::string& selfPath() const { return selfPath_; }
+    std::string updatePath() const { return selfPath_ + ".new"; }
+    // A new one is at updatePath(): it goes in place as the app closes, and with restart the app starts again into it
+    // (unless it's leaving to NXThemes Installer, with installs queued).
+    void updateOnExit(bool restart)
+    {
+        updateStaged_ = true;
+        restartAfterUpdate_ = restart;
+    }
 
 private:
     App() = default;
@@ -40,6 +54,9 @@ private:
     bool statusReading_ = false; // on a worker
     Config config_;
     bool quitting_ = false;
+    std::string selfPath_; // without "sdmc:"
+    bool updateStaged_ = false;
+    bool restartAfterUpdate_ = false;
 };
 
 } // namespace tz

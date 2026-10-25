@@ -4,6 +4,7 @@
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
 #include "services/local.hpp"
+#include "services/updates.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "scenes/actions.hpp"
@@ -596,20 +597,36 @@ bool factTapped(const ui::Input& input, float x, float top, float width)
 
 namespace
 {
-// where the queue's pill was last drawn (0 wide when it wasn't), and whether a finger is on it
-Spot queueSpot;
-bool queueDown = false;
+// The pills at the hint bar's left end, where it's free: what's queued to install, what's newer. Where the last frame
+// drew them, for a tap, and the one a finger is on.
+struct LeftPill
+{
+    Icon icon;
+    std::string label;
+    void (*open)();
+    Spot spot;
+};
+std::vector<LeftPill> leftPills;
+int leftDown = -1;
 } // namespace
 
 void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>& hints)
 {
-    queueDown = input.touching && !input.dragging && queueSpot.contains(input.x, input.y) &&
-                queueSpot.contains(input.startX, input.startY);
-    if (input.tap && queueSpot.contains(input.x, input.y) && queueSpot.contains(input.startX, input.startY))
+    leftDown = -1;
+    for (size_t i = 0; i < leftPills.size(); ++i)
     {
-        input.consumeTouch();
-        sfx::play(sfx::Sound::Confirm);
-        openQueue();
+        const Spot& spot = leftPills[i].spot;
+        if (!spot.contains(input.x, input.y) || !spot.contains(input.startX, input.startY))
+            continue;
+        if (input.touching && !input.dragging)
+            leftDown = static_cast<int>(i);
+        if (input.tap)
+        {
+            input.consumeTouch();
+            sfx::play(sfx::Sound::Confirm);
+            leftPills[i].open();
+        }
+        break;
     }
     bar.update(input, hints);
 }
@@ -617,25 +634,35 @@ void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>
 void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, Color accent)
 {
     bar.draw(hints, 1.0f, accent);
-    queueSpot = {};
-    const int queued = installs::queuedCount();
-    if (queued == 0)
-        return;
-    // a key as the hints are, at the other end of the bar, where it's free
-    const std::string label = std::to_string(queued) + " queued";
+    std::vector<LeftPill> pills;
+    if (const int queued = installs::queuedCount(); queued > 0)
+        pills.push_back({Icon::Queue, std::to_string(queued) + " queued", openQueue, {}});
+    if (const int newer = updates::availableCount(); newer > 0)
+        pills.push_back({Icon::Refresh, newer == 1 ? std::string("Update") : std::to_string(newer) + " updates",
+                         openUpdates, {}});
+    // keys as the hints are, from the bar's other end, as many as there's room for
     const float iconSize = metric::kIcon * 0.75f;
     const float height = 44;
-    const float width = std::round(18 + iconSize + 10 + textWidth(label, metric::kTextSmall) + 18);
-    const float x = 16;
-    if (x + width + 16 > bar.left())
-        return;
     const float top = std::round(metric::kHeight - metric::kHintBarHeight +
                                  (metric::kHintBarHeight - height - ui::kKeyLip) / 2);
-    const float face = ui::drawKey(x, top, width, height, color::kSurfaceHigh, queueDown);
-    icon(Icon::Queue, x + 18, std::round(face + (height - iconSize) / 2), iconSize, accent::kApp.light);
-    drawText(label, x + 18 + iconSize + 10, textTop(face + height / 2, metric::kTextSmall), metric::kTextSmall,
-             color::kText);
-    queueSpot = {x, top, width, height + ui::kKeyLip};
+    float x = 16;
+    for (size_t i = 0; i < pills.size(); ++i)
+    {
+        LeftPill& pill = pills[i];
+        const float width = std::round(18 + iconSize + 10 + textWidth(pill.label, metric::kTextSmall) + 18);
+        if (x + width + 16 > bar.left())
+        {
+            pills.erase(pills.begin() + static_cast<long>(i), pills.end());
+            break;
+        }
+        const float face = ui::drawKey(x, top, width, height, color::kSurfaceHigh, leftDown == static_cast<int>(i));
+        icon(pill.icon, x + 18, std::round(face + (height - iconSize) / 2), iconSize, accent::kApp.light);
+        drawText(pill.label, x + 18 + iconSize + 10, textTop(face + height / 2, metric::kTextSmall), metric::kTextSmall,
+                 color::kText);
+        pill.spot = {x, top, width, height + ui::kKeyLip};
+        x += width + 10;
+    }
+    leftPills = std::move(pills);
 }
 
 float filterChip(Icon which, const std::string& text, bool highlighted, Accent accent, float x, float top, float height,
