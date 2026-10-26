@@ -40,12 +40,15 @@ asan:
 clean:
 	rm -rf build build-asan themezer-nx-desktop themezer-nx-desktop-asan
 
-# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, versions, and file names.
-test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test build/tests/names_test
+# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, versions, file names, and what
+# tells an outdated item and swaps it for the new one.
+test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test build/tests/names_test \
+      build/tests/outdated_test
 	./build/tests/archive_test
 	./build/tests/thumbhash_test
 	./build/tests/version_test
 	./build/tests/names_test
+	./build/tests/outdated_test
 
 build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 	@mkdir -p $(dir $@)
@@ -61,5 +64,9 @@ build/tests/version_test: tests/version_test.cpp ../source/core/version.cpp
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@
 
 build/tests/names_test: tests/names_test.cpp ../source/domain/names.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@
+
+build/tests/outdated_test: tests/outdated_test.cpp ../source/domain/outdated.cpp ../source/domain/names.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@

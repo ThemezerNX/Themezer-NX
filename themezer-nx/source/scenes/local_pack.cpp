@@ -103,6 +103,8 @@ void LocalPackScene::openOptions()
 {
     std::vector<ui::Action> actions;
     const std::string dir = dir_;
+    if (auto update = updateAction(Kind::Packs, last_.themezerId))
+        actions.push_back(std::move(*update));
     // queued, its themes come out again instead
     std::vector<int> queued;
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
@@ -208,7 +210,7 @@ void LocalPackScene::draw()
         // what its card shows over its picture: how many themes, and what's become of them here
         const size_t count = last_.themes.size();
         card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(last_), kSide, kTop,
-                      kColumnW, pictureH, accent, 12);
+                      kColumnW, pictureH, accent, 12, hasUpdate(last_));
         // as Themezer's pack page has them, where its description would be: the space under the picture
         float y = drawHeading(last_.name, last_.author, kSide, kTop + pictureH + 24, kColumnW, accent, 2);
         y = drawFact(Icon::SdCard, megabytes(last_.size), kSide, y, kColumnW, accent);
@@ -228,6 +230,7 @@ void LocalPackScene::draw()
                 content.creator = theme->author;
                 content.picture = localPicture(*theme, kThumbWidth);
                 content.badge = badgeOf(*theme);
+                content.update = hasUpdate(*theme);
                 if (theme->target >= 0)
                     content.chip = themezer::targetLabel(theme->target);
                 card::draw(content, x, y, w, h, selected, themes);

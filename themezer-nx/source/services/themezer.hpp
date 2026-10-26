@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "domain/outdated.hpp"
 #include "sys/jobs.hpp"
 #include "sys/net.hpp"
 
@@ -101,6 +102,10 @@ struct Error
 
 std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& token);
 std::expected<Item, Error> lookupQuickId(const std::string& quickId, const CancelToken& token);
+// The items of these that Themezer has a newer version of, once each, in the order asked (packs with their themes).
+// Asks in as many requests as it takes; the first that fails fails the check, as a half answer would pass for the whole.
+std::expected<std::vector<Item>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
+                                                     const CancelToken& token);
 // Downloads an item's file to path (its folder made first).
 std::expected<void, Error> download(const std::string& url, const std::string& path, const CancelToken& token,
                                     net::Progress* progress);

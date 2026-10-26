@@ -94,6 +94,9 @@ Badge badgeOf(const library::Entry& entry);
 Badge badgeOf(const local::Pack& pack);
 const char* badgeLabel(Badge badge);
 gfx::Icon badgeIcon(Badge badge);
+// Whether Themezer has a newer version of the file or pack folder on the SD card (see itemupdates).
+bool hasUpdate(const library::Entry& entry);
+bool hasUpdate(const local::Pack& pack);
 
 // An item's card: its preview over its name and creator. The selected one is raised, with a ring in accent.
 namespace card
@@ -107,16 +110,17 @@ struct Content
     gfx::Icon icon = gfx::Icon::Theme;
     std::string chip; // over the preview's bottom left: "7 themes", "Home Menu"
     Badge badge = Badge::None;
+    bool update = false; // a newer version on Themezer: a marker at the top left, which the badge doesn't hide
 };
 void draw(const Content& content, float x, float y, float w, float h, bool selected, gfx::Accent accent);
 void draw(const themezer::Item& item, float x, float y, float w, float h, bool selected, gfx::Accent accent,
           bool showTarget);
 // The selected card's key: a face on a ledge, with a ring in accent.
 void highlight(float x, float y, float w, float h, bool down, gfx::Accent accent);
-// What a card shows over its picture: the chip at its bottom left, the badge at its top right; inset from the corners.
-// A page shows the same over its big picture.
+// What a card shows over its picture: the chip at its bottom left, the badge at its top right, the update marker at its
+// top left; inset from the corners. A page shows the same over its big picture.
 void overlay(const std::string& chip, Badge badge, float x, float y, float w, float h, gfx::Accent accent,
-             float inset = 8);
+             float inset = 8, bool update = false);
 } // namespace card
 
 // A file's picture from the SD card, no wider than width, read on the images worker; nullptr until it's in.

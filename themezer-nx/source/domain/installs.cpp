@@ -1,6 +1,7 @@
 #include "domain/installs.hpp"
 
 #include "domain/names.hpp"
+#include "domain/outdated.hpp"
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -88,6 +89,11 @@ int slotOf(const themezer::Item& item)
     return -1;
 }
 
+const char* temporaryFolder()
+{
+    return kTemporaryFolder;
+}
+
 std::string temporaryPath(const themezer::Item& item)
 {
     if (item.kind == themezer::Kind::Splashes)
@@ -166,6 +172,15 @@ int queuedCount()
     for (const auto& slot : slots)
         count += slot ? 1 : 0;
     return count;
+}
+
+void moved(const std::string& from, const std::string& to)
+{
+    for (auto& slot : slots)
+    {
+        if (slot)
+            slot->path = outdated::followed(slot->path, from, to);
+    }
 }
 
 bool installerTakes(const std::string& path)

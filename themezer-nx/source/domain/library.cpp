@@ -2,6 +2,7 @@
 
 #include "core/archive.hpp"
 #include "domain/names.hpp"
+#include "domain/outdated.hpp"
 #include "libs/cJSON.h"
 
 #include <SDL2/SDL_image.h>
@@ -201,6 +202,17 @@ std::string cut(const char* text, size_t most)
     return std::string(text, end);
 }
 
+// A theme's info.json parsed, for cJSON_Delete; nullptr when it can't be read.
+cJSON* parseInfo(const std::string& path)
+{
+    // a few hundred bytes, as the installer writes them
+    auto json = archive::readFile(path, "info.json", 1024 * 1024);
+    if (!json)
+        return nullptr;
+    json->push_back('\0');
+    return cJSON_Parse(reinterpret_cast<const char*>(json->data()));
+}
+
 } // namespace
 
 std::vector<Entry> scan()
@@ -215,12 +227,7 @@ bool readInfo(Entry& entry)
     entry.infoRead = true;
     if (entry.kind != Kind::Theme)
         return true;
-    // a few hundred bytes, as the installer writes them
-    auto json = archive::readFile(entry.path, "info.json", 1024 * 1024);
-    if (!json)
-        return false;
-    json->push_back('\0');
-    cJSON* root = cJSON_Parse(reinterpret_cast<const char*>(json->data()));
+    cJSON* root = parseInfo(entry.path);
     if (!root)
         return false;
     const auto text = [&](const char* name) {
@@ -237,6 +244,24 @@ bool readInfo(Entry& entry)
     entry.layout = text("LayoutInfo");
     cJSON_Delete(root);
     return true;
+}
+
+std::optional<int64_t> builtAt(const std::string& path)
+{
+    // Themezer builds zips; archive::readFile would read a SARC whole, up to 16 MiB, for nothing
+    FILE* file = std::fopen(path.c_str(), "rb");
+    char magic[2] = {};
+    const bool zip = file && std::fread(magic, 1, sizeof(magic), file) == sizeof(magic) && magic[0] == 'P' &&
+                     magic[1] == 'K';
+    if (file)
+        std::fclose(file);
+    if (!zip)
+        return std::nullopt;
+    cJSON* root = parseInfo(path);
+    const cJSON* id = cJSON_GetObjectItemCaseSensitive(root, "Id");
+    const auto millis = cJSON_IsString(id) && id->valuestring ? outdated::millisOfId(id->valuestring) : std::nullopt;
+    cJSON_Delete(root);
+    return millis;
 }
 
 SDL_Surface* readPreview(const Entry& entry, int maxWidth)

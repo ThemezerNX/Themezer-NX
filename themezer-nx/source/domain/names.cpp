@@ -16,12 +16,6 @@ constexpr const char* kThemezerParts[kTargets] = {"Home Menu",     "Lockscreen",
 constexpr const char* kOldParts[kTargets] = {"Home Menu",     "Lock Screen", "All Apps", "Settings",
                                              "Player Select", "User Page",   "News"};
 
-bool hex(std::string_view text)
-{
-    return !text.empty() &&
-           std::all_of(text.begin(), text.end(), [](char c) { return std::isxdigit(static_cast<unsigned char>(c)); });
-}
-
 bool alnum(std::string_view text)
 {
     return !text.empty() &&
@@ -92,6 +86,12 @@ std::string percentDecoded(std::string_view text)
 }
 
 } // namespace
+
+bool hex(std::string_view text)
+{
+    return !text.empty() &&
+           std::all_of(text.begin(), text.end(), [](char c) { return std::isxdigit(static_cast<unsigned char>(c)); });
+}
 
 int target(std::string_view label)
 {

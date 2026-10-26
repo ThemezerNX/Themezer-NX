@@ -2,6 +2,7 @@
 
 #include "domain/installs.hpp"
 #include "domain/library.hpp"
+#include "domain/outdated.hpp"
 #include "libs/cJSON.h"
 
 #include <sys/stat.h>
@@ -225,6 +226,34 @@ bool uninstall(int slot)
     save();
     refresh();
     return ok;
+}
+
+void moved(const std::vector<std::pair<std::string, std::string>>& moves)
+{
+    load();
+    bool changed = false;
+    const auto follow = [&](std::string& source) {
+        for (const auto& [from, to] : moves)
+        {
+            std::string now = outdated::followed(source, from, to);
+            changed = changed || now != source;
+            source = std::move(now);
+        }
+    };
+    for (auto& record : records)
+    {
+        if (record)
+            follow(record->source);
+    }
+    for (auto& waiting : pending)
+    {
+        if (waiting)
+            follow(waiting->record.source);
+    }
+    if (!changed)
+        return;
+    save();
+    refresh();
 }
 
 } // namespace tz::installed

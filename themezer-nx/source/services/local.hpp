@@ -8,6 +8,7 @@
 #include "services/themezer.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -35,8 +36,9 @@ class Library
 public:
     static Library& get();
 
-    // Scans again on a worker; what's known stays until the new scan is in.
-    void rescan();
+    // Scans again on a worker; what's known stays until the new scan is in. then runs on the main thread once, after the
+    // last scan that's pending is in.
+    void rescan(std::function<void()> then = {});
     bool scanned() const { return scanned_; }
     // Goes up with every change, for what shows the entries to notice.
     uint32_t generation() const { return generation_; }
@@ -51,6 +53,8 @@ public:
 
     // A Themezer item's file on the SD card, wherever it is and whatever it's called; nullptr when there's none.
     const library::Entry* findItem(library::Kind kind, const std::string& id) const;
+    // Every copy of it, the case of the ID not mattering: the ones an update replaces.
+    std::vector<const library::Entry*> findAll(library::Kind kind, const std::string& id) const;
 
     const std::vector<Pack>& packs() const { return packs_; }
     const Pack* findPack(const std::string& dir) const;
@@ -74,6 +78,7 @@ private:
     bool scanned_ = false;
     bool scanning_ = false;
     bool again_ = false;
+    std::vector<std::function<void()>> after_; // for the scan that's last
     uint32_t generation_ = 0;
 };
 

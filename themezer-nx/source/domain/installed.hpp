@@ -8,6 +8,8 @@
 #include "services/themezer.hpp"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace tz::installed
 {
@@ -30,6 +32,10 @@ const Part& part(int slot);
 
 // On the way out to NXThemes Installer: what's queued goes in the record, to be checked at the next start.
 void noteQueued();
+
+// Files or folders moved, from and to in the order they moved: the record's sources follow them, so what was installed
+// from a file still says where it is. Blocks a moment.
+void moved(const std::vector<std::pair<std::string, std::string>>& moves);
 
 // Takes the part's theme out, as NXThemes Installer's uninstall does: its files go, and Nintendo's show after a
 // restart. False when a file couldn't be deleted.

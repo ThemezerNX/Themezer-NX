@@ -1,6 +1,7 @@
 #include "services/local.hpp"
 
 #include "domain/names.hpp"
+#include "domain/outdated.hpp"
 #include "sys/jobs.hpp"
 
 #include <unistd.h>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 namespace tz::local
 {
@@ -35,8 +37,10 @@ Library& Library::get()
     return library;
 }
 
-void Library::rescan()
+void Library::rescan(std::function<void()> then)
 {
+    if (then)
+        after_.push_back(std::move(then));
     // one scan at a time; a change while it runs scans again after it
     if (scanning_)
     {
@@ -48,11 +52,12 @@ void Library::rescan()
         auto found = std::make_shared<std::vector<library::Entry>>(library::scan());
         jobs::post([found] {
             Library& library = Library::get();
-            // what was read of the entries already, kept for the ones still there
+            // what was read of the entries already, kept for the ones still there and the same: a file put in place of
+            // another of its size (a splash's update) is a new one
             for (library::Entry& entry : *found)
             {
-                if (const library::Entry* known = library.find(entry.path); known && known->infoRead &&
-                                                                           known->size == entry.size)
+                if (const library::Entry* known = library.find(entry.path);
+                    known && known->infoRead && known->size == entry.size && known->modified == entry.modified)
                     entry = *known;
             }
             library.entries_ = std::move(*found);
@@ -64,6 +69,13 @@ void Library::rescan()
             {
                 library.again_ = false;
                 library.rescan();
+            }
+            else
+            {
+                // what was asked to follow the scan, which a rescan from it adds to again
+                const auto after = std::exchange(library.after_, {});
+                for (const auto& then : after)
+                    then();
             }
         });
     });
@@ -161,6 +173,19 @@ const library::Entry* Library::findItem(library::Kind kind, const std::string& i
             return &entry;
     }
     return nullptr;
+}
+
+std::vector<const library::Entry*> Library::findAll(library::Kind kind, const std::string& id) const
+{
+    std::vector<const library::Entry*> found;
+    const std::string want = outdated::canonical(id);
+    for (const library::Entry& entry : entries_)
+    {
+        if (entry.kind == kind && !want.empty() && entry.themezerId.size() == want.size() &&
+            outdated::canonical(entry.themezerId) == want)
+            found.push_back(&entry);
+    }
+    return found;
 }
 
 const Pack* Library::findPackById(const std::string& id) const

@@ -3,6 +3,7 @@
 #include "app/app.hpp"
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
+#include "services/item_updates.hpp"
 #include "services/local.hpp"
 #include "services/updates.hpp"
 #include "gfx/renderer.hpp"
@@ -437,6 +438,17 @@ Icon badgeIcon(Badge badge)
     return Icon::Check;
 }
 
+bool hasUpdate(const library::Entry& entry)
+{
+    const auto kind = entry.kind == library::Kind::Splash ? themezer::Kind::Splashes : themezer::Kind::Themes;
+    return itemupdates::find(kind, entry.themezerId) != nullptr;
+}
+
+bool hasUpdate(const local::Pack& pack)
+{
+    return itemupdates::find(themezer::Kind::Packs, pack.themezerId) != nullptr;
+}
+
 namespace card
 {
 
@@ -454,6 +466,11 @@ void chip(std::string_view text, float x, float bottom)
     drawText(text, x + 12, textTop(bottom - height / 2, metric::kTextSmall), metric::kTextSmall, color::kText);
 }
 
+float badgeWidth(Badge which)
+{
+    return metric::kIcon * 0.75f + 8 + textWidth(badgeLabel(which), metric::kTextSmall) + 24;
+}
+
 // Over the preview's top right: queued and installed in the accent, downloaded quieter.
 void badge(Badge which, float right, float top, Accent accent)
 {
@@ -462,7 +479,7 @@ void badge(Badge which, float right, float top, Accent accent)
     const float height = 32;
     const float iconSize = metric::kIcon * 0.75f;
     const char* label = badgeLabel(which);
-    const float width = iconSize + 8 + textWidth(label, metric::kTextSmall) + 24;
+    const float width = badgeWidth(which);
     const bool strong = which != Badge::Downloaded;
     const Color ink = strong ? color::kOnAccent : color::kText;
     roundedRect(right - width, top, width, height, height / 2, strong ? accent.solid : rgba(12, 10, 9, 190));
@@ -470,11 +487,30 @@ void badge(Badge which, float right, float top, Accent accent)
     drawText(label, right - width + 12 + iconSize + 8, textTop(top + height / 2, metric::kTextSmall), metric::kTextSmall,
              ink);
 }
+// Over the preview's top left: there is a newer version on Themezer. Only its icon where the badge leaves no room for
+// the word (room is the width it may take).
+void updateMarker(float x, float top, float room, Accent accent)
+{
+    const float height = 32;
+    const float iconSize = metric::kIcon * 0.75f;
+    const float whole = iconSize + 8 + textWidth("Update", metric::kTextSmall) + 24;
+    const bool word = whole <= room;
+    const float width = word ? whole : height;
+    roundedRect(x, top, width, height, height / 2, rgba(12, 10, 9, 190));
+    icon(Icon::Download, x + (word ? 12 : (height - iconSize) / 2), top + (height - iconSize) / 2, iconSize,
+         accent.light);
+    if (word)
+        drawText("Update", x + 12 + iconSize + 8, textTop(top + height / 2, metric::kTextSmall), metric::kTextSmall,
+                 color::kText);
+}
 } // namespace
 
-void overlay(const std::string& text, Badge which, float x, float y, float w, float h, Accent accent, float inset)
+void overlay(const std::string& text, Badge which, float x, float y, float w, float h, Accent accent, float inset,
+             bool update)
 {
     badge(which, x + w - inset, y + inset, accent);
+    if (update)
+        updateMarker(x + inset, y + inset, w - 2 * inset - (which == Badge::None ? 0 : badgeWidth(which) + 8), accent);
     if (!text.empty())
         chip(text, x + inset, y + h - inset);
 }
@@ -504,7 +540,7 @@ void draw(const Content& content, float x, float y, float w, float h, bool selec
         icon(content.icon, px + (previewW - metric::kIcon) / 2, py + (previewH - metric::kIcon) / 2, metric::kIcon,
              color::kTextFaint);
     }
-    overlay(content.chip, content.badge, px, py, previewW, previewH, accent);
+    overlay(content.chip, content.badge, px, py, previewW, previewH, accent, 8, content.update);
 
     const float textLeft = x + kInset + 4;
     const float textWidthMax = w - 2 * kInset - 8;
@@ -542,14 +578,16 @@ void draw(const themezer::Item& item, float x, float y, float w, float h, bool s
 
 std::shared_ptr<Picture> localPicture(const library::Entry& entry, int width)
 {
-    // by path and size, so a file replaced by another isn't shown as the old one
-    const std::string key = "sd:" + std::to_string(width) + ":" + std::to_string(entry.size) + ":" + entry.path;
+    // by path, size and time, so a file replaced by another isn't shown as the old one: a splash's update is as big
+    const std::string key = "sd:" + std::to_string(width) + ":" + std::to_string(entry.size) + ":" +
+                            std::to_string(entry.modified) + ":" + entry.path;
     return images().load(key, [entry, width] { return library::readPreview(entry, width); });
 }
 
 std::shared_ptr<Picture> localBackdrop(const library::Entry& entry)
 {
-    const std::string key = "sd-blur:" + std::to_string(entry.size) + ":" + entry.path;
+    const std::string key =
+        "sd-blur:" + std::to_string(entry.size) + ":" + std::to_string(entry.modified) + ":" + entry.path;
     return images().load(key, [entry] {
         // its ThumbHash, as Themezer's pictures have, made from it at a size ThumbHash needs no more than
         SDL_Surface* small = library::readPreview(entry, 100);
@@ -637,7 +675,7 @@ void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, Color accen
     std::vector<LeftPill> pills;
     if (const int queued = installs::queuedCount(); queued > 0)
         pills.push_back({Icon::Queue, std::to_string(queued) + " queued", openQueue, {}});
-    if (const int newer = updates::availableCount(); newer > 0)
+    if (const int newer = updates::availableCount() + static_cast<int>(itemupdates::count()); newer > 0)
         pills.push_back({Icon::Refresh, newer == 1 ? std::string("Update") : std::to_string(newer) + " updates",
                          openUpdates, {}});
     // keys as the hints are, from the bar's other end, as many as there's room for

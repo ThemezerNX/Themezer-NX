@@ -7,6 +7,7 @@
 #include "domain/installed.hpp"
 #include "scenes/actions.hpp"
 #include "scenes/home.hpp"
+#include "services/item_updates.hpp"
 #include "services/local.hpp"
 #include "services/updates.hpp"
 #include "scenes/images.hpp"
@@ -146,7 +147,16 @@ int App::run(const char* self)
                      (part.name.empty() ? "" : " (" + part.name + ")");
     }
     std::printf("Installed: %s\n", parts.empty() ? "nothing" : parts.c_str());
-    local::Library::get().rescan();
+    // once the SD card is read, which of it Themezer has newer: said in a toast, the rest is in the updates
+    local::Library::get().rescan([] {
+        itemupdates::check([](const std::expected<size_t, themezer::Error>& found) {
+            if (!found)
+                std::printf("Item updates: %s\n", found.error().message.c_str());
+            else if (*found > 0)
+                ui::toast(*found == 1 ? std::string("1 item on the SD card has an update")
+                                      : std::to_string(*found) + " items on the SD card have updates");
+        });
+    });
     scenes_.emplace<scenes::HomeScene>();
     if (!installs::installerPath())
         scenes::offerInstaller();
@@ -210,6 +220,7 @@ int App::run(const char* self)
     }
 
     scenes_.clear();
+    itemupdates::cancel();
     jobs::exit();
     scenes::images().clear();
     net::exit();

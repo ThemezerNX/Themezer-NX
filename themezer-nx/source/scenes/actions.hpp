@@ -48,12 +48,22 @@ themezer::Item localItem(const library::Entry& entry);
 // The item's page on Themezer, looked up by its Quick ID.
 void showOnThemezer(const std::string& quickId);
 
-// The menu, the same on every screen: the queue, the settings, About and Exit. Quick ID is the home screen's ZR.
+// The menu, the same on every screen: the queue, the updates, the settings, About and Exit. Quick ID is the home
+// screen's ZR.
 void openMenu();
 // What's queued to install, each to be taken out.
 void openQueue();
-// What's newer, Themezer-NX and NXThemes Installer, each to be updated.
+// What's newer, Themezer-NX, NXThemes Installer and the items on the SD card, each to be updated.
 void openUpdates();
+// Downloads these items again and puts them in place of their files on the SD card (see itemupdates); asks nothing, the
+// old files stay until the new ones are in.
+void updateItems(const std::vector<themezer::Item>& items);
+// The "Update" option of an item's page: its row when Themezer has a newer version of the item on the SD card (by its
+// ID), else nothing.
+std::optional<ui::Action> updateAction(themezer::Kind kind, const std::string& id);
+// Asks Themezer which of the SD card's items are newer, as the app does once at the start: says so, and opens the
+// updates when there are any.
+void checkForUpdates();
 void openSettings();
 void openAbout();
 void openQuickId();

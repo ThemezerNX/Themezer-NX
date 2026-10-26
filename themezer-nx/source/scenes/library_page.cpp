@@ -444,6 +444,7 @@ void LibraryPage::draw()
                 content.icon = Icon::Pack;
                 content.chip = std::to_string(count) + (count == 1 ? " theme" : " themes");
                 content.badge = badgeOf(*pack);
+                content.update = hasUpdate(*pack);
             }
             else if (entry)
             {
@@ -451,6 +452,7 @@ void LibraryPage::draw()
                 content.creator = entry->author.empty() ? entry->folder : entry->author;
                 content.icon = kind_ == Kind::Splashes ? Icon::Splash : Icon::Theme;
                 content.badge = badgeOf(*entry);
+                content.update = hasUpdate(*entry);
                 if (showTarget && entry->target >= 0)
                     content.chip = themezer::targetLabel(entry->target);
             }

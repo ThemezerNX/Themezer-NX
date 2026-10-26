@@ -21,6 +21,9 @@ std::string slotLabel(int slot);
 // The slot an item goes in, or -1.
 int slotOf(const themezer::Item& item);
 
+// Where the app's temporary files are, outside /Themes and on the same card, so a file made there moves into /Themes
+// with a rename.
+const char* temporaryFolder();
 // Where an item's put to be installed only, cleared at the next start.
 std::string temporaryPath(const themezer::Item& item);
 void removeTemporary();
@@ -42,6 +45,8 @@ bool isQueued(const themezer::Item& item);
 void unqueue(int slot);
 const Queued* queued(int slot); // nullptr when the slot is free
 int queuedCount();
+// A file or folder has moved: what's queued from it (or from a file under it) is queued from where it is now.
+void moved(const std::string& from, const std::string& to);
 // The installer's arguments for what's queued.
 std::string installerArgs(const char* installer);
 // The homebrew loader keeps the next program's arguments in 2 KiB, their 0 included: any longer would overrun it.

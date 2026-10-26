@@ -5,8 +5,10 @@
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
 #include "domain/names.hpp"
+#include "domain/outdated.hpp"
 #include "scenes/local_details.hpp"
 #include "scenes/local_pack.hpp"
+#include "services/item_updates.hpp"
 #include "services/local.hpp"
 #include "services/updates.hpp"
 #include "scenes/details.hpp"
@@ -18,6 +20,8 @@
 #include <switch.h>
 #include <sys/stat.h>
 
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <unistd.h>
 #include <map>
@@ -201,6 +205,152 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
             const size_t done = result.done.size();
             ui::toast(queue ? queuedMessage(done)
                             : std::to_string(done) + (done == 1 ? " theme" : " themes") + " saved on the SD card",
+                      ui::ToastKind::Success);
+        });
+    scenes().push(std::move(overlay));
+}
+
+struct UpdateResult
+{
+    std::vector<std::string> keys;                          // of what was put in place, for itemupdates::forget
+    std::vector<std::pair<std::string, std::string>> moves; // files and folders that went elsewhere, in the order
+    int failed = 0;                                         // items
+    bool cancelled = false;
+    themezer::Error firstError;
+};
+
+std::string leafOf(const std::string& path)
+{
+    return path.substr(path.rfind('/') + 1);
+}
+
+// Whether the console has the item installed, not only queued: its file changing leaves that copy as it is. Main
+// thread.
+bool installedCopy(const Item& item)
+{
+    if (item.kind == themezer::Kind::Packs)
+        return std::any_of(item.themes.begin(), item.themes.end(), installedCopy);
+    const int slot = installs::slotOf(item);
+    const installed::Part& part = installed::part(slot);
+    return slot >= 0 && part.custom && !part.themezerId.empty() &&
+           outdated::canonical(part.themezerId) == outdated::canonical(item.id);
+}
+
+// Puts the files of these plans on the SD card, one after another: each downloaded to the temporary folder, then in
+// place of its old copies, so a download that fails or is cut leaves the old file as it was. A pack's folder changes
+// (the themes Themezer no longer lists move out of it, it takes Themezer's name for it) only when all of its themes got
+// in.
+void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool installedCopies)
+{
+    int total = 0;
+    for (const itemupdates::Plan& plan : plans)
+        total += static_cast<int>(plan.steps.size());
+    const std::string name = plans.front().name;
+    auto overlay = ui::ProgressOverlay::start<UpdateResult>(
+        {count == 1 ? "Updating " + name : "Updating " + std::to_string(count) + " items", true, color::kPrimary},
+        [plans = std::move(plans), total](ui::TaskProgress& progress, const CancelToken& token) {
+            UpdateResult result;
+            int at = 0;
+            for (const itemupdates::Plan& plan : plans)
+            {
+                int failedSteps = 0;
+                const auto fail = [&](themezer::Error error) {
+                    if (result.firstError.message.empty())
+                        result.firstError = std::move(error);
+                    ++failedSteps;
+                };
+                for (const itemupdates::Step& step : plan.steps)
+                {
+                    progress.set(at, total);
+                    progress.download.received = 0;
+                    progress.download.total = 0;
+                    progress.setStatus(std::to_string(++at) + " of " + std::to_string(total) + ": " + step.name);
+                    auto staged = themezer::downloadInto(step.url, installs::temporaryFolder(), step.fallback, token,
+                                                         &progress.download);
+                    if (!staged)
+                    {
+                        if (staged.error().cancelled)
+                        {
+                            result.cancelled = true;
+                            break;
+                        }
+                        fail(staged.error());
+                        continue;
+                    }
+                    // the items before it may have moved its copies: a theme its pack no longer lists, a pack folder
+                    // renamed
+                    std::vector<std::string> others;
+                    for (const std::string& other : step.others)
+                        others.push_back(outdated::rebased(other, result.moves));
+                    const std::string folder = step.folder.empty()
+                                                   ? others.front().substr(0, others.front().rfind('/'))
+                                                   : outdated::rebased(step.folder, result.moves);
+                    const std::string final = folder + "/" + leafOf(*staged);
+                    std::vector<std::string> replaced;
+                    if (!outdated::replace(*staged, final, others, replaced, updates::replace))
+                    {
+                        fail({"Couldn't put it in place of the old one on the SD card.", final, false, false});
+                        continue;
+                    }
+                    for (const std::string& from : replaced)
+                        result.moves.emplace_back(from, final);
+                    result.keys.push_back(step.key);
+                }
+                if (result.cancelled)
+                    break;
+                if (failedSteps > 0)
+                {
+                    ++result.failed;
+                    continue;
+                }
+                // the files are updated already, and their version doesn't depend on where they are: a move that
+                // fails is left as it is
+                for (const auto& [from, to] : plan.takeOut)
+                {
+                    // one of that name in the folder above stays where it is
+                    if (access(to.c_str(), F_OK) != 0 && rename(from.c_str(), to.c_str()) == 0)
+                        result.moves.emplace_back(from, to);
+                    else
+                        std::printf("Item updates: %s stays in its folder\n", from.c_str());
+                }
+                if (const auto& [from, to] = plan.rename;
+                    !from.empty() && access(to.c_str(), F_OK) != 0 && rename(from.c_str(), to.c_str()) == 0)
+                    result.moves.emplace_back(from, to);
+                result.keys.push_back(plan.key);
+            }
+            progress.set(total, total);
+            return result;
+        },
+        [count, name, installedCopies](UpdateResult result) {
+            // what was queued from a file that moved, and what was installed from it, say where it is now
+            for (const auto& [from, to] : result.moves)
+                installs::moved(from, to);
+            if (!result.moves.empty())
+                installed::moved(result.moves);
+            // what comes off the list is what's updated: a pack's themes are on it too, and count for themselves
+            const size_t listed = itemupdates::count();
+            itemupdates::forget(result.keys);
+            const size_t updated = listed - itemupdates::count();
+            local::Library::get().rescan();
+            if (result.cancelled)
+            {
+                ui::toast(updated == 0 ? "Cancelled"
+                                       : "Cancelled after " + std::to_string(updated) + " of " + std::to_string(count) +
+                                             " items",
+                          ui::ToastKind::Warning);
+                return;
+            }
+            if (result.failed > 0)
+            {
+                scenes().emplace<ui::Dialog>(
+                    Icon::Warning, color::kWarning,
+                    std::to_string(result.failed) + (result.failed == 1 ? " item" : " items") + " didn't update",
+                    result.firstError.message);
+                return;
+            }
+            // installing is what puts a file on the console: the one installed now is the old
+            ui::toast((count == 1 ? "“" + name + "” is updated" : std::to_string(updated) + " items updated") +
+                          (installedCopies ? ". The installed copy changes when you install it again" : ""),
                       ui::ToastKind::Success);
         });
     scenes().push(std::move(overlay));
@@ -847,12 +997,76 @@ void openUpdates()
     if (const updates::Release* installer = updates::available(updates::Program::Installer))
         actions.push_back({Icon::Refresh, "NXThemes Installer " + installer->version,
                            "You have " + installer->current + ".", true, false, [] { updateInstaller(); }});
+    // the items on the SD card that Themezer has newer: all of them, then each
+    const auto& items = itemupdates::found();
+    if (!items.empty())
+    {
+        actions.push_back({Icon::Download, "Update all (" + std::to_string(items.size()) + ")",
+                           "Each is downloaded again and takes the place of the old file.", true, false,
+                           [] { updateItems(itemupdates::found()); }});
+        for (const Item& item : items)
+            actions.push_back({iconOf(item.kind), item.name, itemupdates::describe(item), true, false,
+                               [item] { updateItems({item}); }});
+    }
     if (actions.empty())
     {
-        ui::toast("Themezer-NX and NXThemes Installer are up to date");
+        ui::toast("Everything is up to date");
         return;
     }
     scenes().emplace<ui::ActionSheet>("Updates", std::move(actions), color::kPrimary, 0);
+}
+
+void updateItems(const std::vector<Item>& items)
+{
+    // a check that's still running would find what's updated now as old as it was
+    if (itemupdates::checking())
+    {
+        ui::toast("Still checking for updates. Try again in a moment.", ui::ToastKind::Warning);
+        return;
+    }
+    auto plans = itemupdates::plan(items);
+    if (plans.empty())
+    {
+        ui::toast("That isn't on the SD card any more", ui::ToastKind::Warning);
+        return;
+    }
+    runUpdates(std::move(plans), items.size(), std::any_of(items.begin(), items.end(), installedCopy));
+}
+
+std::optional<ui::Action> updateAction(themezer::Kind kind, const std::string& id)
+{
+    const Item* newer = itemupdates::find(kind, id);
+    if (!newer)
+        return std::nullopt;
+    return ui::Action{Icon::Download, "Update", itemupdates::describe(*newer), true, false,
+                      [item = *newer] { updateItems({item}); }};
+}
+
+void checkForUpdates()
+{
+    if (!local::Library::get().scanned())
+    {
+        ui::toast("Still reading the SD card");
+        return;
+    }
+    if (itemupdates::checking())
+    {
+        ui::toast("Already checking");
+        return;
+    }
+    ui::toast("Checking the SD card's items for updates");
+    itemupdates::check([](const std::expected<size_t, themezer::Error>& result) {
+        if (!result)
+        {
+            if (!result.error().cancelled)
+                showError("Couldn't check for updates", result.error());
+            return;
+        }
+        if (*result == 0)
+            ui::toast("Everything on the SD card is up to date");
+        else
+            openUpdates();
+    });
 }
 
 void openMenu()
@@ -862,10 +1076,10 @@ void openMenu()
     if (queued > 0)
         actions.push_back(
             {Icon::Queue, "Queued installs (" + std::to_string(queued) + ")", "", true, false, [] { openQueue(); }});
-    if (const int newer = updates::availableCount(); newer > 0)
+    if (const int newer = updates::availableCount() + static_cast<int>(itemupdates::count()); newer > 0)
         actions.push_back(
             {Icon::Refresh, "Updates (" + std::to_string(newer) + ")", "", true, false, [] { openUpdates(); }});
-
+    actions.push_back({Icon::Search, "Check themes for updates", "", true, false, [] { checkForUpdates(); }});
     actions.push_back({Icon::Settings, "Settings", "", true, false, [] { openSettings(); }});
     actions.push_back({Icon::Info, "About and licenses", "", true, false, [] { openAbout(); }});
     actions.push_back({Icon::Power,

@@ -92,6 +92,9 @@ void LocalDetailsScene::openOptions()
     const library::Entry current = *found;
     const int slot = current.kind == Kind::Splash ? installs::kSplashSlot : current.target;
     std::vector<ui::Action> actions;
+    if (auto update = updateAction(current.kind == Kind::Splash ? themezer::Kind::Splashes : themezer::Kind::Themes,
+                                   current.themezerId))
+        actions.push_back(std::move(*update));
     if (current.kind == Kind::Theme && local::inPack(current))
         actions.push_back({Icon::Pack, "Open pack", "", true, false, [current] { openPackOf(current); }});
     if (badgeOf(current) == Badge::Installed)
@@ -201,7 +204,7 @@ void LocalDetailsScene::draw()
         }
         // what its card shows over its picture: its part, and what's become of it here
         card::overlay(entry.kind == Kind::Theme && entry.target >= 0 ? themezer::targetLabel(entry.target) : "",
-                      badgeOf(entry), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16);
+                      badgeOf(entry), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16, hasUpdate(entry));
         // the file it's in, under the picture
         drawText(entry.fileName, kPreviewX + 4, kPreviewY + kPreviewH + 20, metric::kTextCaption, color::kTextFaint,
                  Align::Left, kPreviewW - 8);

@@ -27,6 +27,8 @@ struct Parts
 bool parseFile(std::string_view fileName, Parts& parts);
 // A pack's folder: Themezer's zip unpacked, "<name> by <author> (Themezer-P1E93C)", or Themezer-NX's "(1E93C)".
 bool parseFolder(std::string_view folder, Parts& parts);
+// Whether the text is hex digits, as Themezer's IDs are; false for none.
+bool hex(std::string_view text);
 // The part of the HOME Menu a name says: "Home Menu", "Lockscreen" (Themezer's), "Lock Screen" (Themezer-NX's)…; -1.
 int target(std::string_view label);
 

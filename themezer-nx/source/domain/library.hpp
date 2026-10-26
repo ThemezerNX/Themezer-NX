@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,9 @@ constexpr const char* kRoot = "/Themes";
 std::vector<Entry> scan();
 // Reads a theme's info.json for its name, author and part. Blocks. False when the file can't be read.
 bool readInfo(Entry& entry);
+// When Themezer built an .nxtheme, in Unix milliseconds: the end of the Id in its info.json ("Themezer:<ID>:<ms>").
+// Nothing for a file that isn't a zip (Themezer's are), has no such Id, or can't be read. Blocks: for a worker.
+std::optional<int64_t> builtAt(const std::string& path);
 // The picture: a theme's background, or the splash turned to lie as the screen shows it, no wider than maxWidth. Any
 // thread. nullptr when there's none.
 SDL_Surface* readPreview(const Entry& entry, int maxWidth);

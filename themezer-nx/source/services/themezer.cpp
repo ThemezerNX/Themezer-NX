@@ -61,6 +61,14 @@ constexpr const char* kLookupQuery =
     "... on SwitchRemoteInstallTheme{author createdAt downloadUrl name quickId target} "
     "... on SwitchRemoteInstallSplash{author createdAt downloadUrl name quickId}}}}";
 
+// Of the items asked about, the ones with a newer version: what an update needs to download them and name them
+constexpr const char* kCheckUpdatesQuery =
+    "query CheckUpdates($items:[SwitchCheckUpdatesItemInput!]!){switch{checkUpdates(items:$items){__typename "
+    "... on SwitchTheme{quickId hexId name creator{username} target updatedAt downloadUrl} "
+    "... on SwitchSplash{quickId hexId name creator{username} updatedAt downloadUrl} "
+    "... on SwitchPack{quickId hexId name creator{username} updatedAt downloadUrl "
+    "themes{quickId hexId name creator{username} target updatedAt downloadUrl}}}}}";
+
 struct JsonDeleter
 {
     void operator()(cJSON* json) const { cJSON_Delete(json); }
@@ -164,6 +172,19 @@ Item parseRemote(const cJSON* node, bool splash)
     if (!splash)
         item.target = targetFromApi(string(node, "target").c_str());
     return item;
+}
+
+// A pack, theme or splash by its __typename; nothing for any other.
+std::optional<Item> parseNode(const cJSON* node)
+{
+    const std::string type = string(node, "__typename");
+    if (type == "SwitchPack")
+        return parsePack(node);
+    if (type == "SwitchTheme")
+        return parseTheme(node);
+    if (type == "SwitchSplash")
+        return parseSplash(node);
+    return std::nullopt;
 }
 
 // The API's own words for what went wrong, when it says.
@@ -317,16 +338,36 @@ std::expected<Item, Error> lookupQuickId(const std::string& quickId, const Cance
     const cJSON* found = get(get(get(root->get(), "data"), "switch"), "lookupByQuickId");
     if (!cJSON_IsObject(found))
         return std::unexpected(Error{"Nothing has the Quick ID " + quickId + ". Check it on themezer.net.", {}, false, true});
+    if (auto item = parseNode(found))
+        return *item;
     const std::string type = string(found, "__typename");
-    if (type == "SwitchPack")
-        return parsePack(found);
-    if (type == "SwitchTheme")
-        return parseTheme(found);
-    if (type == "SwitchSplash")
-        return parseSplash(found);
     if (type == "SwitchRemoteInstallTheme" || type == "SwitchRemoteInstallSplash")
         return parseRemote(found, type == "SwitchRemoteInstallSplash");
     return std::unexpected(Error{"This Quick ID is for something the Switch app can't install.", type, false, true});
+}
+
+std::expected<std::vector<Item>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
+                                                     const CancelToken& token)
+{
+    std::vector<Item> newer;
+    for (const std::string& variables : outdated::variables(queries))
+    {
+        if (token.cancelled())
+            return std::unexpected(Error{{}, {}, true});
+        auto root = request(kCheckUpdatesQuery, variables, token);
+        if (!root)
+            return std::unexpected(root.error());
+        const cJSON* list = get(get(get(root->get(), "data"), "switch"), "checkUpdates");
+        if (!cJSON_IsArray(list))
+            return std::unexpected(Error{"Themezer's answer wasn't what the app expected. Try again later.", {}, false, false});
+        const cJSON* node = nullptr;
+        cJSON_ArrayForEach(node, list)
+        {
+            if (auto item = parseNode(node))
+                newer.push_back(std::move(*item));
+        }
+    }
+    return newer;
 }
 
 namespace
