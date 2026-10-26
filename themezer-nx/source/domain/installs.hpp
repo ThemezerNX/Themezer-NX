@@ -49,7 +49,7 @@ constexpr size_t kMaxArgs = 2047;
 // NXThemes Installer takes its files as one list split at commas, "(_)" in a path read as a space: a path with either
 // in it, or with a character outside ASCII (which it isn't known to take), can't be given to it.
 bool installerTakes(const std::string& path);
-// What NXThemes Installer is given for a slot: its file, or for one it can't take, a copy in /Themes/ThemezerNX/.tmp.
+// What NXThemes Installer is given for a slot: its file, or for one it can't take, a copy in /switch/.themezer-nx.
 std::string pathForInstaller(int slot);
 // On the way out: those copies made; a slot whose copy can't be made is taken out of the queue. Blocks.
 void copyForInstaller();

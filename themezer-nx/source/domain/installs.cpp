@@ -18,8 +18,11 @@ namespace tz::installs
 namespace
 {
 
-constexpr const char* kFolder = "/Themes/ThemezerNX";
-constexpr const char* kTemporaryFolder = "/Themes/ThemezerNX/.tmp";
+// For the app's temporary files alone, emptied at each start. Outside /Themes, which NXThemes Installer lists; its dot
+// hides it from the homebrew menu, which shows a folder in /switch that has no .nro.
+constexpr const char* kTemporaryFolder = "/switch/.themezer-nx";
+// where 3.3 kept them
+constexpr const char* kOldTemporaryFolder = "/Themes/ThemezerNX/.tmp";
 
 constexpr const char* kInstallerPaths[] = {
     "/switch/NXThemesInstaller.nro",
@@ -96,16 +99,20 @@ std::string temporaryPath(const themezer::Item& item)
 
 void removeTemporary()
 {
-    DIR* dir = opendir(kTemporaryFolder);
-    if (!dir)
-        return;
-    while (dirent* entry = readdir(dir))
+    for (const char* folder : {kTemporaryFolder, kOldTemporaryFolder})
     {
-        const std::string name = entry->d_name;
-        if (name != "." && name != "..")
-            unlink((std::string(kTemporaryFolder) + "/" + name).c_str());
+        DIR* dir = opendir(folder);
+        if (!dir)
+            continue;
+        while (dirent* entry = readdir(dir))
+        {
+            const std::string name = entry->d_name;
+            if (name != "." && name != "..")
+                unlink((std::string(folder) + "/" + name).c_str());
+        }
+        closedir(dir);
     }
-    closedir(dir);
+    rmdir(kOldTemporaryFolder);
 }
 
 bool exists(const std::string& path)

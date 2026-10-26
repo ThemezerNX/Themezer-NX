@@ -111,7 +111,8 @@ int App::run(const char* self)
     mkdir("/Themes", 0777);
     mkdir("/Themes/ThemezerNX", 0777);
     mkdir("/Themes/ThemezerNX/Splashes", 0777);
-    mkdir("/Themes/ThemezerNX/.tmp", 0777);
+    mkdir("/switch", 0777);
+    mkdir("/switch/.themezer-nx", 0777);
     installs::removeTemporary();
 
     config_.load();
