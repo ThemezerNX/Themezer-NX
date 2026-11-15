@@ -17,8 +17,9 @@
 namespace tz::outdated
 {
 
-// Items in a request. The API takes 500, but a GET stops being answered (HTTP 520) between 130 and 150 items.
-constexpr size_t kBatch = 100;
+// Items in a request, each asked in a field of its own. The API allows a cost of 43000 and an item costs 240; a GET
+// stops being answered (HTTP 520) between 130 and 200 of them, its URL over 15 kB.
+constexpr size_t kBatch = 50;
 
 // An ID in capitals, as Themezer gives it: "1e93d" is "1E93D".
 std::string canonical(std::string_view id);
@@ -50,8 +51,10 @@ struct Query
 // "R12AB" is a code, not an ID), versions of 0 or less too. An item on the SD card more than once is as new as its
 // newest copy.
 std::vector<Query> queries(const std::vector<File>& files);
-// The variables for the requests that ask about them: JSON, at most kBatch items in each.
-std::vector<std::string> variables(const std::vector<Query>& queries);
+// The fields of the requests that ask about them, at most kBatch in each: "a0:checkUpdates(items:[…]){...F} a1:…", the
+// answer about queries[n * kBatch + i] in field a<i> of request n. A field of its own, as Themezer answers an ID from
+// before its IDs changed (Themezer-NX 3's) under the item's current one: the field says which file it was asked for.
+std::vector<std::string> fields(const std::vector<Query>& queries);
 
 // A pack on Themezer against the one on the SD card, by their themes' IDs (not the case, not repeats).
 struct PackDiff

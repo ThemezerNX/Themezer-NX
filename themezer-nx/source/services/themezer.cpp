@@ -61,13 +61,16 @@ constexpr const char* kLookupQuery =
     "... on SwitchRemoteInstallTheme{author createdAt downloadUrl name quickId target} "
     "... on SwitchRemoteInstallSplash{author createdAt downloadUrl name quickId}}}}";
 
-// Of the items asked about, the ones with a newer version: what an update needs to download them and name them
-constexpr const char* kCheckUpdatesQuery =
-    "query CheckUpdates($items:[SwitchCheckUpdatesItemInput!]!){switch{checkUpdates(items:$items){__typename "
+// Of an item asked about, when it has a newer version: what an update needs to download it and name it. Each item is
+// asked in a field of its own (outdated::fields), which spreads this.
+constexpr const char* kCheckUpdatesFragment =
+    "fragment F on SwitchUpdatedItem{__typename "
     "... on SwitchTheme{quickId hexId name creator{username} target updatedAt downloadUrl} "
     "... on SwitchSplash{quickId hexId name creator{username} updatedAt downloadUrl} "
     "... on SwitchPack{quickId hexId name creator{username} updatedAt downloadUrl "
-    "themes{quickId hexId name creator{username} target updatedAt downloadUrl}}}}}";
+    "themes{quickId hexId name creator{username} target updatedAt downloadUrl}}}";
+// Apollo's guard against cross-site requests blocks a GET that has a fragment unless it has this
+constexpr const char* kPreflightHeader = "apollo-require-preflight: true";
 
 struct JsonDeleter
 {
@@ -228,7 +231,7 @@ std::string escapeJson(const std::string& text)
 std::expected<Json, Error> request(const char* query, const std::string& variables, const CancelToken& token)
 {
     const std::string url = std::string(kApi) + "?query=" + net::escape(query) + "&variables=" + net::escape(variables);
-    net::Response response = net::get(url, &token, nullptr, kJsonTimeout);
+    net::Response response = net::get(url, &token, nullptr, kJsonTimeout, kPreflightHeader);
     if (response.curlCode != 0)
         return std::unexpected(connectionError(response));
     Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));
@@ -346,25 +349,33 @@ std::expected<Item, Error> lookupQuickId(const std::string& quickId, const Cance
     return std::unexpected(Error{"This Quick ID is for something the Switch app can't install.", type, false, true});
 }
 
-std::expected<std::vector<Item>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
-                                                     const CancelToken& token)
+std::expected<std::vector<Newer>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
+                                                      const CancelToken& token)
 {
-    std::vector<Item> newer;
-    for (const std::string& variables : outdated::variables(queries))
+    std::vector<Newer> newer;
+    const Error wrongAnswer{"Themezer's answer wasn't what the app expected. Try again later.", {}, false, false};
+    const std::vector<std::string> requests = outdated::fields(queries);
+    for (size_t n = 0; n < requests.size(); ++n)
     {
         if (token.cancelled())
             return std::unexpected(Error{{}, {}, true});
-        auto root = request(kCheckUpdatesQuery, variables, token);
+        const std::string query = "query CheckUpdates{switch{" + requests[n] + "}} " + kCheckUpdatesFragment;
+        auto root = request(query.c_str(), "{}", token);
         if (!root)
             return std::unexpected(root.error());
-        const cJSON* list = get(get(get(root->get(), "data"), "switch"), "checkUpdates");
-        if (!cJSON_IsArray(list))
-            return std::unexpected(Error{"Themezer's answer wasn't what the app expected. Try again later.", {}, false, false});
-        const cJSON* node = nullptr;
-        cJSON_ArrayForEach(node, list)
+        const cJSON* fields = get(get(root->get(), "data"), "switch");
+        // field a<i> answers about queries[n * kBatch + i]
+        for (size_t i = 0, at = n * outdated::kBatch; i < outdated::kBatch && at < queries.size(); ++i, ++at)
         {
-            if (auto item = parseNode(node))
-                newer.push_back(std::move(*item));
+            const cJSON* list = get(fields, ("a" + std::to_string(i)).c_str());
+            if (!cJSON_IsArray(list))
+                return std::unexpected(wrongAnswer);
+            const cJSON* node = nullptr;
+            cJSON_ArrayForEach(node, list)
+            {
+                if (auto item = parseNode(node))
+                    newer.push_back({queries[at].quickId, std::move(*item)});
+            }
         }
     }
     return newer;

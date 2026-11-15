@@ -122,7 +122,8 @@ bool Response::cancelled() const
     return curlCode == CURLE_ABORTED_BY_CALLBACK;
 }
 
-Response get(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds)
+Response get(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds,
+             const char* sentHeader)
 {
     Response response;
     if (!threadEasy)
@@ -157,8 +158,12 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
     curl_easy_setopt(easy, CURLOPT_XFERINFODATA, &transfer);
     curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 0L);
     curl_easy_setopt(easy, CURLOPT_ERRORBUFFER, error);
+    curl_slist* headers = sentHeader ? curl_slist_append(nullptr, sentHeader) : nullptr;
+    if (headers)
+        curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
 
     response.curlCode = curl_easy_perform(easy);
+    curl_slist_free_all(headers); // the next request's reset lets go of the handle's pointer to it
     curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &response.status);
     char* type = nullptr;
     if (curl_easy_getinfo(easy, CURLINFO_CONTENT_TYPE, &type) == CURLE_OK && type)

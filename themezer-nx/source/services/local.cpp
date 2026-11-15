@@ -1,7 +1,6 @@
 #include "services/local.hpp"
 
 #include "domain/names.hpp"
-#include "domain/outdated.hpp"
 #include "sys/jobs.hpp"
 
 #include <unistd.h>
@@ -173,19 +172,6 @@ const library::Entry* Library::findItem(library::Kind kind, const std::string& i
             return &entry;
     }
     return nullptr;
-}
-
-std::vector<const library::Entry*> Library::findAll(library::Kind kind, const std::string& id) const
-{
-    std::vector<const library::Entry*> found;
-    const std::string want = outdated::canonical(id);
-    for (const library::Entry& entry : entries_)
-    {
-        if (entry.kind == kind && !want.empty() && entry.themezerId.size() == want.size() &&
-            outdated::canonical(entry.themezerId) == want)
-            found.push_back(&entry);
-    }
-    return found;
 }
 
 const Pack* Library::findPackById(const std::string& id) const

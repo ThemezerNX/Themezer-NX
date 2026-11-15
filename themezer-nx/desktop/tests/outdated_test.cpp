@@ -116,7 +116,7 @@ void asked()
     assert(queries({}).empty());
 }
 
-// Brackets pair up in JSON text as it is written here: no strings with brackets in them
+// Brackets pair up in the text as it is written here: no strings with brackets in them
 bool balanced(const std::string& json)
 {
     int square = 0, curly = 0;
@@ -130,10 +130,10 @@ bool balanced(const std::string& json)
     return square == 0 && curly == 0;
 }
 
-size_t itemsIn(const std::string& json)
+size_t itemsIn(const std::string& text)
 {
     size_t count = 0;
-    for (size_t at = json.find("\"quickId\""); at != std::string::npos; at = json.find("\"quickId\"", at + 1))
+    for (size_t at = text.find("quickId:"); at != std::string::npos; at = text.find("quickId:", at + 1))
         ++count;
     return count;
 }
@@ -146,16 +146,16 @@ void batches()
             out.push_back({"T" + std::to_string(i + 1), "1700000000000"});
         return out;
     };
-    assert(variables({}).empty());
+    assert(fields({}).empty());
 
     const struct
     {
         size_t items;
         std::vector<size_t> sizes;
-    } cases[] = {{1, {1}}, {100, {100}}, {101, {100, 1}}, {250, {100, 100, 50}}};
+    } cases[] = {{1, {1}}, {50, {50}}, {51, {50, 1}}, {130, {50, 50, 30}}};
     for (const auto& one : cases)
     {
-        const auto sent = variables(many(one.items));
+        const auto sent = fields(many(one.items));
         if (sent.size() != one.sizes.size())
             std::printf("%zu items: %zu requests\n", one.items, sent.size());
         assert(sent.size() == one.sizes.size());
@@ -167,15 +167,15 @@ void batches()
         }
     }
 
-    // the text, exactly, and the second request starts where the first stopped
-    const std::string two = variables({{"T1E93D", "1730000000000"}, {"S1EB6B", "1730000000001"}})[0];
-    if (two != "{\"items\":[{\"quickId\":\"T1E93D\",\"version\":\"1730000000000\"},"
-               "{\"quickId\":\"S1EB6B\",\"version\":\"1730000000001\"}]}")
+    // the text, exactly: a field each, named by its place; the second request starts where the first stopped, at a0
+    const std::string two = fields({{"T1E93D", "1730000000000"}, {"S1EB6B", "1730000000001"}})[0];
+    const std::string want = "a0:checkUpdates(items:[{quickId:\"T1E93D\",version:\"1730000000000\"}]){...F} "
+                             "a1:checkUpdates(items:[{quickId:\"S1EB6B\",version:\"1730000000001\"}]){...F}";
+    if (two != want)
         std::printf("got %s\n", two.c_str());
-    assert(two == "{\"items\":[{\"quickId\":\"T1E93D\",\"version\":\"1730000000000\"},"
-                  "{\"quickId\":\"S1EB6B\",\"version\":\"1730000000001\"}]}");
-    const auto next = variables(many(101));
-    assert(next[1] == "{\"items\":[{\"quickId\":\"T101\",\"version\":\"1700000000000\"}]}");
+    assert(two == want);
+    const auto next = fields(many(51));
+    assert(next[1] == "a0:checkUpdates(items:[{quickId:\"T51\",version:\"1700000000000\"}]){...F}");
 }
 
 void packs()

@@ -53,8 +53,6 @@ public:
 
     // A Themezer item's file on the SD card, wherever it is and whatever it's called; nullptr when there's none.
     const library::Entry* findItem(library::Kind kind, const std::string& id) const;
-    // Every copy of it, the case of the ID not mattering: the ones an update replaces.
-    std::vector<const library::Entry*> findAll(library::Kind kind, const std::string& id) const;
 
     const std::vector<Pack>& packs() const { return packs_; }
     const Pack* findPack(const std::string& dir) const;

@@ -232,8 +232,7 @@ bool installedCopy(const Item& item)
         return std::any_of(item.themes.begin(), item.themes.end(), installedCopy);
     const int slot = installs::slotOf(item);
     const installed::Part& part = installed::part(slot);
-    return slot >= 0 && part.custom && !part.themezerId.empty() &&
-           outdated::canonical(part.themezerId) == outdated::canonical(item.id);
+    return slot >= 0 && part.custom && itemupdates::same(part.themezerId, item);
 }
 
 // Puts the files of these plans on the SD card, one after another: each downloaded to the temporary folder, then in

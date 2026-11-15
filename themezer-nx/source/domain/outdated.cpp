@@ -108,20 +108,20 @@ std::vector<Query> queries(const std::vector<File>& files)
     return out;
 }
 
-std::vector<std::string> variables(const std::vector<Query>& queries)
+std::vector<std::string> fields(const std::vector<Query>& queries)
 {
     std::vector<std::string> out;
     for (size_t first = 0; first < queries.size(); first += kBatch)
     {
-        // IDs are hex and versions digits: nothing in them to escape
-        std::string json = "{\"items\":[";
+        // in the query's text: queries() lets in only hex IDs and digits, nothing to escape or to break out of it
+        std::string text;
         const size_t end = std::min(queries.size(), first + kBatch);
         for (size_t i = first; i < end; ++i)
         {
-            json += i > first ? "," : "";
-            json += "{\"quickId\":\"" + queries[i].quickId + "\",\"version\":\"" + queries[i].version + "\"}";
+            text += (i > first ? " a" : "a") + std::to_string(i - first) + ":checkUpdates(items:[{quickId:\"" +
+                    queries[i].quickId + "\",version:\"" + queries[i].version + "\"}]){...F}";
         }
-        out.push_back(json + "]}");
+        out.push_back(std::move(text));
     }
     return out;
 }

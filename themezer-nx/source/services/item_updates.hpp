@@ -24,8 +24,11 @@ void cancel();
 
 // The newer items, packs first. Their themes, for a pack, are all those Themezer lists.
 const std::vector<themezer::Item>& found();
-// The newer item with this ID, or nullptr; the ID's case doesn't matter. For marking items as they are drawn.
+// The newer item an ID on the SD card is, or nullptr: by its ID, or an old one Themezer-NX 3 named it with, the case
+// not mattering. For marking items as they are drawn.
 const themezer::Item* find(themezer::Kind kind, const std::string& id);
+// Whether an ID on the SD card is this item's, its ID or an old one.
+bool same(const std::string& id, const themezer::Item& item);
 size_t count();
 // Takes updated items off the list, by the keys of a plan and its steps ("T1E93D", "S1EB6B", "P1E93C").
 void forget(const std::vector<std::string>& keys);

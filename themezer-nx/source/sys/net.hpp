@@ -37,10 +37,10 @@ struct Response
     bool cancelled() const;
 };
 
-// A request on this thread's handle, which reuses its connection when it has one open to the host.
-// Blocks: for the workers.
+// A request on this thread's handle, which reuses its connection when it has one open to the host. sentHeader, when
+// given, is sent with it ("Name: value"). Blocks: for the workers.
 Response get(const std::string& url, const CancelToken* token = nullptr, Progress* progress = nullptr,
-             long timeoutSeconds = 0);
+             long timeoutSeconds = 0, const char* sentHeader = nullptr);
 
 // Closes this thread's handle and its connections: for a worker on its way out, before the sockets go.
 void release();

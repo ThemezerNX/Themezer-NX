@@ -102,10 +102,18 @@ struct Error
 
 std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& token);
 std::expected<Item, Error> lookupQuickId(const std::string& quickId, const CancelToken& token);
-// The items of these that Themezer has a newer version of, once each, in the order asked (packs with their themes).
-// Asks in as many requests as it takes; the first that fails fails the check, as a half answer would pass for the whole.
-std::expected<std::vector<Item>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
-                                                     const CancelToken& token);
+// An item Themezer has a newer version of, and the Quick ID it was asked as: Themezer answers an ID from before its IDs
+// changed (Themezer-NX 3's, "P25AD") under the item's current one ("P196D9").
+struct Newer
+{
+    std::string asked;
+    Item item;
+};
+// The items of these that Themezer has a newer version of, in the order asked (packs with their themes); one asked as
+// two IDs, an old and its current one, comes twice. Asks in as many requests as it takes; the first that fails fails
+// the check, as a half answer would pass for the whole.
+std::expected<std::vector<Newer>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
+                                                      const CancelToken& token);
 // Downloads an item's file to path (its folder made first).
 std::expected<void, Error> download(const std::string& url, const std::string& path, const CancelToken& token,
                                     net::Progress* progress);
