@@ -8,11 +8,13 @@
 // the script ends.
 //
 // A script has a command a line: "wait <frames>", "press <key>", "hold <key> <frames>", "tap <x> <y>",
+// "error storage|network" opens a test error dialog.
 // "type <text>" (what the next keyboard returns), "shot <name>" (out/<name>.png) and "quit". Keys: a b x y l r zl zr
 // plus minus up down left right rup rdown. Without a script the keyboard is the controller: arrows, Z = A, X = B,
 // C = X, V = Y, Q = L, E = R, 1 = ZL, 3 = ZR, = = +, - = -; the mouse is the touch screen.
 
 #include <switch.h>
+namespace tz::scenes { void testError(bool network); }
 #include <mbedtls/base64.h>
 
 #undef SDL_RenderPresent
@@ -161,6 +163,8 @@ void runScript()
             typed = step.argument;
             haveTyped = true;
             continue;
+        }
+        if (step.command == "error") { tz::scenes::testError(step.argument == "network"); return;
         }
         if (step.command == "shot")
         {
@@ -559,3 +563,6 @@ int mbedtls_base64_decode(unsigned char* dst, size_t dlen, size_t* olen, const u
 }
 
 } // extern "C"
+
+bool themezerDesktopOffline() { return std::getenv("THEMEZER_OFFLINE") != nullptr; }
+const char* themezerDesktopReportUrl() { return std::getenv("THEMEZER_REPORT_URL"); }

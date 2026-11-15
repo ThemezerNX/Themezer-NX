@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "services/themezer.hpp"
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -33,7 +34,7 @@ int availableCount();
 void done(Program program);
 
 // Puts the new file staged in place of the one at path. The old one stays until the new one's in, and comes back when
-// it can't be. False when the new one isn't in.
-bool replace(const std::string& staged, const std::string& path);
+// it can't be. A failure carries the destination path.
+std::expected<void, themezer::Error> replace(const std::string& staged, const std::string& path);
 
 } // namespace tz::updates

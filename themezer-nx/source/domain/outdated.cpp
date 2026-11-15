@@ -154,7 +154,7 @@ bool samePath(const std::string& a, const std::string& b)
 }
 
 bool replace(const std::string& staged, const std::string& path, const std::vector<std::string>& others,
-             std::vector<std::string>& replaced, bool (*put)(const std::string&, const std::string&))
+             std::vector<std::string>& replaced, std::function<bool(const std::string&, const std::string&)> put)
 {
     if (!put(staged, path))
         return false;

@@ -1,5 +1,6 @@
 #include "scenes/images.hpp"
 
+#include "sys/log.hpp"
 #include "gfx/renderer.hpp"
 #include "sys/jobs.hpp"
 #include "sys/lock.hpp"
@@ -99,12 +100,12 @@ std::shared_ptr<gfx::Picture> Images::load(const std::string& key, std::function
                 return;
             }
             if (!surface)
-                std::printf("Picture %.80s: not downloaded or decoded\n", key.c_str());
+                log::warn("Picture %.80s: not downloaded or decoded", key.c_str());
             it->second.requested = false;
             it->second.picture = gfx::Picture::fromSurface(surface);
             // no texture is a failure too, tried again later, not downloaded again the next frame
             if (surface && !it->second.picture)
-                std::printf("Picture %.80s: no texture\n", key.c_str());
+                log::warn("Picture %.80s: no texture", key.c_str());
             it->second.failed = !it->second.picture;
             it->second.failedAt = gfx::time();
         });

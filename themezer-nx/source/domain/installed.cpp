@@ -210,22 +210,24 @@ void noteQueued()
     save();
 }
 
-bool uninstall(int slot)
+std::expected<void, themezer::Error> uninstall(int slot)
 {
     if (slot < 0 || slot >= installs::kSlotCount)
-        return false;
-    bool ok = true;
+        return std::unexpected(themezer::storageError("invalid install slot"));
+    std::optional<themezer::Error> error;
     for (const char* path : {kFiles[slot].main, kFiles[slot].extra})
     {
         struct stat info;
         if (path && stat(path, &info) == 0 && unlink(path) != 0)
-            ok = false;
+            error = themezer::storageError(path);
     }
     load();
     records[static_cast<size_t>(slot)].reset();
     save();
     refresh();
-    return ok;
+    if (error)
+        return std::unexpected(*error);
+    return {};
 }
 
 void moved(const std::vector<std::pair<std::string, std::string>>& moves)

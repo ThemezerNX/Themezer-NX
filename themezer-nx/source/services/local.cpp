@@ -145,13 +145,15 @@ void Library::wantInfo(size_t index)
     });
 }
 
-bool Library::remove(size_t index)
+std::expected<void, themezer::Error> Library::remove(size_t index)
 {
-    if (index >= entries_.size() || !library::remove(entries_[index]))
-        return false;
+    if (index >= entries_.size())
+        return std::unexpected(themezer::storageError("library index"));
+    if (!library::remove(entries_[index]))
+        return std::unexpected(themezer::storageError(entries_[index].path));
     entries_.erase(entries_.begin() + static_cast<long>(index));
     this->index();
-    return true;
+    return {};
 }
 
 const library::Entry* Library::find(const std::string& path) const
@@ -209,27 +211,30 @@ const library::Entry* Library::cover(const Pack& pack) const
     return first;
 }
 
-bool Library::removePack(std::string dir)
+std::expected<void, themezer::Error> Library::removePack(std::string dir)
 {
     const Pack* pack = findPack(dir);
     if (!pack)
-        return false;
-    bool ok = true;
+        return std::unexpected(themezer::storageError(dir));
+    std::optional<themezer::Error> error;
     std::vector<size_t> gone;
     for (size_t index : pack->themes)
     {
         if (library::remove(entries_[index]))
             gone.push_back(index);
         else
-            ok = false;
+            error = themezer::storageError(entries_[index].path);
     }
     // fails, and the folder stays, when something else is in it
-    rmdir(dir.c_str());
+    if (rmdir(dir.c_str()) != 0)
+        error = themezer::storageError(dir);
     std::sort(gone.rbegin(), gone.rend());
     for (size_t index : gone)
         entries_.erase(entries_.begin() + static_cast<long>(index));
     index();
-    return ok;
+    if (error)
+        return std::unexpected(*error);
+    return {};
 }
 
 bool Library::has(const themezer::Item& item) const

@@ -42,6 +42,8 @@ struct Response
 Response get(const std::string& url, const CancelToken* token = nullptr, Progress* progress = nullptr,
              long timeoutSeconds = 0, const char* sentHeader = nullptr);
 
+Response post(const std::string& url, const std::string& body, const char* contentType);
+
 // Closes this thread's handle and its connections: for a worker on its way out, before the sockets go.
 void release();
 

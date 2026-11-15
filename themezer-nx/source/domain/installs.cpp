@@ -1,5 +1,6 @@
 #include "domain/installs.hpp"
 
+#include "sys/log.hpp"
 #include "domain/names.hpp"
 #include "domain/outdated.hpp"
 
@@ -34,16 +35,17 @@ constexpr const char* kInstallerPaths[] = {
 std::array<std::optional<Queued>, kSlotCount> slots;
 
 // A file for NXThemes Installer copied out of the way, as installs::copyForInstaller makes them.
-bool copyFile(const std::string& from, const std::string& to)
+std::expected<void, themezer::Error> copyFile(const std::string& from, const std::string& to)
 {
     FILE* in = std::fopen(from.c_str(), "rb");
     if (!in)
-        return false;
+        return std::unexpected(themezer::storageError(from));
     FILE* out = std::fopen(to.c_str(), "wb");
     if (!out)
     {
+        auto error = themezer::storageError(to);
         std::fclose(in);
-        return false;
+        return std::unexpected(error);
     }
     std::vector<char> buffer(256 * 1024);
     bool ok = true;
@@ -56,11 +58,19 @@ bool copyFile(const std::string& from, const std::string& to)
         }
     }
     ok = ok && !std::ferror(in);
+    int failure = errno;
     std::fclose(in);
-    ok = std::fclose(out) == 0 && ok;
+    if (std::fclose(out) != 0)
+    {
+        ok = false;
+        failure = errno;
+    }
     if (!ok)
+    {
         unlink(to.c_str());
-    return ok;
+    return std::unexpected(themezer::storageError(to, failure));
+    }
+    return {};
 }
 
 } // namespace
@@ -199,19 +209,20 @@ std::string pathForInstaller(int slot)
            (dot == std::string::npos ? std::string() : waiting->path.substr(dot));
 }
 
-void copyForInstaller()
+std::expected<void, themezer::Error> copyForInstaller()
 {
     for (int slot = 0; slot < kSlotCount; ++slot)
     {
         const Queued* waiting = queued(slot);
         if (!waiting || installerTakes(waiting->path))
             continue;
-        if (!copyFile(waiting->path, pathForInstaller(slot)))
+        if (auto copied = copyFile(waiting->path, pathForInstaller(slot)); !copied)
         {
-            std::printf("Couldn't copy %s for NXThemes Installer: not installed\n", waiting->path.c_str());
-            unqueue(slot);
+            log::info("Couldn't copy %s for NXThemes Installer: not installed", waiting->path.c_str());
+            return std::unexpected(copied.error());
         }
     }
+    return {};
 }
 
 std::string installerArgs(const char* installer)

@@ -4,10 +4,12 @@
 #pragma once
 
 #include "domain/outdated.hpp"
+#include "domain/error.hpp"
 #include "sys/jobs.hpp"
 #include "sys/net.hpp"
 
 #include <expected>
+#include <cerrno>
 #include <optional>
 #include <string>
 #include <vector>
@@ -95,10 +97,14 @@ struct Error
 {
     std::string message;
     std::string detail;
-    bool cancelled = false;
-    bool notFound = false;
-    bool fromApi = false; // the API said what's wrong, as opposed to the connection or the server failing
+    ErrorKind kind = ErrorKind::Server;
 };
+
+inline Error storageError(const std::string& path, int code = errno)
+{
+    return {code == ENOSPC ? "The SD card is full." : "Couldn't access the file on the SD card.", path,
+            code == ENOSPC ? ErrorKind::NoSpace : ErrorKind::Storage};
+}
 
 std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& token);
 std::expected<Item, Error> lookupQuickId(const std::string& quickId, const CancelToken& token);

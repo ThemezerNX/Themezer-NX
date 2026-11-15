@@ -1,6 +1,8 @@
 #include "scenes/actions.hpp"
 
+#include "sys/log.hpp"
 #include "app/app.hpp"
+#include "services/reporter.hpp"
 #include "core/version.hpp"
 #include "domain/installed.hpp"
 #include "domain/installs.hpp"
@@ -44,14 +46,19 @@ ui::SceneStack& scenes()
     return App::get().scenes();
 }
 
-void showError(const std::string& title, const themezer::Error& error)
+void showError(const std::string& title, const themezer::Error& error, bool warning = false)
 {
-    if (error.cancelled)
+    if (error.kind == themezer::ErrorKind::Cancelled)
     {
         ui::toast("Cancelled");
         return;
     }
-    scenes().emplace<ui::Dialog>(Icon::Error, color::kDanger, title, error.message);
+    log::error("shown: %s: %s (%s)", themezer::kindName(error.kind), error.message.c_str(), error.detail.c_str());
+    std::vector<ui::DialogButton> buttons{{"OK", nullptr, false, ui::key::kA | ui::key::kB}};
+    if (themezer::shareable(error.kind))
+        buttons.insert(buttons.begin(), {"Share error", [error] { report::share(error); }, false, ui::key::kY});
+    scenes().emplace<ui::Dialog>(warning ? Icon::Warning : Icon::Error, warning ? color::kWarning : color::kDanger,
+                                 title, error.message, std::move(buttons));
 }
 
 void queueAndSay(const Item& item, const std::string& path)
@@ -115,7 +122,7 @@ struct PackResult
     std::vector<std::pair<int, std::string>> done; // the theme's index and where it went
     int failed = 0;
     bool cancelled = false;
-    themezer::Error firstError;
+    themezer::Error firstError{{}, {}, themezer::ErrorKind::Server};
 };
 
 // Downloads the themes of the pack at these indexes (where they aren't on the SD card yet), one after another.
@@ -162,7 +169,7 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
                 }
                 if (!done)
                 {
-                    if (done.error().cancelled)
+                    if (done.error().kind == themezer::ErrorKind::Cancelled)
                     {
                         result.cancelled = true;
                         break;
@@ -196,10 +203,9 @@ void runPackDownloads(const Item& pack, std::vector<int> chosen, bool queue, boo
             }
             if (result.failed > 0)
             {
-                scenes().emplace<ui::Dialog>(
-                    Icon::Warning, color::kWarning,
-                    std::to_string(result.failed) + (result.failed == 1 ? " theme" : " themes") + " didn't download",
-                    result.firstError.message);
+                showError(std::to_string(result.failed) + (result.failed == 1 ? " theme" : " themes") +
+                              " didn't download",
+                          result.firstError, true);
                 return;
             }
             const size_t done = result.done.size();
@@ -216,7 +222,7 @@ struct UpdateResult
     std::vector<std::pair<std::string, std::string>> moves; // files and folders that went elsewhere, in the order
     int failed = 0;                                         // items
     bool cancelled = false;
-    themezer::Error firstError;
+    themezer::Error firstError{{}, {}, themezer::ErrorKind::Server};
 };
 
 std::string leafOf(const std::string& path)
@@ -268,7 +274,7 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
                                                          &progress.download);
                     if (!staged)
                     {
-                        if (staged.error().cancelled)
+                        if (staged.error().kind == themezer::ErrorKind::Cancelled)
                         {
                             result.cancelled = true;
                             break;
@@ -286,9 +292,16 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
                                                    : outdated::rebased(step.folder, result.moves);
                     const std::string final = folder + "/" + leafOf(*staged);
                     std::vector<std::string> replaced;
-                    if (!outdated::replace(*staged, final, others, replaced, updates::replace))
+                    std::optional<themezer::Error> putError;
+                    if (!outdated::replace(*staged, final, others, replaced,
+                                           [&putError](const std::string& from, const std::string& to) {
+                                               auto result = updates::replace(from, to);
+                                               if (!result)
+                                                   putError = result.error();
+                                               return bool(result);
+                                           }))
                     {
-                        fail({"Couldn't put it in place of the old one on the SD card.", final, false, false});
+                        fail(putError.value_or(themezer::storageError(final)));
                         continue;
                     }
                     for (const std::string& from : replaced)
@@ -310,7 +323,7 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
                     if (access(to.c_str(), F_OK) != 0 && rename(from.c_str(), to.c_str()) == 0)
                         result.moves.emplace_back(from, to);
                     else
-                        std::printf("Item updates: %s stays in its folder\n", from.c_str());
+                        log::info("Item updates: %s stays in its folder", from.c_str());
                 }
                 if (const auto& [from, to] = plan.rename;
                     !from.empty() && access(to.c_str(), F_OK) != 0 && rename(from.c_str(), to.c_str()) == 0)
@@ -341,10 +354,8 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
             }
             if (result.failed > 0)
             {
-                scenes().emplace<ui::Dialog>(
-                    Icon::Warning, color::kWarning,
-                    std::to_string(result.failed) + (result.failed == 1 ? " item" : " items") + " didn't update",
-                    result.firstError.message);
+                showError(std::to_string(result.failed) + (result.failed == 1 ? " item" : " items") + " didn't update",
+                          result.firstError, true);
                 return;
             }
             // installing is what puts a file on the console: the one installed now is the old
@@ -395,6 +406,14 @@ void exitApp()
                                      "The queued files' names are too long for NXThemes Installer to take all at once. "
                                      "Take some out of the queue, and install them next time.");
         return;
+    }
+    if (installer && installs::queuedCount() > 0)
+    {
+        if (auto copied = installs::copyForInstaller(); !copied)
+        {
+            showError("Couldn't prepare the install", copied.error());
+            return;
+        }
     }
     App::get().quit();
 }
@@ -456,7 +475,8 @@ void downloadInstaller()
             {
                 unlink(kInstallerPath);
                 return std::unexpected(
-                    themezer::Error{"What came wasn't NXThemes Installer. Try again later.", {}, false, false});
+                    themezer::Error{"What came wasn't NXThemes Installer. Try again later.", {},
+                                    themezer::ErrorKind::InvalidData});
             }
             return done;
         },
@@ -565,7 +585,9 @@ void installLocal(const library::Entry& entry)
         library::readInfo(known);
     if (known.kind == library::Kind::Theme && known.target < 0)
     {
-        ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
+        showError(
+            "Couldn't install it",
+            {"This theme doesn't say which part of the HOME Menu it's for.", {}, themezer::ErrorKind::InvalidData});
         return;
     }
     queueAndSay(localItem(known), known.path);
@@ -628,7 +650,7 @@ void deleteLocalPack(const std::string& dir)
             {"Keep it", nullptr},
             {"Delete",
              [dir] {
-                 const bool ok = local::Library::get().removePack(dir);
+                 const auto ok = local::Library::get().removePack(dir);
                  // what was queued from it has nothing to install any more
                  for (int slot = 0; slot < installs::kSlotCount; ++slot)
                  {
@@ -638,7 +660,7 @@ void deleteLocalPack(const std::string& dir)
                  }
                  if (!ok)
                  {
-                     ui::toast("Couldn't delete all of it from the SD card", ui::ToastKind::Error);
+                     showError("Couldn't delete it", ok.error());
                      return;
                  }
                  sfx::play(sfx::Sound::Back);
@@ -681,9 +703,9 @@ void deleteLocal(const library::Entry& entry)
                  {
                      if (entries[i].path != path)
                          continue;
-                     if (!library.remove(i))
+                     if (auto removed = library.remove(i); !removed)
                      {
-                         ui::toast("Couldn't delete it from the SD card", ui::ToastKind::Error);
+                         showError("Couldn't delete it", removed.error());
                          return;
                      }
                      // queued, it isn't any more: there's nothing to install
@@ -710,11 +732,11 @@ void uninstallPart(int slot)
         std::vector<ui::DialogButton>{{"Keep it", nullptr},
                                       {"Uninstall",
                                        [slot] {
-                                           if (installed::uninstall(slot))
+                                           if (auto removed = installed::uninstall(slot); removed)
                                                ui::toast("Uninstalled: restart the console to see the change",
                                                          ui::ToastKind::Success);
                                            else
-                                               ui::toast("Couldn't delete its files", ui::ToastKind::Error);
+                                               showError("Couldn't uninstall it", removed.error());
                                        },
                                        true}});
 }
@@ -745,7 +767,9 @@ void install(const Item& item, bool save)
     }
     if (installs::slotOf(item) < 0)
     {
-        ui::toast("This theme doesn't say which part of the HOME Menu it's for", ui::ToastKind::Error);
+        showError(
+            "Couldn't install it",
+            {"This theme doesn't say which part of the HOME Menu it's for.", {}, themezer::ErrorKind::InvalidData});
         return;
     }
     // on the SD card already, downloaded here or from the website
@@ -873,7 +897,7 @@ void openQuickId()
         [](std::expected<Item, themezer::Error> result) {
             if (result)
                 openFound(*result);
-            else if (result.error().notFound)
+            else if (result.error().kind == themezer::ErrorKind::NotFound)
                 scenes().emplace<ui::Dialog>(Icon::SearchEmpty, color::kTextDim, "Nothing found",
                                              result.error().message);
             else
@@ -921,7 +945,8 @@ std::expected<void, themezer::Error> downloadNro(const updates::Release& release
     if (whole && version::isNro(staged.c_str()))
         return {};
     unlink(staged.c_str());
-    return std::unexpected(themezer::Error{"What came wasn't the whole app. Try again later.", {}, false, false});
+    return std::unexpected(
+        themezer::Error{"What came wasn't the whole app. Try again later.", {}, themezer::ErrorKind::InvalidData});
 }
 
 void updateApp()
@@ -969,9 +994,8 @@ void updateInstaller()
             const std::string staged = path + ".new";
             if (auto done = downloadNro(release, staged, progress, token); !done)
                 return done;
-            if (!updates::replace(staged, path))
-                return std::unexpected(
-                    themezer::Error{"Couldn't put it in place of the old one on the SD card.", path, false, false});
+            if (auto put = updates::replace(staged, path); !put)
+                return std::unexpected(put.error());
             return {};
         },
         [release](std::expected<void, themezer::Error> result) {
@@ -1057,7 +1081,7 @@ void checkForUpdates()
     itemupdates::check([](const std::expected<size_t, themezer::Error>& result) {
         if (!result)
         {
-            if (!result.error().cancelled)
+            if (result.error().kind != themezer::ErrorKind::Cancelled)
                 showError("Couldn't check for updates", result.error());
             return;
         }
@@ -1087,4 +1111,14 @@ void openMenu()
     scenes().emplace<ui::ActionSheet>("Themezer", std::move(actions), color::kPrimary);
 }
 
+#ifdef TZ_DESKTOP
+void testError(bool network)
+{
+    showError("Couldn't load the theme",
+              {network ? "Couldn't reach Themezer. Check the console's internet connection and try again."
+                       : "The theme file couldn't be understood.",
+               network ? "Connection refused" : "/Themes/ThemezerNX/example.nxtheme",
+               network ? themezer::ErrorKind::Network : themezer::ErrorKind::InvalidData});
+}
+#endif
 } // namespace tz::scenes

@@ -1,5 +1,6 @@
 #include "scenes/browse.hpp"
 
+#include "sys/log.hpp"
 #include "app/app.hpp"
 #include "domain/installs.hpp"
 #include "gfx/renderer.hpp"
@@ -133,7 +134,7 @@ void BrowsePage::fetchMore()
             fetching_ = false;
             if (!result)
             {
-                std::printf("Page %d failed: %s (%s)\n", query_.page + 1, result.error().message.c_str(),
+                log::info("Page %d failed: %s (%s)", query_.page + 1, result.error().message.c_str(),
                             result.error().detail.c_str());
                 if (items_.empty())
                 {

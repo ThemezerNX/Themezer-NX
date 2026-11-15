@@ -1,5 +1,6 @@
 #include "services/item_updates.hpp"
 
+#include "sys/log.hpp"
 #include "domain/library.hpp"
 #include "domain/names.hpp"
 #include "domain/outdated.hpp"
@@ -202,7 +203,7 @@ void check(std::function<void(const std::expected<size_t, themezer::Error>&)> do
         const auto asked = outdated::queries(sweep(*packs, *files, token));
         std::expected<std::vector<themezer::Newer>, themezer::Error> result;
         if (token.cancelled())
-            result = std::unexpected(themezer::Error{{}, {}, true});
+            result = std::unexpected(themezer::Error{{}, {}, themezer::ErrorKind::Cancelled});
         else if (!asked.empty())
             result = themezer::checkUpdates(asked, token);
         // A pack answered under another ID than its folder's is in a folder Themezer-NX 3 made, its themes named with
@@ -233,12 +234,12 @@ void check(std::function<void(const std::expected<size_t, themezer::Error>&)> do
                     result = std::unexpected(answered.error());
             }
         }
-        std::printf("Item updates: %zu items on the SD card asked about, %zu newer\n", asked.size(),
+        log::info("Item updates: %zu items on the SD card asked about, %zu newer", asked.size(),
                     result ? result->size() : 0);
         if (result)
         {
             for (const themezer::Newer& newer : *result)
-                std::printf("Item updates: %s %s is newer, asked as %s\n", keyOf(newer.item).c_str(),
+                log::info("Item updates: %s %s is newer, asked as %s", keyOf(newer.item).c_str(),
                             newer.item.name.c_str(), newer.asked.c_str());
         }
         jobs::post([result = std::move(result), themes = std::move(themes), done] {
@@ -328,7 +329,7 @@ std::vector<Plan> plan(const std::vector<themezer::Item>& wanted)
             const local::Pack* folder = folderOf(item);
             if (!folder)
             {
-                std::printf("Item updates: %s has no folder on the SD card\n", one.key.c_str());
+                log::info("Item updates: %s has no folder on the SD card", one.key.c_str());
                 continue;
             }
             for (const themezer::Item& theme : item.themes)
@@ -341,7 +342,7 @@ std::vector<Plan> plan(const std::vector<themezer::Item>& wanted)
             // a pack with nothing to download in the answer would have every theme of the folder taken out of it
             if (one.steps.empty())
             {
-                std::printf("Item updates: %s lists no theme to download (%zu themes)\n", one.key.c_str(),
+                log::info("Item updates: %s lists no theme to download (%zu themes)", one.key.c_str(),
                             item.themes.size());
                 continue;
             }
@@ -366,7 +367,7 @@ std::vector<Plan> plan(const std::vector<themezer::Item>& wanted)
             const auto files = copies(item);
             if (files.empty() || item.downloadUrl.empty())
             {
-                std::printf("Item updates: %s has %s\n", one.key.c_str(),
+                log::info("Item updates: %s has %s", one.key.c_str(),
                             files.empty() ? "no file on the SD card" : "no download");
                 continue;
             }

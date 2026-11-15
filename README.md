@@ -28,3 +28,11 @@ For support you can go to the [Themezer discord](https://discord.gg/bBCw6tF)
 - [cJSON](https://github.com/DaveGamble/cJSON) For the json lib used in this project
 - [Themezer-3DS](https://github.com/ThemezerNX/Themezer-3DS) for the look, the sounds and the music
 - [Lucide](https://lucide.dev) for the icons
+
+## Error reports
+
+Errors reading or writing storage (except a full SD card), invalid data, and unsupported data offer **Share error** on Y.
+Nothing is sent unless you press it. The report contains exactly the app version, firmware display version,
+Atmosphère version, error kind, displayed message, diagnostic detail, and recent log lines (which may include file paths).
+It contains no console or user identifiers. Themezer only logs the report; it does not open a ticket.
+For bug reports, the current session log is `/Themes/ThemezerNX/log.txt`; the previous session is `log.old.txt` in the same folder.

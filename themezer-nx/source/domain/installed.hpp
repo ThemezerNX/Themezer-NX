@@ -38,7 +38,7 @@ void noteQueued();
 void moved(const std::vector<std::pair<std::string, std::string>>& moves);
 
 // Takes the part's theme out, as NXThemes Installer's uninstall does: its files go, and Nintendo's show after a
-// restart. False when a file couldn't be deleted.
-bool uninstall(int slot);
+// restart. A failure carries the path that could not be deleted.
+std::expected<void, themezer::Error> uninstall(int slot);
 
 } // namespace tz::installed

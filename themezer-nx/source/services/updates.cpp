@@ -1,5 +1,6 @@
 #include "services/updates.hpp"
 
+#include "sys/log.hpp"
 #include "core/version.hpp"
 #include "domain/installs.hpp"
 #include "libs/cJSON.h"
@@ -28,7 +29,7 @@ std::optional<Release> latest(const char* repository)
         net::get(std::string("https://api.github.com/repos/") + repository + "/releases/latest", nullptr, nullptr, 15);
     if (!response.ok())
     {
-        std::printf("Updates: %s couldn't be checked (%s, HTTP %ld)\n", repository, response.error.c_str(),
+        log::warn("Updates: %s couldn't be checked (%s, HTTP %ld)", repository, response.error.c_str(),
                     response.status);
         return std::nullopt;
     }
@@ -36,7 +37,10 @@ std::optional<Release> latest(const char* repository)
         cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()), cJSON_Delete);
     const cJSON* tag = cJSON_GetObjectItemCaseSensitive(root.get(), "tag_name");
     if (!cJSON_IsString(tag))
+    {
+        log::warn("Updates: invalid release data from %s", repository);
         return std::nullopt;
+    }
     const cJSON* asset = nullptr;
     cJSON_ArrayForEach(asset, cJSON_GetObjectItemCaseSensitive(root.get(), "assets"))
     {
@@ -64,7 +68,7 @@ void check(std::function<void()> found)
         if (auto app = latest("ThemezerNX/Themezer-NX"))
         {
             app->current = APP_VERSION;
-            std::printf("Updates: Themezer-NX %s, the latest %s\n", APP_VERSION, app->version.c_str());
+            log::info("Updates: Themezer-NX %s, the latest %s", APP_VERSION, app->version.c_str());
             if (version::newer(app->version, app->current))
                 newer[0] = std::move(app);
         }
@@ -75,7 +79,7 @@ void check(std::function<void()> found)
             if (auto latestInstaller = !current.empty() ? latest("exelix11/SwitchThemeInjector") : std::nullopt)
             {
                 latestInstaller->current = current;
-                std::printf("Updates: NXThemes Installer %s, the latest %s\n", current.c_str(),
+                log::info("Updates: NXThemes Installer %s, the latest %s", current.c_str(),
                             latestInstaller->version.c_str());
                 if (version::newer(latestInstaller->version, current))
                     newer[1] = std::move(latestInstaller);
@@ -105,7 +109,7 @@ void done(Program program)
     releases[static_cast<size_t>(program)].reset();
 }
 
-bool replace(const std::string& staged, const std::string& path)
+std::expected<void, themezer::Error> replace(const std::string& staged, const std::string& path)
 {
     // the old one aside first, to come back when the new one can't go in: FAT can't rename over a file
     const std::string old = path + ".old";
@@ -113,18 +117,20 @@ bool replace(const std::string& staged, const std::string& path)
     const bool hadOld = access(path.c_str(), F_OK) == 0;
     if (hadOld && rename(path.c_str(), old.c_str()) != 0)
     {
+        auto error = themezer::storageError(path);
         unlink(staged.c_str());
-        return false;
+        return std::unexpected(error);
     }
     if (rename(staged.c_str(), path.c_str()) != 0)
     {
+        auto error = themezer::storageError(path);
         if (hadOld)
             rename(old.c_str(), path.c_str());
         unlink(staged.c_str());
-        return false;
+        return std::unexpected(error);
     }
     unlink(old.c_str());
-    return true;
+    return {};
 }
 
 } // namespace tz::updates

@@ -1,5 +1,6 @@
 #include "sys/audio.hpp"
 
+#include "sys/log.hpp"
 #include <SDL2/SDL.h>
 #include <switch.h>
 
@@ -78,7 +79,7 @@ Clip load(const char* path)
     Uint32 length = 0;
     if (!SDL_LoadWAV(path, &wav, &buffer, &length))
     {
-        std::printf("Loading %s failed: %s\n", path, SDL_GetError());
+        log::info("Loading %s failed: %s", path, SDL_GetError());
         return {};
     }
     SDL_AudioCVT cvt;
@@ -117,7 +118,7 @@ bool audio::init()
     device = SDL_OpenAudioDevice(nullptr, 0, &want, &spec, 0);
     if (!device)
     {
-        std::printf("Opening audio failed: %s\n", SDL_GetError());
+        log::info("Opening audio failed: %s", SDL_GetError());
         return false;
     }
     for (size_t i = 0; i < std::size(kSoundNames); ++i)
@@ -173,11 +174,11 @@ void audio::quietHome()
     constexpr uint64_t kFade = 200'000'000;
     if (R_FAILED(appletChangeMainAppletMasterVolume(0.0f, kFade)))
     {
-        std::printf("HOME's sound: unchanged, its volume couldn't be set\n");
+        log::info("HOME's sound: unchanged, its volume couldn't be set");
         return;
     }
     homeFade = kFade;
-    std::printf("HOME's sound: off, back to full on the way out\n");
+    log::info("HOME's sound: off, back to full on the way out");
 }
 
 void audio::restoreHome()

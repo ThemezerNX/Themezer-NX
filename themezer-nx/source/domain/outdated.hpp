@@ -6,6 +6,7 @@
 // ("Themezer:<ID>:<ms>"), else when the file last changed on the SD card.
 
 #pragma once
+#include <functional>
 
 #include <cstddef>
 #include <cstdint>
@@ -72,7 +73,7 @@ bool samePath(const std::string& a, const std::string& b);
 // ASCII (the same size and time as the new file). Those taken, and those that are the new file, go in replaced: where
 // they were is where the new file is now. False, and the old copies left, when put didn't work.
 bool replace(const std::string& staged, const std::string& path, const std::vector<std::string>& others,
-             std::vector<std::string>& replaced, bool (*put)(const std::string&, const std::string&));
+             std::vector<std::string>& replaced, std::function<bool(const std::string&, const std::string&)> put);
 
 // Where a path is after from became to: itself when it's from, under from + "/" when it's in it, else as it was.
 std::string followed(const std::string& path, const std::string& from, const std::string& to);

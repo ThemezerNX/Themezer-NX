@@ -1,5 +1,6 @@
 #include "sys/net.hpp"
 
+#include "sys/log.hpp"
 #include <curl/curl.h>
 #include <strings.h>
 #include <switch.h>
@@ -103,7 +104,7 @@ bool init()
     res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
     if (res != CURLSHE_OK)
     {
-        std::printf("curl share setup failed: %d\n", res);
+        log::warn("curl share setup failed: %d", res);
         curl_share_cleanup(share);
         share = nullptr;
     }
@@ -122,8 +123,8 @@ bool Response::cancelled() const
     return curlCode == CURLE_ABORTED_BY_CALLBACK;
 }
 
-Response get(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds,
-             const char* sentHeader)
+static Response request(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds,
+                        const char* sentHeader, const std::string* body = nullptr)
 {
     Response response;
     if (!threadEasy)
@@ -162,6 +163,12 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
     if (headers)
         curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
 
+    if (body)
+    {
+        curl_easy_setopt(easy, CURLOPT_POST, 1L);
+        curl_easy_setopt(easy, CURLOPT_POSTFIELDS, body->data());
+        curl_easy_setopt(easy, CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(body->size()));
+    }
     response.curlCode = curl_easy_perform(easy);
     curl_slist_free_all(headers); // the next request's reset lets go of the handle's pointer to it
     curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &response.status);
@@ -173,11 +180,32 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
     long connects = -1;
     curl_easy_getinfo(easy, CURLINFO_NUM_CONNECTS, &connects);
     char line[160];
-    std::snprintf(line, sizeof(line), "GET %.80s: %d, HTTP %ld, %zu bytes, %ld new connections\n", url.c_str(),
-                  response.curlCode, response.status, response.body.size(), connects);
-    // stdio only on the main thread
-    jobs::post([text = std::string(line)] { std::fputs(text.c_str(), stdout); });
+    std::snprintf(line, sizeof(line), "%s %.80s: %d, HTTP %ld, %zu bytes, %ld new connections", body ? "POST" : "GET",
+                  url.c_str(), response.curlCode, response.status, response.body.size(), connects);
+    // Workers can log directly; they finish before stdout closes.
+    log::info("%s", line);
     return response;
+}
+
+Response get(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds,
+             const char* sentHeader)
+{
+#ifdef TZ_DESKTOP
+    if (themezerDesktopOffline())
+    {
+        Response response;
+        response.curlCode = CURLE_COULDNT_CONNECT;
+        response.error = "Desktop offline test";
+        return response;
+    }
+#endif
+    return request(url, token, progress, timeoutSeconds, sentHeader);
+}
+
+Response post(const std::string& url, const std::string& body, const char* contentType)
+{
+    const std::string header = std::string("Content-Type: ") + contentType;
+    return request(url, nullptr, nullptr, 30, header.c_str(), &body);
 }
 
 void release()

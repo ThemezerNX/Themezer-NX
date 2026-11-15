@@ -56,7 +56,7 @@ constexpr size_t kMaxArgs = 2047;
 bool installerTakes(const std::string& path);
 // What NXThemes Installer is given for a slot: its file, or for one it can't take, a copy in /switch/.themezer-nx.
 std::string pathForInstaller(int slot);
-// On the way out: those copies made; a slot whose copy can't be made is taken out of the queue. Blocks.
-void copyForInstaller();
+// Before leaving: make those copies, or keep the queue and report the first failure. Blocks.
+std::expected<void, themezer::Error> copyForInstaller();
 
 } // namespace tz::installs

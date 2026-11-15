@@ -1,5 +1,6 @@
 #include "services/themezer.hpp"
 
+#include "sys/log.hpp"
 #include "domain/names.hpp"
 #include "libs/cJSON.h"
 
@@ -203,10 +204,31 @@ std::string apiError(const cJSON* root)
     return {};
 }
 
+std::string apiErrorDetail(const cJSON* root)
+{
+    std::string detail;
+    const cJSON* error = nullptr;
+    cJSON_ArrayForEach(error, get(root, "errors"))
+    {
+        const std::string id = string(get(error, "extensions"), "errorId");
+        if (!id.empty())
+            detail += (detail.empty() ? "" : ", ") + id;
+    }
+    return detail;
+}
+
+// An answer the app can't read: its own bug or Themezer's, so worth a report.
+Error wrongAnswer()
+{
+    return Error{"Themezer's answer wasn't what the app expected. Try again later.", {}, ErrorKind::InvalidData};
+}
+
 Error connectionError(const net::Response& response)
 {
-    Error error;
-    error.cancelled = response.cancelled();
+    Error error{{}, {}, ErrorKind::Server};
+    error.kind = response.cancelled() ? ErrorKind::Cancelled
+                 : response.curlCode  ? ErrorKind::Network
+                                      : ErrorKind::Server;
     if (response.curlCode != 0)
     {
         error.message = "Couldn't reach Themezer. Check the console's internet connection and try again.";
@@ -236,9 +258,13 @@ std::expected<Json, Error> request(const char* query, const std::string& variabl
         return std::unexpected(connectionError(response));
     Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));
     if (!root)
-        return std::unexpected(connectionError(response));
+        return std::unexpected(response.ok() ? wrongAnswer() : connectionError(response));
     if (std::string message = apiError(root.get()); !message.empty())
-        return std::unexpected(Error{std::move(message), {}, false, false, true});
+    {
+        const std::string detail = apiErrorDetail(root.get());
+        log::error("API: %s (%s)", message.c_str(), detail.c_str());
+        return std::unexpected(Error{std::move(message), detail, ErrorKind::Api});
+    }
     if (!response.ok())
         return std::unexpected(connectionError(response));
     return root;
@@ -310,7 +336,7 @@ std::expected<Page, Error> fetchPage(const Query& query, const CancelToken& toke
     const cJSON* list = get(get(get(root->get(), "data"), "switch"), field);
     const cJSON* info = get(list, "pageInfo");
     if (!cJSON_IsObject(list) || !cJSON_IsObject(info))
-        return std::unexpected(Error{"Themezer's answer wasn't what the app expected. Try again later.", {}, false, false});
+        return std::unexpected(wrongAnswer());
 
     Page page;
     page.page = number(info, "page");
@@ -333,32 +359,33 @@ std::expected<Item, Error> lookupQuickId(const std::string& quickId, const Cance
 {
     auto root = request(kLookupQuery, "{\"quickId\":" + escapeJson(quickId) + "}", token);
     // the API answers a Quick ID it can't read with an error of its own
-    if (!root && root.error().fromApi)
+    if (!root && root.error().kind == themezer::ErrorKind::Api)
         return std::unexpected(Error{"Nothing has the Quick ID " + quickId + ". Check it on themezer.net.",
-                                     root.error().message, false, true});
+                                     root.error().message + " " + root.error().detail, ErrorKind::NotFound});
     if (!root)
         return std::unexpected(root.error());
     const cJSON* found = get(get(get(root->get(), "data"), "switch"), "lookupByQuickId");
     if (!cJSON_IsObject(found))
-        return std::unexpected(Error{"Nothing has the Quick ID " + quickId + ". Check it on themezer.net.", {}, false, true});
+        return std::unexpected(
+            Error{"Nothing has the Quick ID " + quickId + ". Check it on themezer.net.", {}, ErrorKind::NotFound});
     if (auto item = parseNode(found))
         return *item;
     const std::string type = string(found, "__typename");
     if (type == "SwitchRemoteInstallTheme" || type == "SwitchRemoteInstallSplash")
         return parseRemote(found, type == "SwitchRemoteInstallSplash");
-    return std::unexpected(Error{"This Quick ID is for something the Switch app can't install.", type, false, true});
+    return std::unexpected(
+        Error{"This Quick ID is for something the Switch app can't install.", type, ErrorKind::Unsupported});
 }
 
 std::expected<std::vector<Newer>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
                                                       const CancelToken& token)
 {
     std::vector<Newer> newer;
-    const Error wrongAnswer{"Themezer's answer wasn't what the app expected. Try again later.", {}, false, false};
     const std::vector<std::string> requests = outdated::fields(queries);
     for (size_t n = 0; n < requests.size(); ++n)
     {
         if (token.cancelled())
-            return std::unexpected(Error{{}, {}, true});
+            return std::unexpected(Error{{}, {}, themezer::ErrorKind::Cancelled});
         const std::string query = "query CheckUpdates{switch{" + requests[n] + "}} " + kCheckUpdatesFragment;
         auto root = request(query.c_str(), "{}", token);
         if (!root)
@@ -369,7 +396,7 @@ std::expected<std::vector<Newer>, Error> checkUpdates(const std::vector<outdated
         {
             const cJSON* list = get(fields, ("a" + std::to_string(i)).c_str());
             if (!cJSON_IsArray(list))
-                return std::unexpected(wrongAnswer);
+                return std::unexpected(wrongAnswer());
             const cJSON* node = nullptr;
             cJSON_ArrayForEach(node, list)
             {
@@ -394,22 +421,29 @@ std::optional<Error> downloadError(const net::Response& response)
     Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));
     std::string message = root ? apiError(root.get()) : std::string();
     if (!message.empty())
-        return Error{std::move(message), {}, false, false};
-    return connectionError(response);
+    {
+        const std::string detail = apiErrorDetail(root.get());
+        log::error("API: %s (%s)", message.c_str(), detail.c_str());
+        return Error{std::move(message), detail, ErrorKind::Api};
+    }
+    return response.ok() ? wrongAnswer() : connectionError(response);
 }
 
 std::expected<void, Error> save(const net::Response& response, const std::string& path)
 {
     if (!makeFolders(path))
-        return std::unexpected(Error{"Couldn't make a folder for it on the SD card.", path, false, false});
+        return std::unexpected(storageError(path));
     FILE* file = std::fopen(path.c_str(), "wb");
     if (!file)
-        return std::unexpected(Error{"Couldn't write it to the SD card.", path, false, false});
+        return std::unexpected(storageError(path));
     const size_t written = std::fwrite(response.body.data(), 1, response.body.size(), file);
-    if (std::fclose(file) != 0 || written != response.body.size())
+    const int writeError = errno;
+    const int closed = std::fclose(file);
+    const int failure = written != response.body.size() ? writeError : errno;
+    if (closed != 0 || written != response.body.size())
     {
         unlink(path.c_str());
-        return std::unexpected(Error{"Couldn't write it to the SD card. Is it full?", path, false, false});
+        return std::unexpected(storageError(path, failure));
     }
     return {};
 }

@@ -47,7 +47,7 @@ public:
     // Asks for an entry's info.json, read on a worker. Main thread.
     void wantInfo(size_t index);
     // Takes an entry off the SD card. False when it couldn't be deleted.
-    bool remove(size_t index);
+    std::expected<void, themezer::Error> remove(size_t index);
     // The entry at path, or nullptr.
     const library::Entry* find(const std::string& path) const;
 
@@ -61,7 +61,7 @@ public:
     // The theme that shows for a pack: its Home Menu's, else its first.
     const library::Entry* cover(const Pack& pack) const;
     // Takes a pack's themes off the SD card, and its folder when nothing else is in it. False when one couldn't be.
-    bool removePack(std::string dir);
+    std::expected<void, themezer::Error> removePack(std::string dir);
 
     // Whether a Themezer item is on the SD card: a theme or a splash by its ID, a pack when all its themes are.
     bool has(const themezer::Item& item) const;

@@ -186,3 +186,20 @@ Result envSetNextLoad(const char* path, const char* argv);
 #ifdef __cplusplus
 }
 #endif
+
+struct SetSysFirmwareVersion { char display_version[24] = "21.0.0"; };
+inline Result setsysInitialize() { return 0; }
+inline Result setsysGetFirmwareVersion(SetSysFirmwareVersion*) { return 0; }
+inline void setsysExit() {}
+enum SplConfigItem { SplConfigItem_Desktop = 65000 };
+inline Result splInitialize() { return 0; }
+// Atmosphère 1.10.0
+inline Result splGetConfig(SplConfigItem, u64* value)
+{
+    *value = (u64(1) << 56) | (u64(10) << 48);
+    return 0;
+}
+inline void splExit() {}
+
+bool themezerDesktopOffline();
+const char* themezerDesktopReportUrl();

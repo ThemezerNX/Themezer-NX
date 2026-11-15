@@ -1,5 +1,6 @@
 #include "app/app.hpp"
 
+#include "sys/log.hpp"
 #include "domain/installs.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
@@ -96,15 +97,17 @@ int App::run(const char* self)
     const int nxlink = nxlinkStdio();
     // nothing held back, so a crash doesn't lose the last lines
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    std::printf("Themezer-NX " APP_VERSION " starting\n");
+    log::init();
+    log::info("Themezer-NX " APP_VERSION " starting");
     nifmInitialize(NifmServiceType_User);
     psmInitialize();
     // the first at once, for the top bar's first frame
     status_ = readStatus();
     if (!gfx::init() || !gfx::initText())
     {
-        std::printf("Couldn't start the screen: %s\n", SDL_GetError());
+        log::error("Couldn't start the screen: %s", SDL_GetError());
         gfx::exit();
+        log::exit();
         return 1;
     }
     gfx::loadIcons();
@@ -146,12 +149,12 @@ int App::run(const char* self)
             parts += (parts.empty() ? "" : ", ") + installs::slotLabel(slot) +
                      (part.name.empty() ? "" : " (" + part.name + ")");
     }
-    std::printf("Installed: %s\n", parts.empty() ? "nothing" : parts.c_str());
+    log::info("Installed: %s", parts.empty() ? "nothing" : parts.c_str());
     // once the SD card is read, which of it Themezer has newer: said in a toast, the rest is in the updates
     local::Library::get().rescan([] {
         itemupdates::check([](const std::expected<size_t, themezer::Error>& found) {
             if (!found)
-                std::printf("Item updates: %s\n", found.error().message.c_str());
+                log::warn("Item updates: %s (%s)", found.error().message.c_str(), found.error().detail.c_str());
             else if (*found > 0)
                 ui::toast(*found == 1 ? std::string("1 item on the SD card has an update")
                                       : std::to_string(*found) + " items on the SD card have updates");
@@ -188,7 +191,7 @@ int App::run(const char* self)
         const Uint64 drawn = SDL_GetPerformanceCounter();
         if (const double ms = 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
             !scenes::tookKeyboard() && static_cast<double>(drawn - start) * ms > 50)
-            std::printf("Slow frame: %.0f ms (posted work %.0f, status %.0f, scenes %.0f, pictures %.0f, draw %.0f)\n",
+            log::info("Slow frame: %.0f ms (posted work %.0f, status %.0f, scenes %.0f, pictures %.0f, draw %.0f)",
                         static_cast<double>(drawn - start) * ms, static_cast<double>(drained - start) * ms,
                         static_cast<double>(statused - drained) * ms, static_cast<double>(scened - statused) * ms,
                         static_cast<double>(updated - scened) * ms, static_cast<double>(drawn - updated) * ms);
@@ -196,9 +199,6 @@ int App::run(const char* self)
     }
 
     const char* installer = installs::installerPath();
-    // what the installer can't be given as it is, copied where it can
-    if (installer && installs::queuedCount() > 0)
-        installs::copyForInstaller();
     if (installer && installs::queuedCount() > 0)
     {
         const std::string args = installs::installerArgs(installer);
@@ -207,8 +207,9 @@ int App::run(const char* self)
         {
             // what goes in, to know at the next start what's installed
             installed::noteQueued();
-            std::printf("Starting %s\n", args.c_str());
-            envSetNextLoad(installer, args.c_str());
+            log::info("Starting %s", args.c_str());
+            if (const Result result = envSetNextLoad(installer, args.c_str()); R_FAILED(result))
+                log::error("NXThemes Installer hand-off failed: 0x%08x (%s)", result, installer);
             restartAfterUpdate_ = false;
         }
     }
@@ -234,8 +235,9 @@ int App::run(const char* self)
     romfsExit();
     // with the app's own file closed (romfs reads from it), the update can go in its place
     if (updateStaged_)
-        std::printf("Update %s\n", updates::replace(updatePath(), selfPath_) ? "in place" : "couldn't go in place");
-    std::printf("Themezer-NX done\n");
+        log::info("Update %s", updates::replace(updatePath(), selfPath_) ? "in place" : "couldn't go in place");
+    log::info("Themezer-NX done");
+    log::exit();
     // Started by nxlink, stdout and stderr are copies of its socket. They go before the sockets do: else the C
     // library's closing of stdout at exit closes a socket after socketExit, which crashed the app, and with the
     // sockets left open the bsdsocket service, taking the console with it.
