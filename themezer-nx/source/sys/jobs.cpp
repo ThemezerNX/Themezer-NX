@@ -1,6 +1,7 @@
 #include "sys/jobs.hpp"
 
 #include "sys/lock.hpp"
+#include "sys/net.hpp"
 
 #include <switch.h>
 
@@ -49,7 +50,7 @@ void worker(void* arg)
             while (!queue.stopping && queue.work.empty())
                 queue.wake.wait(queue.lock);
             if (queue.stopping)
-                return;
+                break;
             if (queue.newestFirst)
             {
                 work = std::move(queue.work.back());
@@ -63,6 +64,7 @@ void worker(void* arg)
         }
         work();
     }
+    net::release();
 }
 
 } // namespace

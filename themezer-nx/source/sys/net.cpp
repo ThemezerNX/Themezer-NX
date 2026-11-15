@@ -19,6 +19,9 @@ constexpr long kLowSpeedLimit = 1;
 constexpr long kLowSpeedTime = 30;
 
 CURLSH* share = nullptr;
+// This thread's handle, kept between requests so its connection stays open for the next one. curl doesn't support
+// sharing connections between threads, so each worker has its own and shares only DNS answers and TLS sessions.
+thread_local CURL* threadEasy = nullptr;
 Mutex shareLocks[CURL_LOCK_DATA_LAST];
 
 void lock(CURL*, curl_lock_data data, curl_lock_access, void*)
@@ -96,7 +99,6 @@ bool init()
     CURLSHcode res = CURLSHE_OK;
     res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_LOCKFUNC, lock));
     res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_UNLOCKFUNC, unlock));
-    res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT));
     res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS));
     res = static_cast<CURLSHcode>(res | curl_share_setopt(share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION));
     if (res != CURLSHE_OK)
@@ -123,12 +125,16 @@ bool Response::cancelled() const
 Response get(const std::string& url, const CancelToken* token, Progress* progress, long timeoutSeconds)
 {
     Response response;
-    CURL* easy = curl_easy_init();
+    if (!threadEasy)
+        threadEasy = curl_easy_init();
+    CURL* easy = threadEasy;
     if (!easy)
     {
         response.curlCode = CURLE_FAILED_INIT;
         return response;
     }
+    // the last request's options point into its finished stack frame; its connection stays open
+    curl_easy_reset(easy);
     char error[CURL_ERROR_SIZE] = "";
     Transfer transfer{&response, token, progress};
     curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
@@ -166,8 +172,16 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
                   response.curlCode, response.status, response.body.size(), connects);
     // stdio only on the main thread
     jobs::post([text = std::string(line)] { std::fputs(text.c_str(), stdout); });
-    curl_easy_cleanup(easy);
     return response;
+}
+
+void release()
+{
+    if (!threadEasy)
+        return;
+    curl_easy_reset(threadEasy); // nothing left pointing at a stack frame that's gone while it closes
+    curl_easy_cleanup(threadEasy);
+    threadEasy = nullptr;
 }
 
 std::string escape(std::string_view text)

@@ -1,5 +1,5 @@
-// HTTP over curl. Every handle shares one cache of connections, DNS answers and TLS sessions, so a request to a host
-// already talked to skips the connecting.
+// HTTP over curl. Each thread keeps its handle and so its connection between requests, and every handle shares DNS
+// answers and TLS sessions, so a request to a host already talked to skips most of the connecting.
 
 #pragma once
 
@@ -37,10 +37,13 @@ struct Response
     bool cancelled() const;
 };
 
-// A request on a handle of its own, which takes a connection from the shared cache when one to the host is open.
+// A request on this thread's handle, which reuses its connection when it has one open to the host.
 // Blocks: for the workers.
 Response get(const std::string& url, const CancelToken* token = nullptr, Progress* progress = nullptr,
              long timeoutSeconds = 0);
+
+// Closes this thread's handle and its connections: for a worker on its way out, before the sockets go.
+void release();
 
 std::string escape(std::string_view text);
 
