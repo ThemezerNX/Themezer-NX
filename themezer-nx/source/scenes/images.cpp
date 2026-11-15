@@ -5,8 +5,11 @@
 #include "sys/lock.hpp"
 #include "sys/net.hpp"
 
+#include <switch.h>
+
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <mutex>
 #include <vector>
 
@@ -16,8 +19,10 @@ namespace tz::scenes
 namespace
 {
 
-// pictures kept, the least recently used going first: about 120 thumbnails
+// pictures kept, the least recently used going first: about 120 thumbnails, or 40 in album mode, whose memory
+// runs out with more: an HD picture then fails to decode or to become a texture
 constexpr size_t kKeepBytes = 48 * 1024 * 1024;
+constexpr size_t kKeepBytesApplet = 16 * 1024 * 1024;
 constexpr size_t kKeepPlaceholders = 320;
 constexpr float kStillWanted = 2.5f; // seconds: a picture not looked at since is skipped when its turn comes
 // a card that's only flashing past, the grid scrolling fast, isn't worth downloading for
@@ -85,8 +90,7 @@ std::shared_ptr<gfx::Picture> Images::load(const std::string& key, std::function
             return;
         }
         SDL_Surface* surface = make();
-        const bool failed = !surface;
-        jobs::post([key, surface, failed] {
+        jobs::post([key, surface] {
             auto& images = scenes::images();
             auto it = images.pictures_.find(key);
             if (it == images.pictures_.end())
@@ -94,10 +98,15 @@ std::shared_ptr<gfx::Picture> Images::load(const std::string& key, std::function
                 SDL_FreeSurface(surface);
                 return;
             }
+            if (!surface)
+                std::printf("Picture %.80s: not downloaded or decoded\n", key.c_str());
             it->second.requested = false;
-            it->second.failed = failed;
-            it->second.failedAt = gfx::time();
             it->second.picture = gfx::Picture::fromSurface(surface);
+            // no texture is a failure too, tried again later, not downloaded again the next frame
+            if (surface && !it->second.picture)
+                std::printf("Picture %.80s: no texture\n", key.c_str());
+            it->second.failed = !it->second.picture;
+            it->second.failedAt = gfx::time();
         });
     });
     return nullptr;
@@ -154,7 +163,7 @@ void Images::tick()
             map.erase(it);
         }
     };
-    sweep(pictures_, kKeepBytes, SIZE_MAX);
+    sweep(pictures_, appletGetAppletType() == AppletType_LibraryApplet ? kKeepBytesApplet : kKeepBytes, SIZE_MAX);
     sweep(placeholders_, SIZE_MAX, kKeepPlaceholders);
 }
 
