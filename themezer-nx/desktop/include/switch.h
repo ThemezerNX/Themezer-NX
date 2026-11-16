@@ -201,8 +201,17 @@ inline Result splGetConfig(SplConfigItem, u64* value)
 }
 inline void splExit() {}
 
-bool themezerDesktopOffline();
+bool themezerDesktopOffline(const char* url);
 const char* themezerDesktopReportUrl();
 
 const char* themezerDesktopCaDate();
 int themezerDesktopTestHttps(int argc, char** argv);
+
+#define CUR_PROCESS_HANDLE 0xFFFF8001
+constexpr int InfoType_TotalMemorySize = 6;
+constexpr int InfoType_UsedMemorySize = 7;
+inline Result svcGetInfo(u64* value, int type, u32, u64)
+{
+    *value = type == InfoType_TotalMemorySize ? 512ULL * 1024 * 1024 : 120ULL * 1024 * 1024;
+    return 0;
+}

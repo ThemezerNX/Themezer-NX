@@ -89,6 +89,18 @@ int main()
     assert(tz::names::parseFolder(tz::names::packFolder("Pixel Forest", "soulsart", "1E93C"), pack));
     is(pack, "Pixel Forest", "soulsart", -1, "1E93C");
 
+    // One provenance reader, independent of case and copy suffixes; the last real tag wins.
+    const auto last = tz::names::idInFileName("Old (Themezer-TABC) by me (tHeMeZeR-tDeF) (2).nxtheme");
+    assert(last && last->id == "DEF");
+    assert(tz::names::fromThemezer("/Themes/Korn (THEMEZER-t1ed6c) (2).nxtheme"));
+    assert(tz::names::fromThemezer("Plain (themezer-1ed6c).bmp"));
+    assert(tz::names::fromThemezer("Copy by me (Home Menu-1E93D) (2).nxtheme"));
+    assert(!tz::names::fromThemezer("/Themes/(Themezer-TABC)/download.nxtheme"));
+    for (const char* name : {"Mario (2).nxtheme", "Mario (Themezer-).nxtheme", "Mario (Themezer-TG1).nxtheme",
+                             "Mario (12345).bmp", "Mario.nxtheme"})
+        assert(!tz::names::fromThemezer(name));
+    is(file("Korn by me (Home Menu) (themezer-t1ed6c) (2).nxtheme"), "Korn", "me", 0, "1ED6C");
+
     std::printf("names: all good\n");
     return 0;
 }

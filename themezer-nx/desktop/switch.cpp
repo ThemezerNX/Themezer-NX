@@ -19,7 +19,7 @@
 #include <switch.h>
 #include "sys/net.hpp"
 #include "services/themezer.hpp"
-namespace tz::scenes { void testError(bool network); }
+namespace tz::scenes { void testError(bool network); void testLocalFile(const std::string& path); void testDownload(const std::string& url); }
 #include <mbedtls/base64.h>
 
 #undef SDL_RenderPresent
@@ -93,7 +93,7 @@ void loadScript()
         words >> step.command;
         if (step.command.empty() || step.command[0] == '#')
             continue;
-        if (step.command == "type")
+        if (step.command == "type" || step.command == "local")
         {
             std::getline(words, step.argument);
             if (!step.argument.empty() && step.argument[0] == ' ')
@@ -169,6 +169,8 @@ void runScript()
             haveTyped = true;
             continue;
         }
+        if (step.command == "local") { tz::scenes::testLocalFile(step.argument); return; }
+        if (step.command == "download") { tz::scenes::testDownload(step.argument); return; }
         if (step.command == "error") { tz::scenes::testError(step.argument == "network"); return;
         }
         if (step.command == "shot")
@@ -569,7 +571,11 @@ int mbedtls_base64_decode(unsigned char* dst, size_t dlen, size_t* olen, const u
 
 } // extern "C"
 
-bool themezerDesktopOffline() { return std::getenv("THEMEZER_OFFLINE") != nullptr; }
+bool themezerDesktopOffline(const char* url)
+{
+    // Local fixtures still work while startup requests to the internet are disabled.
+    return std::getenv("THEMEZER_OFFLINE") != nullptr && !std::string_view(url).starts_with("http://127.0.0.1:");
+}
 const char* themezerDesktopReportUrl() { return std::getenv("THEMEZER_REPORT_URL"); }
 
 const char* themezerDesktopCaDate() { return std::getenv("THEMEZER_CA_DATE"); }

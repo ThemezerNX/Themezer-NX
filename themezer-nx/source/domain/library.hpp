@@ -34,6 +34,7 @@ struct Entry
     std::string layout;      // themes: the layout it's made with, from info.json
     std::string themezerId;  // the item's ID on Themezer, when the file name has it
     std::string folder;      // the folder it's in under /Themes, for a pack's themes: "Pixel Forest by soulsart"
+    std::string errorDetail; // archive or image validation failure, including the path
     bool infoRead = false;
     std::string fingerprint; // splashes: to know the one Hekate has, which is a copy
 };

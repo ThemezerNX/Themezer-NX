@@ -255,6 +255,46 @@ int main()
     assert(!readFile(std::string(path), "info.json", kMax));
     std::remove(path);
 
+    assert(readFile(text("SARC"), "x", kMax).error().find("bad SARC header") != std::string::npos);
+    assert(readFile(text("Yaz0"), "x", kMax).error().find("bad Yaz0 header") != std::string::npos);
+    const auto write = [path](const Bytes& bytes) {
+        FILE* file = std::fopen(path, "wb");
+        assert(file);
+        assert(std::fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size());
+        std::fclose(file);
+    };
+    write(text("PK incomplete"));
+    auto broken = readFile(std::string(path), "info.json", kMax);
+    assert(!broken && broken.error().find("13 bytes starting 504B2069") != std::string::npos);
+    zip(path, "info.json", info, "image.jpg", plain);
+    file = std::fopen(path, "r+b");
+    std::fseek(file, 2, SEEK_SET);
+    std::fputc(255, file);
+    std::fclose(file);
+    broken = readFile(std::string(path), "info.json", kMax);
+    assert(!broken && broken.error().find("no local header at 0") != std::string::npos);
+    assert(broken.error().find("504BFF04") != std::string::npos);
+    zip(path, "info.json", info, "image.jpg", plain);
+    file = std::fopen(path, "r+b");
+    std::fseek(file, 0, SEEK_END);
+    const long length = std::ftell(file);
+    std::rewind(file);
+    Bytes bytes(length);
+    assert(std::fread(bytes.data(), 1, bytes.size(), file) == bytes.size());
+    std::fclose(file);
+    for (size_t at = 0; at + 46 <= bytes.size(); ++at)
+    {
+        if (bytes[at] == 'P' && bytes[at+1] == 'K' && bytes[at+2] == 1 && bytes[at+3] == 2)
+        {
+            bytes[at+10] = 99;
+            break;
+        }
+    }
+    write(bytes);
+    broken = readFile(std::string(path), "info.json", kMax);
+    assert(!broken && broken.error().find("unknown zip compression method 99") != std::string::npos);
+    std::remove(path);
+
     std::printf("archive: all good\n");
     return 0;
 }

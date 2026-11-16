@@ -1,5 +1,6 @@
 #include "sys/log.hpp"
 
+#include <switch.h>
 #include <chrono>
 #include <condition_variable>
 #include <cstdarg>
@@ -52,6 +53,21 @@ void write(char level, const char* format, va_list args)
     ready.notify_one();
 }
 } // namespace
+
+Memory memory()
+{
+    u64 used = 0, total = 0;
+    svcGetInfo(&used, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
+    svcGetInfo(&total, InfoType_TotalMemorySize, CUR_PROCESS_HANDLE, 0);
+    return {used, total >= used ? total - used : 0};
+}
+
+void logMemory()
+{
+    const auto now = memory();
+    info("memory: %llu bytes used, %llu bytes available", static_cast<unsigned long long>(now.used),
+         static_cast<unsigned long long>(now.available));
+}
 
 void init()
 {

@@ -26,6 +26,7 @@ struct Progress
 
 struct Response
 {
+    bool outOfMemory = false;
     int curlCode = 0; // 0 when the request went through, whatever the status
     long status = 0;
     std::string contentType;

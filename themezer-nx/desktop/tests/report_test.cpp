@@ -14,10 +14,14 @@ int main()
     for (auto kind : {ErrorKind::Cancelled, ErrorKind::Network, ErrorKind::Tls, ErrorKind::Server, ErrorKind::Api, ErrorKind::NotFound,
                       ErrorKind::NoSpace})
         assert(!themezer::shareable(kind));
-    for (auto kind : {ErrorKind::Storage, ErrorKind::InvalidData, ErrorKind::Unsupported})
+    for (auto kind : {ErrorKind::Storage, ErrorKind::InvalidData, ErrorKind::Unsupported, ErrorKind::OutOfMemory})
         assert(themezer::shareable(kind));
     report::Report report{"4", "21.0.0", "1.10.0", ErrorKind::Storage, "quote\" slash\\\n\x01", "bad\xff", {}};
+    report.launch = "application";
+    report.memoryUsed = 123;
+    report.memoryAvailable = 456;
     auto json = report::toJson(report);
+    assert(json.find("\"launch\":\"application\",\"memory\":{\"used\":123,\"available\":456}") != std::string::npos);
     assert(json.find("quote\\u0022 slash\\u005c\\u000a\\u0001") != std::string::npos);
     assert(json.find("bad\xef\xbf\xbd") != std::string::npos);
     for (int i = 0; i < 200; ++i)

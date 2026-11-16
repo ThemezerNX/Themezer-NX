@@ -99,13 +99,14 @@ std::shared_ptr<gfx::Picture> Images::load(const std::string& key, std::function
                 SDL_FreeSurface(surface);
                 return;
             }
+            const std::string safeKey = key.substr(0, key.find_first_of("?#"));
             if (!surface)
-                log::warn("Picture %.80s: not downloaded or decoded", key.c_str());
+                log::warn("Picture %.80s: not downloaded or decoded", safeKey.c_str());
             it->second.requested = false;
             it->second.picture = gfx::Picture::fromSurface(surface);
             // no texture is a failure too, tried again later, not downloaded again the next frame
             if (surface && !it->second.picture)
-                log::warn("Picture %.80s: no texture", key.c_str());
+                log::warn("Picture %.80s: no texture", safeKey.c_str());
             it->second.failed = !it->second.picture;
             it->second.failedAt = gfx::time();
         });

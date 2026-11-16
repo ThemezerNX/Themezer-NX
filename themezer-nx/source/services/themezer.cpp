@@ -1,6 +1,7 @@
 #include "services/themezer.hpp"
 
 #include "sys/log.hpp"
+#include "sys/files.hpp"
 #include "domain/names.hpp"
 #include "libs/cJSON.h"
 
@@ -228,13 +229,15 @@ Error wrongAnswer()
 Error connectionError(const net::Response& response)
 {
     Error error{{}, {}, ErrorKind::Server};
-    error.kind = response.cancelled() ? ErrorKind::Cancelled
+    error.kind = response.outOfMemory ? ErrorKind::OutOfMemory
+                 : response.cancelled() ? ErrorKind::Cancelled
                  : response.tls()      ? ErrorKind::Tls
                  : response.curlCode  ? ErrorKind::Network
                                       : ErrorKind::Server;
     if (response.curlCode != 0)
     {
-        error.message = response.tls()
+        error.message = response.outOfMemory ? "There isn't enough memory to finish this download."
+                            : response.tls()
                             ? "Couldn't connect securely. Check the console's date and time in System Settings: a wrong "
                               "clock makes secure connections fail."
                             : "Couldn't reach Themezer. Check the console's internet connection and try again.";
@@ -442,19 +445,7 @@ std::expected<void, Error> save(const net::Response& response, const std::string
 {
     if (!makeFolders(path))
         return std::unexpected(storageError(path));
-    FILE* file = std::fopen(path.c_str(), "wb");
-    if (!file)
-        return std::unexpected(storageError(path));
-    const size_t written = std::fwrite(response.body.data(), 1, response.body.size(), file);
-    const int writeError = errno;
-    const int closed = std::fclose(file);
-    const int failure = written != response.body.size() ? writeError : errno;
-    if (closed != 0 || written != response.body.size())
-    {
-        unlink(path.c_str());
-        return std::unexpected(storageError(path, failure));
-    }
-    return {};
+    return files::write(path, response.body);
 }
 
 } // namespace

@@ -203,14 +203,24 @@ std::string cut(const char* text, size_t most)
 }
 
 // A theme's info.json parsed, for cJSON_Delete; nullptr when it can't be read.
-cJSON* parseInfo(const std::string& path)
+cJSON* parseInfo(const std::string& path, std::string* reason = nullptr)
 {
     // a few hundred bytes, as the installer writes them
     auto json = archive::readFile(path, "info.json", 1024 * 1024);
     if (!json)
+    {
+        if (reason) *reason = path + ": " + json.error();
         return nullptr;
+    }
     json->push_back('\0');
-    return cJSON_Parse(reinterpret_cast<const char*>(json->data()));
+    cJSON* root = cJSON_Parse(reinterpret_cast<const char*>(json->data()));
+    if (!cJSON_IsObject(root))
+    {
+        if (reason) *reason = path + ": invalid info.json object";
+        cJSON_Delete(root);
+        return nullptr;
+    }
+    return root;
 }
 
 } // namespace
@@ -225,9 +235,10 @@ std::vector<Entry> scan()
 bool readInfo(Entry& entry)
 {
     entry.infoRead = true;
+    entry.errorDetail.clear();
     if (entry.kind != Kind::Theme)
         return true;
-    cJSON* root = parseInfo(entry.path);
+    cJSON* root = parseInfo(entry.path, &entry.errorDetail);
     if (!root)
         return false;
     const auto text = [&](const char* name) {
@@ -239,11 +250,13 @@ bool readInfo(Entry& entry)
         entry.name = name;
     if (std::string author = text("Author"); !author.empty())
         entry.author = author;
-    if (int target = targetFromInfo(text("Target").c_str()); target >= 0)
+    const int target = targetFromInfo(text("Target").c_str());
+    if (target >= 0)
         entry.target = target;
     entry.layout = text("LayoutInfo");
+    if (target < 0) entry.errorDetail = entry.path + ": unsupported or missing Target in info.json";
     cJSON_Delete(root);
-    return true;
+    return entry.errorDetail.empty();
 }
 
 std::optional<int64_t> builtAt(const std::string& path)

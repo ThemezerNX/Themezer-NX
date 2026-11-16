@@ -15,6 +15,11 @@ void share(const themezer::Error& error)
     if (!themezer::shareable(error.kind))
         return;
     Report report{APP_VERSION, "unknown", "unknown", error.kind, error.message, error.detail, log::tail()};
+    const auto launch = appletGetAppletType();
+    report.launch = launch == AppletType_Application || launch == AppletType_SystemApplication ? "application" : "applet";
+    const auto memory = log::memory();
+    report.memoryUsed = memory.used;
+    report.memoryAvailable = memory.available;
     if (R_SUCCEEDED(setsysInitialize()))
     {
         SetSysFirmwareVersion version{};

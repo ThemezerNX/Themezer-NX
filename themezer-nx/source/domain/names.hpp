@@ -9,11 +9,20 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 
 namespace tz::names
 {
+
+struct FileId
+{
+    std::string id;
+    size_t start, end;
+};
+std::optional<FileId> idInFileName(std::string_view fileName);
+bool fromThemezer(std::string_view fileName);
 
 struct Parts
 {

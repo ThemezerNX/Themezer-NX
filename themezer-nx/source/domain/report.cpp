@@ -54,10 +54,12 @@ std::string quote(std::string_view text)
 
 std::string toJson(const Report& report)
 {
+    const std::string memory = ",\"launch\":" + quote(report.launch) + ",\"memory\":{\"used\":" +
+        std::to_string(report.memoryUsed) + ",\"available\":" + std::to_string(report.memoryAvailable) + "}";
     std::string base = "{\"version\":" + quote(report.version) + ",\"firmware\":" + quote(report.firmware) +
                        ",\"atmosphere\":" + quote(report.atmosphere) +
                        ",\"kind\":" + quote(themezer::kindName(report.kind)) + ",\"message\":" + quote(report.message) +
-                       ",\"detail\":" + quote(report.detail) + ",\"log\":[";
+                       ",\"detail\":" + quote(report.detail) + memory + ",\"log\":[";
     std::vector<std::string> lines;
     size_t size = base.size() + 2;
     for (auto it = report.log.rbegin(); it != report.log.rend(); ++it)

@@ -1,5 +1,9 @@
 #include "domain/installed.hpp"
 
+#include "sys/files.hpp"
+#include "sys/log.hpp"
+#include <cstring>
+
 #include "domain/installs.hpp"
 #include "domain/library.hpp"
 #include "domain/outdated.hpp"
@@ -139,11 +143,8 @@ void save()
     cJSON_Delete(root);
     if (!printed)
         return;
-    if (FILE* file = std::fopen(kRecord, "wb"))
-    {
-        std::fputs(printed, file);
-        std::fclose(file);
-    }
+    if (auto saved = files::write(kRecord, {reinterpret_cast<const uint8_t*>(printed), std::strlen(printed)}); !saved)
+        log::error("Installed record: %s (%s)", saved.error().message.c_str(), saved.error().detail.c_str());
     cJSON_free(printed);
 }
 

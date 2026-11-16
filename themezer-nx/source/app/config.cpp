@@ -1,5 +1,6 @@
 #include "app/config.hpp"
 #include "sys/log.hpp"
+#include "sys/files.hpp"
 
 #include "libs/cJSON.h"
 
@@ -39,16 +40,10 @@ void Config::load()
 
 void Config::save() const
 {
-    FILE* file = std::fopen(kPath, "wb");
-    if (!file)
-    {
-        log::warn("Settings: could not open %s", kPath);
-        return;
-    }
-    const int written =
-        std::fprintf(file, "{\"music\":%s,\"sfx\":%s}\n", music ? "true" : "false", sfx ? "true" : "false");
-    if (std::fclose(file) != 0 || written < 0)
-        log::error("Settings: could not save %s", kPath);
+    const std::string text = std::string("{\"music\":") + (music ? "true" : "false") +
+                             ",\"sfx\":" + (sfx ? "true" : "false") + "}\n";
+    if (auto saved = files::write(kPath, {reinterpret_cast<const uint8_t*>(text.data()), text.size()}); !saved)
+        log::error("Settings: %s (%s)", saved.error().message.c_str(), saved.error().detail.c_str());
 }
 
 } // namespace tz

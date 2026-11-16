@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <map>
 #include <memory>
+#include <new>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,7 +47,7 @@ ui::SceneStack& scenes()
     return App::get().scenes();
 }
 
-void showError(const std::string& title, const themezer::Error& error, bool warning = false)
+void showError(const std::string& title, const themezer::Error& error, bool warning = false, bool reportable = true)
 {
     if (error.kind == themezer::ErrorKind::Cancelled)
     {
@@ -55,10 +56,38 @@ void showError(const std::string& title, const themezer::Error& error, bool warn
     }
     log::error("shown: %s: %s (%s)", themezer::kindName(error.kind), error.message.c_str(), error.detail.c_str());
     std::vector<ui::DialogButton> buttons{{"OK", nullptr, false, ui::key::kA | ui::key::kB}};
-    if (themezer::shareable(error.kind))
+    if (error.kind == themezer::ErrorKind::OutOfMemory)
+        log::logMemory();
+    if (reportable && themezer::shareable(error.kind))
         buttons.insert(buttons.begin(), {"Share error", [error] { report::share(error); }, false, ui::key::kY});
     scenes().emplace<ui::Dialog>(warning ? Icon::Warning : Icon::Error, warning ? color::kWarning : color::kDanger,
                                  title, error.message, std::move(buttons));
+}
+
+bool validateLocal(library::Entry& entry)
+{
+    if (access(entry.path.c_str(), R_OK) != 0)
+    {
+        showError("Couldn't read it", themezer::storageError(entry.path));
+        return false;
+    }
+    try
+    {
+        if (library::readInfo(entry))
+            return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        showError("Couldn't install it", {"There isn't enough memory to read this file.", entry.path,
+                                          themezer::ErrorKind::OutOfMemory});
+        return false;
+    }
+    const bool fromThemezer = names::fromThemezer(entry.fileName.empty() ? entry.path : entry.fileName);
+    const std::string message = fromThemezer
+        ? "Its files are damaged or unsupported. Try downloading it again."
+        : "Its files are damaged or unsupported. It isn't from Themezer: get it again from where it came from.";
+    showError("Couldn't install it", {message, entry.errorDetail, themezer::ErrorKind::InvalidData}, false, fromThemezer);
+    return false;
 }
 
 void queueAndSay(const Item& item, const std::string& path)
@@ -580,16 +609,9 @@ void installLocal(const library::Entry& entry)
         return;
     }
     library::Entry known = entry;
-    // a theme whose file name doesn't say its part: its info.json does
-    if (known.kind == library::Kind::Theme && known.target < 0 && !known.infoRead)
-        library::readInfo(known);
-    if (known.kind == library::Kind::Theme && known.target < 0)
-    {
-        showError(
-            "Couldn't install it",
-            {"This theme doesn't say which part of the HOME Menu it's for.", {}, themezer::ErrorKind::InvalidData});
+    log::info("install: %s", known.path.c_str());
+    if (!validateLocal(known))
         return;
-    }
     queueAndSay(localItem(known), known.path);
 }
 
@@ -620,9 +642,9 @@ void installLocalPack(const std::string& dir)
     for (size_t index : found->themes)
     {
         library::Entry theme = library.entries()[index];
-        // a theme whose file name doesn't say its part: its info.json does
-        if (theme.target < 0 && !theme.infoRead)
-            library::readInfo(theme);
+        log::info("install: %s", theme.path.c_str());
+        if (!validateLocal(theme))
+            return;
         pack.themes.push_back(localItem(theme));
         paths.push_back(theme.path);
     }
@@ -1112,6 +1134,26 @@ void openMenu()
 }
 
 #ifdef TZ_DESKTOP
+void testLocalFile(const std::string& path)
+{
+    library::Entry entry;
+    entry.path = path;
+    entry.fileName = path.substr(path.rfind('/') + 1);
+    entry.name = entry.fileName;
+    if (path.ends_with(".bmp")) entry.kind = library::Kind::Splash;
+    log::info("install: %s", path.c_str());
+    if (validateLocal(entry)) queueAndSay(localItem(entry), path);
+}
+
+void testDownload(const std::string& url)
+{
+    jobs::run(jobs::Lane::Network, [url] {
+        net::Progress progress;
+        auto result = themezer::download(url, "/Themes/ThemezerNX/local-test.nxtheme", CancelToken{}, &progress);
+        jobs::post([result] { if (!result) showError("Couldn't download it", result.error()); });
+    });
+}
+
 void testError(bool network)
 {
     showError("Couldn't load the theme",

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <string>
 #include <vector>
@@ -24,6 +25,13 @@ private:
     size_t capacity_;
     std::deque<std::string> lines_;
 };
+
+struct Memory
+{
+    uint64_t used = 0, available = 0; // bytes, at the time of collection
+};
+Memory memory();
+void logMemory();
 
 void init();
 void exit();

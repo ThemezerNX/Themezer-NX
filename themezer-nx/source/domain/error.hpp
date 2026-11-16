@@ -12,12 +12,13 @@ enum class ErrorKind
     NotFound,
     NoSpace,
     Storage,
+    OutOfMemory,
     InvalidData,
     Unsupported
 };
 constexpr bool shareable(ErrorKind kind)
 {
-    return kind == ErrorKind::Storage || kind == ErrorKind::InvalidData || kind == ErrorKind::Unsupported;
+    return kind == ErrorKind::OutOfMemory || kind == ErrorKind::Storage || kind == ErrorKind::InvalidData || kind == ErrorKind::Unsupported;
 }
 
 constexpr const char* kindName(ErrorKind kind)
@@ -40,6 +41,8 @@ constexpr const char* kindName(ErrorKind kind)
         return "no space";
     case ErrorKind::Storage:
         return "storage";
+    case ErrorKind::OutOfMemory:
+        return "out of memory";
     case ErrorKind::InvalidData:
         return "invalid data";
     case ErrorKind::Unsupported:

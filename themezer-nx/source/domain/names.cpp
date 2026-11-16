@@ -103,28 +103,58 @@ int target(std::string_view label)
     return -1;
 }
 
+std::optional<FileId> idInFileName(std::string_view fileName)
+{
+    fileName = fileName.substr(fileName.find_last_of("/\\") + 1);
+    const std::string lowered = lower(fileName);
+    std::optional<FileId> found;
+    for (size_t at = lowered.find("(themezer-"); at != std::string::npos; at = lowered.find("(themezer-", at + 1))
+    {
+        const size_t end = lowered.find(')', at);
+        if (end == std::string::npos)
+            break;
+        std::string id = lowered.substr(at + 10, end - at - 10);
+        if (!id.empty() && std::string_view("tsp").find(id.front()) != std::string::npos)
+            id.erase(0, 1);
+        if (!hex(id))
+            continue;
+        std::transform(id.begin(), id.end(), id.begin(), [](unsigned char c) { return std::toupper(c); });
+        found = FileId{std::move(id), at > 0 && fileName[at - 1] == ' ' ? at - 1 : at, end + 1};
+    }
+    return found;
+}
+
+bool fromThemezer(std::string_view fileName)
+{
+    fileName = fileName.substr(fileName.find_last_of("/\\") + 1);
+    if (idInFileName(fileName))
+        return true;
+    Parts parts;
+    return (parseFile(fileName, parts) && !parts.id.empty()) ||
+           lower(fileName).find("(themezer remote install)") != std::string::npos;
+}
+
 bool parseFile(std::string_view fileName, Parts& parts)
 {
     parts = {};
     std::string_view rest = stem(fileName);
     std::string_view inside;
     size_t start = 0;
-    // Themezer's: its Quick ID last, or that it's a remote install
+    // A copy suffix is not an ID, for the older NX names either.
+    while (lastGroup(rest, inside, start) && !inside.empty() &&
+           inside.find_first_not_of("0123456789") == std::string_view::npos)
+        rest = rest.substr(0, start);
     bool themezers = false;
-    if (lastGroup(rest, inside, start))
+    if (auto id = idInFileName(rest))
     {
-        if (inside == "Themezer Remote Install")
-        {
-            themezers = true;
-            rest = rest.substr(0, start);
-        }
-        else if (inside.size() > 10 && inside.starts_with("Themezer-") &&
-                 std::string_view("TSP").find(inside[9]) != std::string_view::npos && hex(inside.substr(10)))
-        {
-            themezers = true;
-            parts.id = inside.substr(10);
-            rest = rest.substr(0, start);
-        }
+        themezers = true;
+        parts.id = id->id;
+        rest = rest.substr(0, id->start);
+    }
+    else if (lastGroup(rest, inside, start) && lower(inside) == "themezer remote install")
+    {
+        themezers = true;
+        rest = rest.substr(0, start);
     }
     // Themezer-NX's: "(Home Menu-1E93D)", "(splash-1EB6B)", "(remote-splash-<Quick ID>)"
     if (!themezers && lastGroup(rest, inside, start))

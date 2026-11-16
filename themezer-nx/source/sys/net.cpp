@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <ctime>
 #include <memory>
+#include <new>
 #include <string_view>
 
 namespace tz::net
@@ -82,7 +83,15 @@ size_t write(char* data, size_t size, size_t count, void* user)
 {
     auto* transfer = static_cast<Transfer*>(user);
     const size_t length = size * count;
-    transfer->response->body.insert(transfer->response->body.end(), data, data + length);
+    try
+    {
+        transfer->response->body.insert(transfer->response->body.end(), data, data + length);
+    }
+    catch (const std::bad_alloc&)
+    {
+        transfer->response->outOfMemory = true;
+        return 0; // exceptions must not cross curl's C callback
+    }
     return length;
 }
 
@@ -268,6 +277,9 @@ static Response request(const std::string& url, const CancelToken* token, Progre
         curl_easy_setopt(easy, CURLOPT_SSL_VERIFYHOST, 0L);
         response.curlCode = curl_easy_perform(easy);
     }
+    response.outOfMemory = response.outOfMemory || response.curlCode == CURLE_OUT_OF_MEMORY;
+    if (response.outOfMemory)
+        std::vector<uint8_t>().swap(response.body); // leave room to show the allocation failure
     curl_slist_free_all(headers); // the next request's reset lets go of the handle's pointer to it
     curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &response.status);
     char* type = nullptr;
@@ -277,12 +289,12 @@ static Response request(const std::string& url, const CancelToken* token, Progre
         response.error = error[0] ? error : curl_easy_strerror(static_cast<CURLcode>(response.curlCode));
     long connects = -1;
     curl_easy_getinfo(easy, CURLINFO_NUM_CONNECTS, &connects);
-    char line[220];
-    std::snprintf(line, sizeof(line), "%s %.80s: %d, HTTP %ld, %zu bytes, %ld new connections, verification %s",
-                  body ? "POST" : "GET", url.c_str(), response.curlCode, response.status, response.body.size(),
-                  connects, verify ? (retried ? "on, then off" : "on") : "off");
-    // Workers can log directly; they finish before stdout closes.
-    log::info("%s", line);
+    const std::string safeUrl = url.substr(0, url.find_first_of("?#"));
+    if (!progress && !body)
+        return response; // previews and API browsing need no per-request line in the report ring
+    log::info("%s %s: %d, HTTP %ld, %zu bytes, %ld new connections, verification %s",
+              body ? "POST" : "GET", safeUrl.c_str(), response.curlCode, response.status, response.body.size(),
+              connects, verify ? (retried ? "on, then off" : "on") : "off");
     return response;
 }
 
@@ -290,7 +302,7 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
              const char* sentHeader)
 {
 #ifdef TZ_DESKTOP
-    if (themezerDesktopOffline())
+    if (themezerDesktopOffline(url.c_str()))
     {
         Response response;
         response.curlCode = CURLE_COULDNT_CONNECT;

@@ -1,6 +1,7 @@
 #include "domain/installs.hpp"
 
 #include "sys/log.hpp"
+#include "services/updates.hpp"
 #include "domain/names.hpp"
 #include "domain/outdated.hpp"
 
@@ -40,11 +41,13 @@ std::expected<void, themezer::Error> copyFile(const std::string& from, const std
     FILE* in = std::fopen(from.c_str(), "rb");
     if (!in)
         return std::unexpected(themezer::storageError(from));
-    FILE* out = std::fopen(to.c_str(), "wb");
+    const std::string part = to + ".part";
+    FILE* out = std::fopen(part.c_str(), "wb");
     if (!out)
     {
         auto error = themezer::storageError(to);
         std::fclose(in);
+        unlink(part.c_str());
         return std::unexpected(error);
     }
     std::vector<char> buffer(256 * 1024);
@@ -67,10 +70,10 @@ std::expected<void, themezer::Error> copyFile(const std::string& from, const std
     }
     if (!ok)
     {
-        unlink(to.c_str());
+        unlink(part.c_str());
     return std::unexpected(themezer::storageError(to, failure));
     }
-    return {};
+    return updates::replace(part, to);
 }
 
 } // namespace
@@ -145,6 +148,7 @@ void queue(int slot, std::string path, const themezer::Item& item)
 {
     if (slot >= 0 && slot < kSlotCount)
     {
+        log::info("queue install: %s", path.c_str());
         // a file on the SD card that isn't from Themezer goes by its path (see localItem)
         const bool fromThemezer = item.id.rfind("file:", 0) != 0;
         slots[static_cast<size_t>(slot)] =

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/error.hpp"
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,8 @@ struct Report
     themezer::ErrorKind kind;
     std::string message, detail;
     std::vector<std::string> log;
+    std::string launch = "unknown";
+    uint64_t memoryUsed = 0, memoryAvailable = 0;
 };
 std::string toJson(const Report& report);
 } // namespace tz::report
