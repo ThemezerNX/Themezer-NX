@@ -907,6 +907,14 @@ void openSettings()
     };
     actions.push_back(std::move(music));
     actions.push_back(std::move(sounds));
+    ui::Action updates{box(App::get().config().updateCheck), "Check SD card for updates"};
+    updates.toggle = [box](ui::Action& action) {
+        Config& config = App::get().config();
+        config.updateCheck = !config.updateCheck;
+        config.save();
+        action.icon = box(config.updateCheck);
+    };
+    actions.push_back(std::move(updates));
     scenes().emplace<ui::ActionSheet>("Settings", std::move(actions), color::kPrimary);
 }
 

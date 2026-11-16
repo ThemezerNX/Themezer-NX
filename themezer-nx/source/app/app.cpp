@@ -156,6 +156,8 @@ int App::run(const char* self)
     log::info("Installed: %s", parts.empty() ? "nothing" : parts.c_str());
     // once the SD card is read, which of it Themezer has newer: said in a toast, the rest is in the updates
     local::Library::get().rescan([] {
+        if (!App::get().config().updateCheck)
+            return;
         itemupdates::check([](const std::expected<size_t, themezer::Error>& found) {
             if (!found)
                 log::warn("Item updates: %s (%s)", found.error().message.c_str(), found.error().detail.c_str());
