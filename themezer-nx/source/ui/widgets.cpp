@@ -14,7 +14,7 @@ using namespace gfx;
 namespace
 {
 
-// The hints are keycaps: pills on a ledge they sink into when pressed, A the widest, in the accent.
+// The hints are keycaps: pills on a ledge they sink into when pressed.
 constexpr float kHintGap = 10;
 constexpr float kHintMargin = 16;
 constexpr float kKeyHeight = 44;
@@ -57,7 +57,6 @@ float ease(float t)
 namespace
 {
 
-// What's printed on a button: its letter, or the shoulder's name.
 const char* buttonLabel(Keys key)
 {
     if (key == key::kA)
@@ -84,7 +83,6 @@ bool isShoulder(Keys key)
     return key == key::kL || key == key::kR || key == key::kZL || key == key::kZR;
 }
 
-// The button's face is in color; what's on it in a colour that stands out from that.
 Color inkOn(Color color)
 {
     const float luminance = 0.299f * red(color) + 0.587f * green(color) + 0.114f * blue(color);
@@ -107,8 +105,7 @@ float buttonWidth(Keys key, float size)
     return d;
 }
 
-// Drawn rather than taken from the Switch's font, so they look the same everywhere: the face buttons and + and - as
-// discs, the shoulders as pills, the D-pad's directions as a disc with an arrow.
+// Drawn rather than from the Switch's font, so they look the same everywhere (discs, shoulder pills, D-pad arrows).
 float drawButton(Keys key, float x, float y, float size, Color color)
 {
     const float d = diameter(size);
@@ -141,7 +138,6 @@ float drawButton(Keys key, float x, float y, float size, Color color)
         drawText(label, cx, textTop(middle, textSize), textSize, ink, Align::Center);
         return width;
     }
-    // a direction: an arrow pointing that way
     const float r = d * 0.24f;
     float dx = 0, dy = 0;
     if (key & key::kUp)
@@ -231,7 +227,6 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     rect(0, y_, metric::kWidth, height_, color::kSurfaceSolid);
     rect(0, y_, metric::kWidth, 1, mix(color::kSurfaceSolid, color::kText, 0.1f));
 
-    // in that order, right-aligned as the Switch's own hints are
     std::vector<const Hint*> order;
     for (const Hint& hint : hints)
         order.push_back(&hint);
@@ -362,7 +357,7 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
     const float middle = y + height / 2;
     roundedRect(x, y, width, height, height / 2, color::kSurface);
 
-    // the buttons that switch the tabs, at the ends: pressed, a symbol goes down as far as the keys sink, and lights up
+    // the tab-switching buttons at the ends: a pressed one's symbol sinks with the keys and lights up
     float left = x + 16;
     float right = x + width - 16;
     const float glyphTop = textTop(middle, metric::kButtonGlyph);
@@ -376,7 +371,6 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
                nextDown ? color::kText : color::kTextDim);
     right -= 12;
 
-    // each tab as wide as its name, with what's left shared out evenly
     const size_t count = tabs_.size();
     float names = 0;
     for (const Tab& tab : tabs_)
@@ -391,7 +385,6 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
         at += slotWidth;
     }
 
-    // the highlight slides to the selected tab
     const Slot& target = slots_[static_cast<size_t>(selected_)];
     if (highlightX_ < 0)
     {

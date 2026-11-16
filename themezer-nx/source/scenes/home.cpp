@@ -54,7 +54,6 @@ HomeScene::HomeScene()
         local_.push_back(std::make_unique<LibraryPage>(kind));
         online_.push_back(std::make_unique<BrowsePage>(kind));
     }
-    // the sections, as every page's top bar names them
     std::vector<ui::Tab> tabs;
     for (themezer::Kind kind : kKinds)
     {
@@ -184,7 +183,6 @@ float HomeScene::drawModeButton(float x, float y, float height)
     modeY_ = y;
     modeW_ = modeWidth();
     modeH_ = height;
-    // as the tab bar is: a pill with the key that switches it, which sinks and lights up pressed; then the mode it's in
     return drawModePill(modeCrumb(onlineMode_), x, y, modeW_, ui::key::kMinus, modePress_.down());
 }
 

@@ -14,8 +14,7 @@
 namespace tz::ui
 {
 
-// Keys on the screen (the hints, a grid's selected card) stand on a ledge this high, and sink into it while they're
-// down.
+// Keys on the screen (the hints, a grid's selected card) stand on a ledge this high and sink into it while down.
 constexpr float kKeyLip = 4;
 // A key with its face at y, round at the ends (or with corners of radius), or sunk into the ledge while down. face must
 // be opaque: the ledge is a darker copy of it underneath. Returns where the face's top is, for what's on it.
@@ -135,7 +134,7 @@ private:
     bool forward_ = true;
     KeyPress previousPress_;
     KeyPress nextPress_;
-    float highlightX_ = -1; // the highlight slides to the selected tab
+    float highlightX_ = -1;
     float highlightWidth_ = 0;
 };
 

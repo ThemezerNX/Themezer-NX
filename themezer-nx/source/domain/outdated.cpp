@@ -61,6 +61,15 @@ std::optional<int64_t> millisOfId(std::string_view id)
     return millis;
 }
 
+std::string idOfId(std::string_view id)
+{
+    if (!millisOfId(id))
+        return {};
+    const std::string_view prefix = "Themezer:";
+    const std::string_view inside = id.substr(prefix.size(), id.rfind(':') - prefix.size());
+    return names::hex(inside) ? canonical(inside) : std::string();
+}
+
 std::optional<int64_t> versionOf(std::optional<int64_t> idMillis, int64_t modifiedSeconds)
 {
     if (idMillis)

@@ -2,13 +2,10 @@
 //
 //     THEMEZER_SCRIPT=script.txt THEMEZER_SHOTS=out ./themezer-nx-desktop
 //
-// --test-https <urls...> checks read-only requests without opening the UI; THEMEZER_CA_DATE="Jan 1 2020"
-// exercises the abandoned-build fallback (desktop only). The CA path uses the existing romfs: symlink.
-//
-// SDL_VIDEODRIVER=dummy runs it without a window; THEMEZER_SD=folder puts the SD card's /Themes, /switch, /atmosphere
-// and /bootloader there
-// (an empty NXThemesInstaller.nro in folder/switch lets installing be tried); THEMEZER_EXIT_AFTER_SCRIPT=1 quits when
-// the script ends.
+// --test-https <urls...> checks read-only requests without the UI; THEMEZER_CA_DATE="Jan 1 2020" exercises the
+// abandoned-build certificate fallback (desktop only). SDL_VIDEODRIVER=dummy runs without a window; THEMEZER_SD=folder holds
+// the SD card's /Themes, /switch, /atmosphere and /bootloader (an empty folder/switch/NXThemesInstaller.nro lets installing
+// be tried); THEMEZER_EXIT_AFTER_SCRIPT=1 quits when the script ends.
 //
 // A script has a command a line: "wait <frames>", "press <key>", "hold <key> <frames>", "tap <x> <y>",
 // "error storage|network" opens a test error dialog.
@@ -271,9 +268,8 @@ int desktopRename(const char* from, const char* to)
 namespace
 {
 
-// How long each frame's work took (from the end of the last frame's wait to its present, not counting a screenshot's
-// saving or the present itself), said at the end: the spikes are the main thread stopping, which the Switch, some times
-// slower, shows as a stutter.
+// How long each frame's work took (end of the last frame's wait to its present, excluding screenshot saving), said at the
+// end: spikes are main-thread stalls, which show as stutter on the slower Switch.
 struct FrameTimes
 {
     std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();

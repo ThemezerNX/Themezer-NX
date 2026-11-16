@@ -128,7 +128,6 @@ float drawModePill(const ui::Crumb& mode, float x, float y, float width, ui::Key
 
 float drawSectionPill(const ui::Crumb& section, float x, float y)
 {
-    // the tab bar with only the selected tab: its highlight inside the bar's pill
     const float inner = std::round(16 + metric::kIcon + 10 + textWidth(section.text, metric::kTextNormal) + 16);
     const float width = inner + 12;
     const float middle = y + kPillHeight / 2;
@@ -162,7 +161,6 @@ void drawTrail(const std::vector<ui::Crumb>& trail, float x, float right)
         const float start = x;
         if (crumb.kind == ui::Crumb::Kind::Mode)
         {
-            // with its key, as on the home screen: - goes there
             x = drawModePill(crumb, x, y, 0, ui::key::kMinus, minusDown) + 12;
             modeSpot = {start, y, x - 12 - start, kPillHeight};
         }
@@ -252,7 +250,6 @@ float drawTopBar(float alpha, const std::vector<ui::Crumb>& trail)
     const float iconTop = std::round(middle - metric::kIcon / 2);
     float x = metric::kWidth - 32;
 
-    // the battery: Lucide's outline, filled to the charge level, and the percentage
     char percent[8];
     std::snprintf(percent, sizeof(percent), "%d%%", status.battery);
     x -= textWidth(percent, metric::kTextSmall);
@@ -265,8 +262,7 @@ float drawTopBar(float alpha, const std::vector<ui::Crumb>& trail)
     else
     {
         icon(Icon::Battery, x, iconTop, metric::kIcon, color::kText);
-        // the outline is 16 by 12 at (2, 6) of its 24-unit grid with a stroke of 2: inside, from (3, 7) to (17, 17);
-        // the fill keeps 1.5 from it all round, on whole pixels
+        // the fill keeps 1.5 inside Lucide's 24-unit-grid outline, on whole pixels
         const float unit = metric::kIcon / 24.0f;
         const float level = std::clamp(status.battery / 100.0f, 0.0f, 1.0f);
         const float left = std::round(x + 4.5f * unit);
@@ -517,7 +513,6 @@ void overlay(const std::string& text, Badge which, float x, float y, float w, fl
 
 void highlight(float x, float y, float w, float h, bool down, Accent accent)
 {
-    // a little bigger than the card, so the ring is round it
     const float top = ui::drawKey(x - 6, y - 6, w + 12, h + 12, color::kSurfaceRaised, down, metric::kRadius + 6);
     roundedOutline(x - 6, top, w + 12, h + 12, metric::kRadius + 6, 4, accent.solid);
 }

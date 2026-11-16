@@ -1,6 +1,5 @@
-// The SD card's themes and splashes, and the packs their folders make, as the last scan found them, kept in memory
-// only: scanned on a worker at the start and when something's downloaded or deleted, their info.json read as they're
-// looked at.
+// The SD card's themes and splashes, and the packs their folders make, as the last scan found them (memory only): scanned
+// on a worker at the start and after a download or delete; an entry's info.json is read when it is looked at.
 
 #pragma once
 
@@ -23,6 +22,7 @@ struct Pack
     std::string name;
     std::string author;
     std::string themezerId;     // from the folder's name, when Themezer-NX made it
+    bool v3Name = false;        // named as Themezer-NX 3 named it (see names::Parts)
     std::vector<size_t> themes; // indexes into Library::entries()
     uint64_t size = 0;
     int64_t modified = 0; // its newest theme's

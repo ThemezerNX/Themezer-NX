@@ -192,7 +192,6 @@ std::optional<Item> parseNode(const cJSON* node)
     return std::nullopt;
 }
 
-// The API's own words for what went wrong, when it says.
 std::string apiError(const cJSON* root)
 {
     if (const cJSON* message = get(root, "message"); cJSON_IsNumber(get(root, "statusCode")) && cJSON_IsString(message))
@@ -466,8 +465,9 @@ std::expected<std::string, Error> downloadInto(const std::string& url, const std
     const net::Response response = net::get(url, &token, progress);
     if (auto error = downloadError(response))
         return std::unexpected(std::move(*error));
-    // the name Themezer gives it, as on its website; the one made here when it gives none, or one of another kind
-    std::string name = names::fromDisposition(response.contentDisposition);
+    // the name Themezer gives it, as on its website (without an ID's letter); the one made here when it gives none, or
+    // one of another kind
+    std::string name = names::plainId(names::fromDisposition(response.contentDisposition));
     const std::string extension = fallback.substr(fallback.rfind('.'));
     if (name.size() <= extension.size() || !name.ends_with(extension))
         name = fallback;

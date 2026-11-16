@@ -105,6 +105,7 @@ void Library::index()
                 pack.name = parts.name;
                 pack.author = parts.author;
                 pack.themezerId = parts.id;
+                pack.v3Name = parts.v3Name;
             }
             else
             {

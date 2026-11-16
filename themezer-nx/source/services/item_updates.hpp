@@ -1,6 +1,5 @@
 // The Themezer items on the SD card that Themezer has newer versions of: found once at the start of a run and when asked,
 // kept for the user to update, and planned for the update: what to download, and which files it takes the place of.
-// How old each file is comes from the file alone (see outdated), so nothing is recorded between runs.
 
 #pragma once
 
@@ -25,7 +24,7 @@ void cancel();
 // The newer items, packs first. Their themes, for a pack, are all those Themezer lists.
 const std::vector<themezer::Item>& found();
 // The newer item an ID on the SD card is, or nullptr: by its ID, or an old one Themezer-NX 3 named it with, the case
-// not mattering. For marking items as they are drawn.
+// not mattering.
 const themezer::Item* find(themezer::Kind kind, const std::string& id);
 // Whether an ID on the SD card is this item's, its ID or an old one.
 bool same(const std::string& id, const themezer::Item& item);
@@ -44,7 +43,6 @@ struct Step
     std::vector<std::string> others; // every copy of it on the SD card now, which the new file takes the place of
 };
 
-// What it takes to update one item.
 struct Plan
 {
     std::string key;

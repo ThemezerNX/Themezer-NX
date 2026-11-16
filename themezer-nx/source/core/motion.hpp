@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Themezer-3DS contributors
 
 // The physics of scrolling past an end: a drag that gives less the further it goes, a spring back, and flings that
-// bounce off an end. The lists, the badge preview and the About page share them, so they all feel the same.
+// bounce off an end. Lists, the badge preview and the About page share them so they feel the same.
 
 #pragma once
 
@@ -12,8 +12,8 @@
 namespace tz::motion
 {
 
-// How much of a finger's movement moves a list that's already over past its end: 0.55 at the end, less the further
-// it's gone, as on iOS, so that however far the finger goes the list goes less than room past the end.
+// Fraction of a finger's movement that moves a list already past its end: 0.55 at the end, less further out (as on iOS),
+// so the overscroll stays under room.
 inline float rubberGive(float over, float room)
 {
     // the slope of iOS's room * (1 - 1 / (1 + 0.55 * finger / room)), at the distance the list has gone
@@ -34,11 +34,11 @@ inline void springStep(float& over, float& velocity, float omega, float dt)
 
 // How fast a scroll comes back from past an end (the spring's angular frequency).
 constexpr float kSpring = 18.0f;
-// A fling meets an end at most this fast, so that it bounces off by 30 pixels or so, however hard it was flung.
+// A fling meets an end at most this fast, so it bounces ~30 pixels however hard it was flung.
 constexpr float kBounceSpeed = 1400.0f;
 
-// One frame of a scroll no finger holds, that rests between low and high: past them, the spring back; between them, a
-// fling slowing down by friction, which meets the spring at an end it reaches. velocity is 0 once it's at rest.
+// One frame of a scroll no finger holds, resting within [low, high]: past them, the spring back; between them, a fling
+// slowing by friction that meets the spring at an end. velocity is 0 once at rest.
 inline void coast(float& position, float& velocity, float low, float high, float friction, float dt)
 {
     const float rest = std::clamp(position, low, high);
@@ -56,7 +56,6 @@ inline void coast(float& position, float& velocity, float low, float high, float
     const float end = std::clamp(next, low, high);
     if (end != next)
     {
-        // the rest of the frame past the end, on the spring
         float past = 0;
         velocity = std::clamp(velocity, -kBounceSpeed, kBounceSpeed);
         springStep(past, velocity, kSpring, dt * (next - end) / (next - position));

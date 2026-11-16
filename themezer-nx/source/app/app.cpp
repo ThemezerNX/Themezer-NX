@@ -10,6 +10,7 @@
 #include "scenes/home.hpp"
 #include "services/item_updates.hpp"
 #include "services/local.hpp"
+#include "services/migrate.hpp"
 #include "services/updates.hpp"
 #include "scenes/images.hpp"
 #include "sys/audio.hpp"
@@ -73,7 +74,7 @@ App::Status readStatus()
 
 void App::updateStatus(float dt)
 {
-    // each second, on a worker: on the main thread the calls were a stutter (28 ms logged on the Switch)
+    // once a second, on a worker: on the main thread the calls stuttered (28 ms logged on the Switch)
     statusAge_ += dt;
     if (statusAge_ < 1 || statusReading_)
         return;
@@ -95,15 +96,13 @@ int App::run(const char* self)
     selfPath_ = self && std::strncmp(self, "sdmc:/", 6) == 0 ? std::string(self + 5) : "/switch/themezer-nx.nro";
     romfsInit();
     socketInitializeDefault();
-    // started by nxlink: the logs go back to it
     const int nxlink = nxlinkStdio();
-    // nothing held back, so a crash doesn't lose the last lines
+    // unbuffered, so a crash keeps the last lines
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     log::init();
     log::info("Themezer-NX " APP_VERSION " starting");
     nifmInitialize(NifmServiceType_User);
     psmInitialize();
-    // the first at once, for the top bar's first frame
     status_ = readStatus();
     if (!gfx::init() || !gfx::initText())
     {
@@ -129,7 +128,7 @@ int App::run(const char* self)
     applyConfig();
     net::init();
     jobs::init();
-    // an update left from a run that didn't get to close, and what's newer now
+    // drop a staged update left by an unclean exit, then check for newer releases
     unlink(updatePath().c_str());
     updates::check([] {
         const updates::Release* app = updates::available(updates::Program::App);
@@ -141,30 +140,36 @@ int App::run(const char* self)
 
     ui::InputReader reader;
     reader.init();
-    // what's installed, and what's on the SD card (on a worker), as the files are now
     installed::refresh();
-    // which parts have the installer's files, for nxlink's log
     std::string parts;
     for (int slot = 0; slot < installs::kSlotCount; ++slot)
     {
-        // and what's in it, when the app installed it
         const installed::Part& part = installed::part(slot);
         if (part.custom)
             parts += (parts.empty() ? "" : ", ") + installs::slotLabel(slot) +
                      (part.name.empty() ? "" : " (" + part.name + ")");
     }
     log::info("Installed: %s", parts.empty() ? "nothing" : parts.c_str());
-    // once the SD card is read, which of it Themezer has newer: said in a toast, the rest is in the updates
+    // after the scan: run pending migrations (recorded in settings), then toast what Themezer has newer
     local::Library::get().rescan([] {
-        if (!App::get().config().updateCheck)
-            return;
-        itemupdates::check([](const std::expected<size_t, themezer::Error>& found) {
-            if (!found)
-                log::warn("Item updates: %s (%s)", found.error().message.c_str(), found.error().detail.c_str());
-            else if (*found > 0)
-                ui::toast(*found == 1 ? std::string("1 item on the SD card has an update")
-                                      : std::to_string(*found) + " items on the SD card have updates");
-        });
+        migrate::run(
+            App::get().config().migrations,
+            [](const char* id) {
+                log::info("Migrations: %s done", id);
+                App::get().config().migrations.insert(id);
+                App::get().config().save();
+            },
+            [] {
+                if (!App::get().config().updateCheck)
+                    return;
+                itemupdates::check([](const std::expected<size_t, themezer::Error>& found) {
+                    if (!found)
+                        log::warn("Item updates: %s (%s)", found.error().message.c_str(), found.error().detail.c_str());
+                    else if (*found > 0)
+                        ui::toast(*found == 1 ? std::string("1 item on the SD card has an update")
+                                              : std::to_string(*found) + " items on the SD card have updates");
+                });
+            });
     });
     scenes_.emplace<scenes::HomeScene>();
     if (!installs::installerPath())
@@ -173,7 +178,6 @@ int App::run(const char* self)
     if (lastSession)
     {
         const auto report = std::move(*lastSession);
-        // the report's message is what happened, as the title says it
         scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, report.message,
                                     "Do you want to share with the developers what happened last time?",
             std::vector<ui::DialogButton>{
@@ -188,7 +192,7 @@ int App::run(const char* self)
         last = now;
         session::frame();
 
-        // a frame's own work in its parts, for the log when it's long enough to show as a stutter
+        // per-phase timings, logged when a frame is slow enough to stutter
         const Uint64 start = SDL_GetPerformanceCounter();
         jobs::drain();
         const Uint64 drained = SDL_GetPerformanceCounter();
@@ -221,10 +225,9 @@ int App::run(const char* self)
     if (installer && installs::queuedCount() > 0)
     {
         const std::string args = installs::installerArgs(installer);
-        // the menu doesn't leave with more than the loader can pass on (see exitApp); this is for any other way out
+        // the menu exit already respects the loader's limit (see exitApp)
         if (args.size() <= installs::kMaxArgs)
         {
-            // what goes in, to know at the next start what's installed
             installed::noteQueued();
             log::info("Starting %s", args.c_str());
             if (const Result result = envSetNextLoad(installer, args.c_str()); R_FAILED(result))
@@ -232,7 +235,6 @@ int App::run(const char* self)
             restartAfterUpdate_ = false;
         }
     }
-    // into the new version, as hbmenu starts it
     if (updateStaged_ && restartAfterUpdate_)
     {
         const std::string arg = "sdmc:" + selfPath_;
@@ -252,13 +254,12 @@ int App::run(const char* self)
     psmExit();
     nifmExit();
     romfsExit();
-    // with the app's own file closed (romfs reads from it), the update can go in its place
+    // romfs reads from the .nro, so it's replaced only after romfsExit
     if (updateStaged_)
         log::info("Update %s", updates::replace(updatePath(), selfPath_) ? "in place" : "couldn't go in place");
     log::info("Themezer-NX done");
     session::end();
     log::exit();
-    // Started by nxlink, stdout and stderr are copies of its socket. They go before the sockets do: else the C
     // library's closing of stdout at exit closes a socket after socketExit, which crashed the app, and with the
     // sockets left open the bsdsocket service, taking the console with it.
     if (nxlink >= 0)

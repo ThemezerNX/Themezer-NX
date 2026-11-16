@@ -18,7 +18,6 @@ namespace tz::scenes
 class LocalPackScene final : public ui::Scene
 {
 public:
-    // trail: where it was opened from, for its top bar
     explicit LocalPackScene(std::string dir, std::vector<ui::Crumb> trail = currentTrail());
     void update(ui::Input& input, float dt) override;
     void tick(float dt) override;

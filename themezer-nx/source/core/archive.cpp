@@ -14,7 +14,7 @@ namespace tz::archive
 namespace
 {
 
-// what an archive read whole may be, a SARC or what a Yaz0 holds: a theme's are a few MB
+// size cap for an archive read whole (a SARC, or what a Yaz0 holds): a theme's is a few MB
 constexpr size_t kMaxSize = 16 * 1024 * 1024;
 
 std::string hex(const uint8_t* bytes, size_t size)
@@ -62,7 +62,6 @@ bool readAt(FILE* file, long offset, void* out, size_t size)
     return std::fseek(file, offset, SEEK_SET) == 0 && std::fread(out, 1, size, file) == size;
 }
 
-// A deflated (method 8) or stored (method 0) zip entry's data, as it is in the archive, made into the file.
 std::expected<std::vector<uint8_t>, std::string> unpack(int method, std::vector<uint8_t> data, size_t size)
 {
     if (method == 0)

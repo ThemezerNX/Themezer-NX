@@ -143,7 +143,6 @@ void PackScene::draw()
     }
     const Accent accent = accentOf(Kind::Packs);
     {
-        // the pack: its collage, name, creator and facts
         const Layer layer(0, (1 - shown) * 40, shown);
         const float collageH = std::round(kColumnW * 9 / 16);
         shadow(kSide, kTop, kColumnW, collageH, kPictureRadius, 24);
@@ -154,12 +153,10 @@ void PackScene::draw()
             picture->drawCover(kSide, kTop, kColumnW, collageH, kPictureRadius);
         else
             roundedRect(kSide, kTop, kColumnW, collageH, kPictureRadius, color::kSurfaceRaised);
-        // what its card shows over its collage: how many themes, and what's become of them here
         const size_t count = pack_.themes.size();
         card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(pack_), kSide, kTop, kColumnW,
                       collageH, accent, 12);
         float y = kTop + collageH + 16;
-        // its description under it, as a theme's is
         if (!pack_.description.empty())
             y += drawWrapped(pack_.description, kSide + 4, y, kColumnW - 8, metric::kTextCaption, color::kTextDim, 2) + 12;
         else
@@ -185,7 +182,7 @@ void PackScene::draw()
         const Layer layer(0, 0, shown);
         drawTopBar(1.0f, trail_);
     }
-    // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+    // not faded with the page: faded, its keys lose their depth
     drawHints(hintBar_, hints(), accent.solid);
 }
 

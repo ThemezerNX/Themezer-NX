@@ -210,13 +210,11 @@ int main()
     for (size_t i = 0; i < image.size(); ++i)
         image[i] = static_cast<uint8_t>(i * 7);
 
-    // SARC, its names in any case
     const Bytes archive = sarc({{"info.json", info}, {"image.jpg", image}});
     assert(readFile(archive, "INFO.json", kMax) == info);
     assert(readFile(archive, "image.jpg", kMax) == image);
     assert(!readFile(archive, "layout.json", kMax));
 
-    // a file larger than the caller allows isn't read
     assert(!readFile(archive, "image.jpg", image.size() - 1));
 
     // the same in Yaz0, which back-references make much smaller
@@ -237,7 +235,6 @@ int main()
     before.insert(before.end(), {0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x10, 0x05});
     assert(!readFile(before, "x", kMax));
 
-    // zip: stored and deflated
     const char* path = "/tmp/themezer-archive-test.zip";
     Bytes plain(20000, 'z');
     zip(path, "info.json", info, "image.jpg", plain);

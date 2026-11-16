@@ -22,7 +22,7 @@ struct Release
     std::string version; // "4.1.0"
     std::string url;     // its .nro
     uint64_t size = 0;   // the .nro's, from GitHub; 0 when it didn't say
-    std::string current; // what's here now
+    std::string current;
     std::string notes;   // GitHub release body, Markdown shown as written
 };
 

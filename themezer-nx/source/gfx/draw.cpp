@@ -30,8 +30,8 @@ std::shared_ptr<Picture> icons[static_cast<size_t>(Icon::Count)];
 std::shared_ptr<Picture> largeIcons[static_cast<size_t>(Icon::Count)];
 std::shared_ptr<Picture> brands[2];
 
-// Round shapes are drawn from textures of discs and rings made at the very size they're drawn, so their edges are
-// smooth and sharp: a disc's quarters are a rounded rectangle's corners.
+// Round shapes use disc and ring textures made at their drawn size, so edges stay sharp;
+// a disc's quarters are a rounded rectangle's corners.
 std::map<int, SDL_Texture*> discs;
 std::map<std::pair<int, int>, SDL_Texture*> rings;
 
@@ -307,7 +307,7 @@ void line(float x0, float y0, float x1, float y1, float width, Color color)
 
 void shadow(float x, float y, float w, float h, float radius, float size, float strength)
 {
-    // rounded rectangles growing outwards, each faint, add up to a shadow that fades out; a little lower than the box
+    // faint rounded rectangles growing outwards add up to a fading shadow, a little lower than the box
     constexpr int kSteps = 8;
     const float step = size / kSteps;
     for (int i = kSteps; i >= 1; --i)
@@ -321,7 +321,7 @@ void shadow(float x, float y, float w, float h, float radius, float size, float 
 
 void spinner(float cx, float cy, float radius, Color color)
 {
-    // three quarters of a ring, turning, drawn as a string of small discs, so its edges are smooth
+    // three quarters of a turning ring, drawn as small discs for smooth edges
     const float thickness = std::max(3.0f, radius * 0.2f);
     const float start = time() * 5.0f;
     const float sweep = static_cast<float>(M_PI) * 1.5f;

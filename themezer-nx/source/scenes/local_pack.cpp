@@ -192,7 +192,6 @@ void LocalPackScene::draw()
     }
     const Accent accent = accentOf(Kind::Packs);
     {
-        // the pack: its Home Menu's picture, name, creator and what's in it
         const Layer layer(0, (1 - shown) * 40, shown);
         const float pictureH = std::round(kColumnW * 9 / 16);
         shadow(kSide, kTop, kColumnW, pictureH, kPictureRadius, 24);
@@ -207,7 +206,6 @@ void LocalPackScene::draw()
             icon(Icon::Pack, kSide + (kColumnW - metric::kIconLarge) / 2, kTop + (pictureH - metric::kIconLarge) / 2,
                  metric::kIconLarge, color::kTextFaint);
         }
-        // what its card shows over its picture: how many themes, and what's become of them here
         const size_t count = last_.themes.size();
         card::overlay(std::to_string(count) + (count == 1 ? " theme" : " themes"), badgeOf(last_), kSide, kTop,
                       kColumnW, pictureH, accent, 12, hasUpdate(last_));
@@ -241,7 +239,7 @@ void LocalPackScene::draw()
         const Layer layer(0, 0, shown);
         drawTopBar(1.0f, trail_);
     }
-    // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+    // not faded with the page: faded, its keys lose their depth
     drawHints(hintBar_, hints(), accent.solid);
 }
 

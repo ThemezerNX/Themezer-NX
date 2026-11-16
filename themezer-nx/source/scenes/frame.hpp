@@ -19,14 +19,12 @@
 namespace tz::scenes
 {
 
-// A soft blur of the selected item's picture behind the screen, fading from one item to the next, as the Themezer
-// website shows behind its pages. Without a picture, a dark wash of the page's accent.
+// Blurred picture of the selected item behind the screen, fading between items; a dark wash of the accent without one.
 class Backdrop
 {
 public:
     void set(std::shared_ptr<gfx::Picture> blur, gfx::Color accent);
     void tick(float dt);
-    // How dark the picture is made.
     void draw(float dim = 0.6f) const;
 
 private:
@@ -45,31 +43,27 @@ private:
     gfx::Color waitingAccent_ = gfx::color::kPrimary;
 };
 
-// The top bar: Themezer's logo on the left, the time, Wi-Fi and battery on the right. Returns where the status
-// starts, for what goes between.
-// With a trail, after the logo: where the screen is, its mode and section as the home screen shows them, then the pages
-// it was opened from ("Pixel Forest"), as text.
+// The top bar: logo, the trail if any (mode, section, then the pages it was opened from), status on the right.
+// Returns where the status starts, for what goes between.
 float drawTopBar(float alpha = 1.0f, const std::vector<ui::Crumb>& trail = {});
 // Where a screen opened now is: the trail of the screen it's opened from.
 std::vector<ui::Crumb> currentTrail();
 
-// The crumbs of a mode, the SD card's or Themezer's, and a section; and a page, called name.
 ui::Crumb modeCrumb(bool online);
 ui::Crumb sectionCrumb(themezer::Kind section);
 ui::Crumb pageCrumb(std::string name);
-// The home screen's mode and section look, the same in every top bar: the mode in a plain pill (with the key that
-// switches it, on the home screen, sunk while it's down; width 0 for as wide as it needs), the section as the tab bar
-// shows the selected tab. Each returns where it ends.
+// The home screen's mode and section pills, the same in every top bar (width 0: as wide as the label needs; the key
+// sinks while down). Each returns where it ends.
 constexpr float kPillHeight = 52;
 float modePillWidth(const ui::Crumb& mode, ui::Keys key = 0);
 float drawModePill(const ui::Crumb& mode, float x, float y, float width = 0, ui::Keys key = 0, bool down = false);
 float drawSectionPill(const ui::Crumb& section, float x, float y);
-// Where the home screen's mode pill is, and the pages' trails start: after the logo.
+// Where the mode pill and the trails start: after the logo.
 float pillsLeft();
 // A page's trail is the way home: - or its mode pill goes back to the home screen in the other mode, its section pill
 // to that section's list. True when it did (the page is closing). Before a page handles its own keys.
 bool trailKeys(ui::Input& input, const std::vector<ui::Crumb>& trail);
-// The home screen, in that mode (true: online) and section, with the screens over it closed. In home.cpp.
+// The home screen in that mode (true: online) and section, with the screens over it closed.
 void goHome(bool online, themezer::Kind section);
 
 gfx::Accent accentOf(themezer::Kind kind);
@@ -98,7 +92,7 @@ gfx::Icon badgeIcon(Badge badge);
 bool hasUpdate(const library::Entry& entry);
 bool hasUpdate(const local::Pack& pack);
 
-// An item's card: its preview over its name and creator. The selected one is raised, with a ring in accent.
+// An item's card: preview over name and creator; the selected one is raised, with an accent ring.
 namespace card
 {
 constexpr float kTextHeight = 72; // under the preview
@@ -117,8 +111,7 @@ void draw(const themezer::Item& item, float x, float y, float w, float h, bool s
           bool showTarget);
 // The selected card's key: a face on a ledge, with a ring in accent.
 void highlight(float x, float y, float w, float h, bool down, gfx::Accent accent);
-// What a card shows over its picture: the chip at its bottom left, the badge at its top right, the update marker at its
-// top left; inset from the corners. A page shows the same over its big picture.
+// Chip at the bottom left, badge top right, update marker top left, inset from the corners; a page draws the same over its big picture.
 void overlay(const std::string& chip, Badge badge, float x, float y, float w, float h, gfx::Accent accent,
              float inset = 8, bool update = false);
 } // namespace card
@@ -128,15 +121,12 @@ std::shared_ptr<gfx::Picture> localPicture(const library::Entry& entry, int widt
 // Its ThumbHash's picture, for the backdrop, as the website's pictures have.
 std::shared_ptr<gfx::Picture> localBackdrop(const library::Entry& entry);
 
-// A page's big picture's corners, a pack's and a theme's alike.
 constexpr float kPictureRadius = 20;
-// A page's name, its creator ("by …", when there is one) and the line under them, the same on every page. Returns where
-// its facts go.
+// A page's name, creator ("by …", if any) and the line under them. Returns where its facts go.
 float drawHeading(const std::string& name, const std::string& creator, float x, float y, float width,
                   gfx::Accent accent, int maxLines);
 
-// A page's facts, beside or under its picture, a row each: an icon in the accent and a line; a link (a tap on it opens
-// something, as an entry of the page's options does) ends in "›". Returns the next row's top.
+// A page's fact row: an icon in the accent and a line; a link (a tap opens something) ends in "›". Returns the next row's top.
 constexpr float kFactRow = 40;
 float drawFact(gfx::Icon which, const std::string& text, float x, float y, float width, gfx::Accent accent,
                bool link = false);
@@ -147,20 +137,17 @@ bool factTapped(const ui::Input& input, float x, float top, float width);
 void updateHints(ui::HintBar& bar, ui::Input& input, const std::vector<ui::Hint>& hints);
 void drawHints(ui::HintBar& bar, const std::vector<ui::Hint>& hints, gfx::Color accent = gfx::color::kPrimary);
 
-// One of the chips under the tabs that say what a list is (its sort, its filter, its search), from x, its text cut to
-// end before right. Returns its width; 0 when there's no room for it.
+// A chip under the tabs saying what a list is (sort, filter, search), text cut to end before right. Returns its width; 0 if no room.
 float filterChip(gfx::Icon icon, const std::string& text, bool highlighted, gfx::Accent accent, float x, float top,
                  float height, float right);
 
-// The filter on lists of themes, Themezer's and the SD card's, for whether a theme is in a pack: all of them (nullopt),
-// only standalone ones (false), only those from packs (true). Its sheet calls choose with another one.
+// The in-pack filter on theme lists: all (nullopt), standalone only (false), from packs only (true). Its sheet calls choose.
 const char* packedLabel(std::optional<bool> inPack);
 void choosePacked(std::optional<bool> current, gfx::Color accent, std::function<void(std::optional<bool>)> choose);
 
-// The chips' keys, once up from the grid's top row has reached them (focus, the chip's index; -1 off them): left and
-// right along them, down or B back to the grid. Returns the chip A chose, or -1.
+// Chip keys, once up from the grid's top row reaches them (focus: the chip's index, -1 off them): left/right along them,
+// down or B back to the grid. Returns the chip A chose, or -1.
 int chipKeys(ui::Input& input, int& focus, int count);
-// The ring round the chip the keys are on.
 void chipRing(float x, float top, float width, float height, gfx::Accent accent);
 
 // The number with thousands apart: 5,004.
@@ -168,7 +155,7 @@ std::string thousands(int number);
 // "1.2 MB"
 std::string megabytes(uint64_t bytes);
 
-// A page with nothing to show: a large icon, what's the matter, and what to do, centred between top and bottom.
+// A page with nothing to show: a large icon, what's the matter and what to do, centred between top and bottom.
 void drawEmptyState(gfx::Icon icon, gfx::Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom);
 

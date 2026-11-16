@@ -32,7 +32,8 @@ struct Entry
     std::string author;
     int target = -1;         // themes: the part of the HOME Menu (themezer::targetLabel), -1 when not known yet
     std::string layout;      // themes: the layout it's made with, from info.json
-    std::string themezerId;  // the item's ID on Themezer, when the file name has it
+    std::string themezerId;  // the item's ID on Themezer: the file name's, else its info.json Id's (see scan)
+    bool v3Name = false;     // named as Themezer-NX 3 named it (see names::Parts)
     std::string folder;      // the folder it's in under /Themes, for a pack's themes: "Pixel Forest by soulsart"
     std::string errorDetail; // archive or image validation failure, including the path
     bool infoRead = false;
@@ -41,8 +42,9 @@ struct Entry
 
 constexpr const char* kRoot = "/Themes";
 
-// The files in /Themes and its folders (not the ones starting with '.'), without opening them: the names and parts
-// Themezer-NX's file names give. Blocks: for a worker.
+// The files in /Themes and its folders (not the ones starting with '.'): the names and parts their file names give.
+// Opened only for a theme whose name has no ID, and only a zip: Themezer's builds say their ID in their info.json.
+// Blocks: for a worker.
 std::vector<Entry> scan();
 // Reads a theme's info.json for its name, author and part. Blocks. False when the file can't be read.
 bool readInfo(Entry& entry);

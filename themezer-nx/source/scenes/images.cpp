@@ -140,7 +140,6 @@ void Images::tick()
     if (now - lastSweep_ < 1)
         return;
     lastSweep_ = now;
-    // how much a picture takes, as a texture
     const auto bytes = [](const Entry& entry) {
         return entry.picture ? static_cast<size_t>(entry.picture->width()) * entry.picture->height() * 4 : 0;
     };

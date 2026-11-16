@@ -65,7 +65,6 @@ void Picture::drawContain(float x, float y, float w, float h, float alpha) const
 
 void Picture::drawCover(float x, float y, float w, float h, float radius, float alpha) const
 {
-    // the part of the picture with the box's shape, from its middle, as texture coordinates
     const float boxAspect = w / h;
     const float aspect = static_cast<float>(width_) / height_;
     float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
@@ -88,7 +87,6 @@ void Picture::drawCover(float x, float y, float w, float h, float radius, float 
         return SDL_Vertex{{px, py}, {255, 255, 255, a}, {u0 + (u1 - u0) * (px - x) / w, v0 + (v1 - v0) * (py - y) / h}};
     };
 
-    // a fan from the middle round the outline, its corners in short straight steps
     radius = std::min({radius, w / 2, h / 2});
     std::vector<SDL_Vertex> outline;
     if (radius <= 0.5f)

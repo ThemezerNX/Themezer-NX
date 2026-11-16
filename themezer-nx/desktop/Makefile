@@ -40,8 +40,6 @@ asan:
 clean:
 	rm -rf build build-asan themezer-nx-desktop themezer-nx-desktop-asan
 
-# The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, versions, file names, and what
-# tells an outdated item and swaps it for the new one.
 test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test build/tests/names_test \
       build/tests/outdated_test build/tests/report_test build/tests/certificates_test build/tests/session_test
 	./build/tests/archive_test

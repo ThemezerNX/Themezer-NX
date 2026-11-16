@@ -10,7 +10,6 @@
 namespace tz::installs
 {
 
-// One slot for each part of the HOME Menu, and one for the splash screen.
 constexpr int kSplashSlot = themezer::kTargetCount;
 constexpr int kSlotCount = themezer::kTargetCount + 1;
 
@@ -35,10 +34,9 @@ struct Queued
     std::string name;
     std::string author;
     std::string themezerId; // empty for a file that isn't from Themezer
-    std::string item;       // which item it is (see itemKey)
+    std::string item;
 };
 
-// What tells items apart: their kind and ID.
 std::string itemKey(const themezer::Item& item);
 void queue(int slot, std::string path, const themezer::Item& item);
 bool isQueued(const themezer::Item& item);

@@ -34,7 +34,6 @@ private:
     void switchMode();
     void switchTo(int tab, int side);
 
-    // Draws it, its width from its label; returns where it ends.
     float drawModeButton(float x, float y, float height);
 
     std::vector<std::unique_ptr<Page>> local_;

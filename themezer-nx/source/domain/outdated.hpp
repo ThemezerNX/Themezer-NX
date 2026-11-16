@@ -27,6 +27,8 @@ std::string canonical(std::string_view id);
 
 // The milliseconds in a theme's Id, "Themezer:<ID>:<ms>": what's after the last colon. Nothing when the Id isn't that.
 std::optional<int64_t> millisOfId(std::string_view id);
+// The ID in a theme's Id, "Themezer:<ID>:<ms>", in capitals; empty when the Id isn't that or the ID isn't hex.
+std::string idOfId(std::string_view id);
 // A file's version: its Id's when it has one, else the time it last changed (in seconds, as stat gives it) in ms.
 // Nothing for a time of 0 or less: a failed stat leaves 0, and 0 would have every item look old.
 std::optional<int64_t> versionOf(std::optional<int64_t> idMillis, int64_t modifiedSeconds);
@@ -41,7 +43,6 @@ struct File
     int64_t version = 0;
 };
 
-// What to ask about an item.
 struct Query
 {
     std::string quickId; // "T1E93D"

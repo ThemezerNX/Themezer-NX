@@ -49,8 +49,6 @@ float drawActionKey(Keys key, float right, float middle)
     return left - 12;
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// ActionSheet
 
 ActionSheet::ActionSheet(std::string title, std::vector<Action> actions, Color accent, int selected)
     : title_(std::move(title)), actions_(std::move(actions)), accent_(accent)
@@ -83,7 +81,6 @@ bool ActionSheet::hasDetails() const
 
 float ActionSheet::panelHeight() const
 {
-    // a line under the rows for what the selected one is, when there's more to say than its label
     return kSheetHeader + kSheetRow * static_cast<float>(visibleRows()) + kSheetPadding +
            (hasDetails() ? kSheetFooter : 12);
 }
@@ -237,7 +234,6 @@ void ActionSheet::draw()
                  Align::Left, labelRight - left - 88);
         y += kSheetRow;
     }
-    // what the selected action is
     if (hasDetails() && selected_ >= 0 && selected_ < static_cast<int>(actions_.size()))
     {
         const float middle = top + panelHeight() - kSheetFooter / 2;
@@ -246,8 +242,6 @@ void ActionSheet::draw()
     }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Dialog
 
 Dialog::Dialog(Icon icon, Color iconColor, std::string title, std::string message, std::vector<DialogButton> buttons)
     : icon_(icon), iconColor_(iconColor), title_(std::move(title)), message_(std::move(message)),
@@ -408,8 +402,6 @@ void Dialog::draw()
     }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// ProgressOverlay
 
 float TaskProgress::fraction() const
 {
@@ -471,7 +463,6 @@ void ProgressOverlay::draw()
     }
     else
     {
-        // nothing to measure yet: a stripe going back and forth
         const float t = std::fmod(time() * 0.8f, 2.0f);
         const float position = t < 1 ? t : 2 - t;
         roundedRect(x + 40, barY, width - 80, 12, 6, color::kSurfaceHigh);
@@ -486,8 +477,6 @@ void ProgressOverlay::draw()
     }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Toasts
 
 namespace
 {

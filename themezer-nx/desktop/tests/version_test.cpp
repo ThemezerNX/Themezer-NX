@@ -50,7 +50,6 @@ int main()
     assert(newer("3.0.10", "3.0.9"));
     assert(newer("4.0.1", "4.0"));
     assert(!newer("4.0", "4.0.0"));
-    // NXThemes Installer's tags and its NROs' own numbers
     assert(!newer("nxt-3.0.2", "3.0.2"));
     assert(newer("nxt-3.0.2", "2.8.3"));
     assert(newer("v4.8.3", "2.9"));

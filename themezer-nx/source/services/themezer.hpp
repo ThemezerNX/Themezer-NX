@@ -118,8 +118,8 @@ struct Newer
     Item item;
 };
 // The items of these that Themezer has a newer version of, in the order asked (packs with their themes); one asked as
-// two IDs, an old and its current one, comes twice. Asks in as many requests as it takes; the first that fails fails
-// the check, as a half answer would pass for the whole.
+// two IDs, an old and its current one, comes twice. The first request that fails fails the check, as a half answer would
+// pass for the whole.
 std::expected<std::vector<Newer>, Error> checkUpdates(const std::vector<outdated::Query>& queries,
                                                       const CancelToken& token);
 // Downloads an item's file to path (its folder made first).

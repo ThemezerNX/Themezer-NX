@@ -124,6 +124,7 @@ void walk(const std::string& dir, const std::string& folder, int depth, std::vec
             entry.name = parts.name;
             entry.author = parts.author;
             entry.themezerId = parts.id;
+            entry.v3Name = parts.v3Name;
             if (kind == Kind::Theme)
                 entry.target = parts.target;
         }
@@ -223,12 +224,38 @@ cJSON* parseInfo(const std::string& path, std::string* reason = nullptr)
     return root;
 }
 
+// The Id in the info.json of a theme Themezer built, "Themezer:<ID>:<ms>"; empty for any other file. Only a zip is
+// opened, as Themezer's are: archive::readFile would read a SARC whole, up to 16 MiB, for nothing.
+std::string idText(const std::string& path)
+{
+    FILE* file = std::fopen(path.c_str(), "rb");
+    char magic[2] = {};
+    const bool zip = file && std::fread(magic, 1, sizeof(magic), file) == sizeof(magic) && magic[0] == 'P' &&
+                     magic[1] == 'K';
+    if (file)
+        std::fclose(file);
+    if (!zip)
+        return {};
+    cJSON* root = parseInfo(path);
+    const cJSON* id = cJSON_GetObjectItemCaseSensitive(root, "Id");
+    std::string text = cJSON_IsString(id) && id->valuestring ? id->valuestring : "";
+    cJSON_Delete(root);
+    return text;
+}
+
 } // namespace
 
 std::vector<Entry> scan()
 {
     std::vector<Entry> out;
     walk(kRoot, "", 0, out);
+    // a theme Themezer built, named otherwise (NXThemes Installer's downloads, a renamed file), says its ID inside;
+    // only builds from after Themezer-NX 3.3's release have it, so an older one stays unknown
+    for (Entry& entry : out)
+    {
+        if (entry.kind == Kind::Theme && entry.themezerId.empty())
+            entry.themezerId = outdated::idOfId(idText(entry.path));
+    }
     return out;
 }
 
@@ -261,20 +288,7 @@ bool readInfo(Entry& entry)
 
 std::optional<int64_t> builtAt(const std::string& path)
 {
-    // Themezer builds zips; archive::readFile would read a SARC whole, up to 16 MiB, for nothing
-    FILE* file = std::fopen(path.c_str(), "rb");
-    char magic[2] = {};
-    const bool zip = file && std::fread(magic, 1, sizeof(magic), file) == sizeof(magic) && magic[0] == 'P' &&
-                     magic[1] == 'K';
-    if (file)
-        std::fclose(file);
-    if (!zip)
-        return std::nullopt;
-    cJSON* root = parseInfo(path);
-    const cJSON* id = cJSON_GetObjectItemCaseSensitive(root, "Id");
-    const auto millis = cJSON_IsString(id) && id->valuestring ? outdated::millisOfId(id->valuestring) : std::nullopt;
-    cJSON_Delete(root);
-    return millis;
+    return outdated::millisOfId(idText(path));
 }
 
 SDL_Surface* readPreview(const Entry& entry, int maxWidth)

@@ -1,5 +1,5 @@
-// The About page, as Themezer-3DS has it: what the app is and its license beside the credits and the notices of what
-// it's built with (romfs/licenses.txt, made by tools/make_licenses.py), which scroll.
+// The About page: what the app is and its license, beside the credits and the notices of what it's built with
+// (romfs/licenses.txt, made by tools/make_licenses.py), which scroll.
 
 #include "app/app.hpp"
 #include "core/motion.hpp"
@@ -70,8 +70,8 @@ public:
             return;
         }
 
-        // as the grids scroll: a drag past an end gives less and springs back, a fling bounces off an end; up and down
-        // go steadily, left and right a page at a time
+        // scrolls as the grids do: a drag past an end springs back, a fling bounces; up/down go steadily,
+        // left/right a page at a time
         const float view = kPanelH - kHeader;
         const float maxScroll =
             std::max(0.0f, static_cast<float>(lines_.size()) * lineHeight(metric::kTextSmall) - view + 16);
@@ -120,7 +120,6 @@ public:
                       color::kBackground);
 
             {
-                // what the app is
                 const Layer column(0, (1 - shown) * 40, 1);
                 float y = kPanelY + 24;
                 brand(Brand::Icon, std::round(kColumnX + (kColumnW - brandWidth(Brand::Icon)) / 2), y);
@@ -136,13 +135,11 @@ public:
                 y += 24;
                 drawText("Source code", kColumnX + kColumnW / 2, y, metric::kTextSmall, color::kTextDim, Align::Center);
                 y += lineHeight(metric::kTextSmall);
-                // on a line of its own, small enough to fit
                 drawText("github.com/ThemezerNX/Themezer-NX", kColumnX + kColumnW / 2, y, metric::kTextSmall - 2,
                          color::kText, Align::Center, kColumnW);
             }
 
             {
-                // the credits and the notices, scrolling
                 const Layer panel((1 - shown) * 40, 0, 1);
                 roundedRect(kPanelX, kPanelY, kPanelW, kPanelH, metric::kRadius, color::kSurfaceSolid);
                 drawText("Credits and licenses", kPanelX + kTextInset, textTop(kPanelY + kHeader / 2, metric::kTextLarge),
@@ -162,7 +159,7 @@ public:
 
             drawTopBar();
         }
-        // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+        // not faded with the page: faded, its keys lose their depth
         drawHints(hintBar_, hints_);
     }
 

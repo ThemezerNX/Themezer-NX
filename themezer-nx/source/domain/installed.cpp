@@ -51,14 +51,14 @@ struct Record
     std::string author;
     std::string source;
     std::string themezerId;
-    std::string fingerprint; // of the installed file, when it was found to be this
+    std::string fingerprint;
 };
 
 // Queued on the way out: becomes the record when the installer turns out to have changed the file.
 struct Pending
 {
     Record record;
-    std::string before; // the file's fingerprint before
+    std::string before;
 };
 
 std::array<std::optional<Record>, installs::kSlotCount> records;

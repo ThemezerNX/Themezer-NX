@@ -171,6 +171,7 @@ bool parseFile(std::string_view fileName, Parts& parts)
         if (alnum(id))
         {
             parts.id = id;
+            parts.v3Name = true;
             parts.target = part;
             nameAndAuthor(rest.substr(0, start), parts);
             return true;
@@ -214,19 +215,28 @@ bool parseFile(std::string_view fileName, Parts& parts)
 bool parseFolder(std::string_view folder, Parts& parts)
 {
     parts = {};
+    // Themezer's zip unpacked, "(Themezer-1E93C)", or "(Themezer-P1E93C)" from before its IDs stopped overlapping:
+    // the ID says it, with or without an author
+    if (auto tag = idInFileName(folder))
+    {
+        nameAndAuthor(folder.substr(0, tag->start), parts);
+        parts.id = tag->id;
+        return true;
+    }
+    // Themezer-NX 3's "(1E93C)": Themezer's IDs are hex, and its packs' names have an author, so "My themes (cafe)" is
+    // someone's own folder
     std::string_view inside;
     size_t start = 0;
     if (!lastGroup(folder, inside, start))
         return false;
-    const std::string_view id = inside.starts_with("Themezer-P") ? inside.substr(10) : inside;
-    // Themezer's IDs are hex, and its packs' names have an author: "My themes (old)" is someone's own folder
     nameAndAuthor(folder.substr(0, start), parts);
-    if (!hex(id) || parts.author.empty())
+    if (!hex(inside) || parts.author.empty())
     {
         parts = {};
         return false;
     }
-    parts.id = id;
+    parts.id = inside;
+    parts.v3Name = true;
     return true;
 }
 
@@ -290,18 +300,31 @@ std::string themeFile(std::string_view name, std::string_view author, int target
 {
     const std::string part = target >= 0 && target < kTargets ? std::string(" (") + kThemezerParts[target] + ")" : "";
     return safe(name) + " by " + safe(author) + part +
-           (id.empty() ? " (Themezer Remote Install)" : " (Themezer-T" + std::string(id) + ")") + ".nxtheme";
+           (id.empty() ? " (Themezer Remote Install)" : " (Themezer-" + std::string(id) + ")") + ".nxtheme";
 }
 
 std::string splashFile(std::string_view name, std::string_view author, std::string_view id)
 {
     return safe(name) + " by " + safe(author) +
-           (id.empty() ? " (Themezer Remote Install)" : " (Themezer-S" + std::string(id) + ")") + ".bmp";
+           (id.empty() ? " (Themezer Remote Install)" : " (Themezer-" + std::string(id) + ")") + ".bmp";
+}
+
+std::string plainId(std::string_view name)
+{
+    const auto tag = idInFileName(name);
+    if (!tag)
+        return std::string(name);
+    // the tag's own bracket: the start idInFileName gives takes in the space before it
+    const size_t open = name.rfind('(', tag->end - 1);
+    const char letter = static_cast<char>(std::tolower(static_cast<unsigned char>(name[open + 10])));
+    if (std::string_view("tsp").find(letter) == std::string_view::npos)
+        return std::string(name);
+    return std::string(name.substr(0, open)) + "(Themezer-" + tag->id + ")" + std::string(name.substr(tag->end));
 }
 
 std::string packFolder(std::string_view name, std::string_view author, std::string_view id)
 {
-    return safe(name) + " by " + safe(author) + " (Themezer-P" + std::string(id) + ")";
+    return safe(name) + " by " + safe(author) + " (Themezer-" + std::string(id) + ")";
 }
 
 } // namespace tz::names

@@ -9,7 +9,7 @@
 namespace tz::gfx
 {
 
-// The app's icons: Lucide's, as on the Themezer website (romfs/icons, made by tools/make_icons.py), drawn tinted.
+// Lucide icons, as on the Themezer website (romfs/icons, made by tools/make_icons.py), drawn tinted.
 enum class Icon : uint8_t
 {
     Theme,
@@ -91,10 +91,8 @@ void triangle(float x0, float y0, float x1, float y1, float x2, float y2, Color 
 void line(float x0, float y0, float x1, float y1, float width, Color color);
 // A soft shadow around a rectangle, size pixels wide.
 void shadow(float x, float y, float w, float h, float radius, float size, float strength = 1.0f);
-// A turning arc, for things that are loading.
 void spinner(float cx, float cy, float radius, Color color);
 void progressBar(float x, float y, float w, float h, float fraction, Color track, Color fill);
-// Covers the whole screen.
 void fill(Color color);
 
 } // namespace tz::gfx

@@ -1,5 +1,4 @@
-// Text in the Switch's own fonts: the standard one, and the Chinese and Korean ones for what it hasn't got. Sizes
-// are in pixels.
+// Text in the Switch's own fonts: the standard one, plus the Chinese and Korean ones for what it lacks. Sizes are in pixels.
 
 #pragma once
 
@@ -26,8 +25,7 @@ void beginTextFrame();
 
 float textWidth(std::string_view text, float size);
 float lineHeight(float size);
-// The y to draw a line at so the middle of its capitals is at middle: what centres text in a box and lines it up
-// with icons centred on the same middle.
+// The y to draw a line at so the middle of its capitals is at middle: centres text in a box and aligns it with icons.
 float textTop(float middle, float size);
 // The middle of the capitals of a line drawn at top.
 float textMiddle(float top, float size);
@@ -36,8 +34,7 @@ float textMiddle(float top, float size);
 // or the right edge depending on align. Drawn from a whole pixel, which keeps it sharp. Returns the width drawn.
 float drawText(std::string_view text, float x, float y, float size, Color color, Align align = Align::Left,
                float maxWidth = 0);
-// Wrapped to width, at most maxLines lines (0 for no limit; the last one ends in "…" when cut). Returns the height
-// drawn.
+// Wrapped to width, at most maxLines lines (0 for no limit; the last ends in "…" when cut). Returns the height drawn.
 float drawWrapped(std::string_view text, float x, float y, float width, float size, Color color, int maxLines = 0,
                   Align align = Align::Left);
 

@@ -49,7 +49,6 @@ void millis()
     const auto at = [](const char* id) { return millisOfId(id); };
     assert(at("Themezer:1E93D:1730000000000") == 1730000000000);
     assert(at("Themezer:1E93D:0") == 0);
-    // the last colon's
     assert(at("Themezer:1E93D:extra:1730000000001") == 1730000000001);
     assert(!at("Themezer:1E93D"));  // the ID is no time
     assert(!at("Themezer"));
@@ -66,6 +65,16 @@ void millis()
     assert(at("Themezer:1E93D:9223372036854775807") == INT64_MAX);
     assert(!at("Themezer:1E93D:9223372036854775808"));
     assert(!at("Themezer:1E93D:99999999999999999999999"));
+
+    // the ID in it, for a file whose name has none: between the colons, hex, in capitals
+    assert(idOfId("Themezer:13782:1770590788521") == "13782");
+    assert(idOfId("Themezer:e204:1591829994001") == "E204");
+    assert(idOfId("Themezer:1E93D") == "");          // no time: not Themezer's Id
+    assert(idOfId("Themezer::1730000000000") == "");
+    assert(idOfId("Themezer:1E93D:extra:1730000000001") == "");
+    assert(idOfId("Themezer:not-hex:1730000000000") == "");
+    assert(idOfId("Other:1E93D:1730000000000") == "");
+    assert(idOfId("") == "");
 }
 
 void versions()
@@ -78,7 +87,6 @@ void versions()
     assert(!versionOf(std::nullopt, -5));
 
     assert(packVersion({1730000500, 1730000000, 1730000900}) == 1730000000000);
-    // a time that wasn't read is no oldest
     assert(packVersion({0, 1730000500, -1}) == 1730000500000);
     assert(!packVersion({0, -3}));
     assert(!packVersion({}));
@@ -99,16 +107,13 @@ void asked()
     assert(queries({{'S', "R12AB", 5}, {'T', "xyz", 5}, {'T', "", 5}, {'T', "1A", 0}, {'T', "1A", -4}, {'R', "1A", 5}})
                .empty());
 
-    // copies: one query, as new as the newest
     const auto copies = queries({{'T', "1A", 100}, {'T', "1a", 300}, {'T', "1A", 200}});
     assert(copies.size() == 1 && copies[0].quickId == "T1A" && copies[0].version == "300");
 
-    // a theme and a splash may share a number
     const auto both = queries({{'T', "1E93D", 1}, {'S', "1E93D", 2}, {'P', "1E93D", 3}});
     assert(both.size() == 3 && both[0].quickId == "T1E93D" && both[1].quickId == "S1E93D" &&
            both[2].quickId == "P1E93D");
 
-    // the order they come in, not the order of their IDs
     const auto order = queries({{'P', "FF", 1}, {'T', "10", 1}, {'P', "FF", 2}, {'S', "A", 1}});
     assert(order.size() == 3 && order[0].quickId == "PFF" && order[1].quickId == "T10" && order[2].quickId == "SA");
     assert(order[0].version == "2");
@@ -185,7 +190,6 @@ void packs()
     assert((diff.added == Ids{"1B", "1C"}));
     assert((diff.removed == Ids{"1D"}));
 
-    // the case, and a theme the folder has twice, change nothing
     diff = diffPack({"1a", "1B"}, {"1A", "1b", "1B", "1a"});
     assert(diff.added.empty() && diff.removed.empty());
 
@@ -202,7 +206,6 @@ void moves()
     assert(followed("/Themes/A", "/Themes/A", "/Themes/B") == "/Themes/B");
     assert(followed("/Themes/A/x.nxtheme", "/Themes/A", "/Themes/B") == "/Themes/B/x.nxtheme");
     assert(followed("/Themes/A/s/x.nxtheme", "/Themes/A", "/Themes/B") == "/Themes/B/s/x.nxtheme");
-    // a folder that only starts the same
     assert(followed("/Themes/AB/x.nxtheme", "/Themes/A", "/Themes/B") == "/Themes/AB/x.nxtheme");
     assert(followed("/Themes/AB", "/Themes/A", "/Themes/B") == "/Themes/AB");
     assert(followed("/Themes/C/x.nxtheme", "/Themes/A", "/Themes/B") == "/Themes/C/x.nxtheme");
@@ -260,7 +263,6 @@ void swaps()
     assert(replace(staged, path, {path}, replaced, putWorks));
     assert(exists(path) && replaced.empty());
 
-    // a copy missing already is nothing to take, nothing to say
     clean();
     replaced.clear();
     make(staged);

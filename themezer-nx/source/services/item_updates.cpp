@@ -22,7 +22,7 @@ namespace
 
 // main thread
 std::vector<themezer::Item> items;
-std::unordered_map<std::string, size_t> indexes; // key to place in items
+std::unordered_map<std::string, size_t> indexes;
 // The current key of each key on the SD card that Themezer answered under another: an ID from before Themezer's IDs
 // changed, which Themezer-NX 3 named its files and folders with ("P25AD" for "P196D9").
 std::unordered_map<std::string, std::string> renamed;
@@ -45,7 +45,6 @@ themezer::Kind kindOf(library::Kind kind)
     return kind == library::Kind::Splash ? themezer::Kind::Splashes : themezer::Kind::Themes;
 }
 
-// The key of the item an ID on the SD card is now
 std::string currentKey(themezer::Kind kind, const std::string& id)
 {
     std::string key = keyOf(kind, id);
@@ -206,9 +205,8 @@ void check(std::function<void(const std::expected<size_t, themezer::Error>&)> do
             result = std::unexpected(themezer::Error{{}, {}, themezer::ErrorKind::Cancelled});
         else if (!asked.empty())
             result = themezer::checkUpdates(asked, token);
-        // A pack answered under another ID than its folder's is in a folder Themezer-NX 3 made, its themes named with
-        // old IDs too. Their current IDs are asked for (every version is newer than 1), for an update to replace each
-        // theme with its own instead of moving it out of the folder as one Themezer no longer lists.
+        // A pack answered under another ID than its folder's is in a Themezer-NX 3 folder with old-ID themes. Ask for their
+        // current IDs (every version is newer than 1) so an update replaces each theme instead of moving it out of the folder.
         std::vector<themezer::Newer> themes;
         if (result)
         {

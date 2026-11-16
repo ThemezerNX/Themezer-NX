@@ -210,10 +210,8 @@ void DetailsScene::draw()
             icon(iconOf(item_.kind), kPreviewX + (kPreviewW - metric::kIconLarge) / 2,
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
-        // the HD picture loading over the small one
         if (!item_.preview.hd.empty() && !images().get(item_.preview.hd))
             spinner(kPreviewX + kPreviewW - 32, kPreviewY + kPreviewH - 32, 14, color::kText);
-        // what its card shows over its picture: its part, and what's become of it here
         card::overlay(item_.kind == Kind::Themes && item_.target >= 0 ? themezer::targetLabel(item_.target) : "",
                       badgeOf(item_), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16);
 
@@ -231,7 +229,7 @@ void DetailsScene::draw()
         const Layer layer(0, 0, shown);
         drawTopBar(1.0f, trail_);
     }
-    // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+    // not faded with the page: faded, its keys lose their depth
     drawHints(hintBar_, hints(), accent.solid);
 }
 
@@ -278,7 +276,6 @@ void PictureScene::draw()
     fill(withAlpha(rgba(0, 0, 0), shown));
     const std::shared_ptr<Picture> picture = picture_();
     const Layer layer(0, 0, shown);
-    // from a little smaller, as if it came forward
     const float scale = 0.92f + 0.08f * shown;
     const float w = metric::kWidth * scale;
     const float h = metric::kHeight * scale;

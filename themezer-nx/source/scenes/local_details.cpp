@@ -202,10 +202,8 @@ void LocalDetailsScene::draw()
             icon(entry.kind == Kind::Splash ? Icon::Splash : Icon::Theme, kPreviewX + (kPreviewW - metric::kIconLarge) / 2,
                  kPreviewY + (kPreviewH - metric::kIconLarge) / 2, metric::kIconLarge, color::kTextFaint);
         }
-        // what its card shows over its picture: its part, and what's become of it here
         card::overlay(entry.kind == Kind::Theme && entry.target >= 0 ? themezer::targetLabel(entry.target) : "",
                       badgeOf(entry), kPreviewX, kPreviewY, kPreviewW, kPreviewH, accent, 16, hasUpdate(entry));
-        // the file it's in, under the picture
         drawText(entry.fileName, kPreviewX + 4, kPreviewY + kPreviewH + 20, metric::kTextCaption, color::kTextFaint,
                  Align::Left, kPreviewW - 8);
     }
@@ -231,7 +229,7 @@ void LocalDetailsScene::draw()
         const Layer layer(0, 0, shown);
         drawTopBar(1.0f, trail_);
     }
-    // the bar every screen has, not faded in with the page: faded, its keys are drawn without their depth
+    // not faded with the page: faded, its keys lose their depth
     drawHints(hintBar_, hints(), accent.solid);
 }
 

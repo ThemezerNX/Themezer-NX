@@ -19,7 +19,6 @@ constexpr float kFriction = 3.0f; // how fast a fling slows down
 constexpr float kGlide = 22.0f;   // how fast the highlight goes to the selected card
 constexpr float kPressTime = 0.11f;
 constexpr float kScrollbarWidth = 6;
-// under the last row, for the selected card's ring and its ledge, which stand out of the card
 constexpr float kEdgeRoom = 16;
 } // namespace
 
@@ -96,7 +95,6 @@ void GridView::select(int index, bool animate)
 
 void GridView::keepSelectionVisible()
 {
-    // a part of a row of margin above and below the selection, where there's room
     const int row = selected_ / columns_;
     const float top = static_cast<float>(row) * rowHeight();
     // at least the room the selected card's ring and ledge take, so they're never under what's round the grid
@@ -128,7 +126,6 @@ int GridView::cellAt(float x, float y) const
     const int column = static_cast<int>(std::floor((x - x_) / (cellWidth() + gap_)));
     if (row < 0 || column < 0 || column >= columns_)
         return -1;
-    // in a gap is in no card
     if (inGrid - static_cast<float>(row) * rowHeight() > cellHeight_ ||
         x - x_ - static_cast<float>(column) * (cellWidth() + gap_) > cellWidth())
         return -1;
@@ -203,7 +200,6 @@ GridView::Event GridView::update(Input& input, float dt)
         }
     }
 
-    // touch: drag to scroll, tap a card to open it
     const bool inside = input.x >= x_ && input.x < x_ + width_ && input.y >= y_ && input.y < y_ + height_;
     if (input.touchStarted || (!input.touching && !input.touchEnded) ||
         (input.touching && (input.startX != touchX_ || input.startY != touchY_)))
@@ -265,7 +261,6 @@ GridView::Event GridView::update(Input& input, float dt)
         }
     }
 
-    // the highlight glides to the selected card, in the grid's own coordinates
     float goalX, goalY;
     cellPosition(selected_, goalX, goalY);
     if (highlightX_ < 0 || std::fabs(goalY - highlightY_) > height_)
@@ -281,7 +276,6 @@ GridView::Event GridView::update(Input& input, float dt)
 void GridView::draw(const CellPainter& drawCell, const HighlightPainter& drawHighlight,
                     const FooterPainter& drawFooter) const
 {
-    // a little room around the grid for the selected card's ring and its ledge
     gfx::pushClip(x_ - 12, y_ - 12, width_ + 24, height_ + 24);
     const bool sunk = gfx::time() < pressedUntil_;
     if (drawHighlight && count_ > 0 && highlightX_ >= 0)
@@ -298,7 +292,6 @@ void GridView::draw(const CellPainter& drawCell, const HighlightPainter& drawHig
     if (footer_ > 0 && drawFooter && footerTop < y_ + height_)
         drawFooter(x_, footerTop, width_, footer_);
 
-    // a thin scrollbar when the cards don't fit
     const float total = static_cast<float>(rows()) * rowHeight() + footer_;
     if (total > height_ && maxScroll() > minScroll())
     {

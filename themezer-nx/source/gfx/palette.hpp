@@ -1,6 +1,5 @@
-// The app's colours and sizes, as Themezer-3DS has them after the Themezer website: its dark mode's stone greys,
-// frosted surfaces over a blurred picture of what's selected, its primary green, and the accent colour of each kind of
-// content (packs pink, themes green, splashes orange). The sizes are for the Switch's 1280x720 screen.
+// Colours and sizes as in Themezer-3DS, after the Themezer website: stone greys, frosted surfaces, primary green, and an
+// accent per content kind (packs pink, themes green, splashes orange). Sizes are for the Switch's 1280x720 screen.
 
 #pragma once
 

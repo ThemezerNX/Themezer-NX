@@ -66,7 +66,6 @@ BrowsePage::~BrowsePage()
 
 void BrowsePage::onShow()
 {
-    // the first time it's shown, it loads
     if (state_ == State::NotLoaded)
         reload();
 }
@@ -350,7 +349,7 @@ void BrowsePage::openChip(Filter filter)
 
 void BrowsePage::drawFilters(float top)
 {
-    // what the list is: its sort, the part of the HOME Menu, the search; and how much there is. A chip tapped changes it.
+    // what the list is (sort, part, search) and how much there is; a tapped chip changes it
     const float middle = top + kFiltersHeight / 2;
     float right = metric::kWidth - kSide;
     if (state_ == State::Ready)

@@ -36,8 +36,8 @@ public:
     // The .nro it runs from, and where a new one goes until the app closes: it can't be replaced while it runs.
     const std::string& selfPath() const { return selfPath_; }
     std::string updatePath() const { return selfPath_ + ".new"; }
-    // A new one is at updatePath(): it goes in place as the app closes, and with restart the app starts again into it
-    // (unless it's leaving to NXThemes Installer, with installs queued).
+    // A new one is at updatePath(): it replaces the .nro on exit; with restart the app relaunches into it
+    // (unless leaving for NXThemes Installer with installs queued).
     void updateOnExit(bool restart)
     {
         updateStaged_ = true;

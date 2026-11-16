@@ -37,7 +37,6 @@ bool init()
         return false;
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG | IMG_INIT_WEBP);
     TTF_Init();
-    // smooth scaling, for pictures and the shapes' corners
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     window = SDL_CreateWindow("Themezer-NX", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               static_cast<int>(metric::kWidth), static_cast<int>(metric::kHeight), SDL_WINDOW_SHOWN);
@@ -64,7 +63,6 @@ void exit()
     window = nullptr;
     TTF_Quit();
     IMG_Quit();
-    // all of SDL, the audio too, which is closed by now
     SDL_Quit();
 }
 

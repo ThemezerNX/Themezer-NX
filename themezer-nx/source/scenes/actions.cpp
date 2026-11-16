@@ -271,10 +271,9 @@ bool installedCopy(const Item& item)
     return slot >= 0 && part.custom && itemupdates::same(part.themezerId, item);
 }
 
-// Puts the files of these plans on the SD card, one after another: each downloaded to the temporary folder, then in
-// place of its old copies, so a download that fails or is cut leaves the old file as it was. A pack's folder changes
-// (the themes Themezer no longer lists move out of it, it takes Themezer's name for it) only when all of its themes got
-// in.
+// Puts the plans' files on the SD card one by one: each downloaded to the temporary folder, then swapped in, so a failed
+// or cut download leaves the old file. A pack's folder changes (themes Themezer no longer lists move out, it takes
+// Themezer's name) only when all its themes got in.
 void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool installedCopies)
 {
     int total = 0;
@@ -312,8 +311,7 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
                         fail(staged.error());
                         continue;
                     }
-                    // the items before it may have moved its copies: a theme its pack no longer lists, a pack folder
-                    // renamed
+                    // the items before it may have moved its copies: a theme its pack no longer lists, a renamed pack folder
                     std::vector<std::string> others;
                     for (const std::string& other : step.others)
                         others.push_back(outdated::rebased(other, result.moves));
@@ -345,8 +343,7 @@ void runUpdates(std::vector<itemupdates::Plan> plans, size_t count, bool install
                     ++result.failed;
                     continue;
                 }
-                // the files are updated already, and their version doesn't depend on where they are: a move that
-                // fails is left as it is
+                // the files are updated and their version doesn't depend on location: a failed move is left
                 for (const auto& [from, to] : plan.takeOut)
                 {
                     // one of that name in the folder above stays where it is
@@ -797,7 +794,6 @@ void install(const Item& item, bool save)
             {"This theme doesn't say which part of the HOME Menu it's for.", {}, themezer::ErrorKind::InvalidData});
         return;
     }
-    // on the SD card already, downloaded here or from the website
     if (const std::string there = onSdCard(item); !there.empty())
     {
         queueAndSay(item, there);
@@ -886,7 +882,6 @@ void downloadPack(const Item& pack)
 
 void openSettings()
 {
-    // each a box ticked while it's on
     const auto box = [](bool on) { return on ? Icon::SquareCheck : Icon::Square; };
     std::vector<ui::Action> actions;
     ui::Action music{box(App::get().config().music), "Music"};
@@ -1072,7 +1067,6 @@ void openUpdates()
     if (const updates::Release* installer = updates::available(updates::Program::Installer))
         actions.push_back({Icon::Refresh, "NXThemes Installer " + installer->version,
                            "You have " + installer->current + ".", true, false, [] { confirmUpdate(updates::Program::Installer); }});
-    // the items on the SD card that Themezer has newer: all of them, then each
     const auto& items = itemupdates::found();
     if (!items.empty())
     {

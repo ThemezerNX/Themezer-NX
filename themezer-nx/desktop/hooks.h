@@ -1,6 +1,5 @@
-// Force-included in the desktop build. The frame's present goes through the script runner, which takes screenshots;
-// and the SD card's paths (/Themes, /switch) go to $THEMEZER_SD when it's set, so installing and downloading work on
-// the computer. The system's headers come first, so the macros only touch the app's own code.
+// Force-included in the desktop build: the frame's present goes through the script runner (screenshots), and the SD card's
+// paths (/Themes, /switch) go to $THEMEZER_SD when set. The system's headers come first, so the macros only touch app code.
 #pragma once
 #ifdef __cplusplus
 #include <SDL2/SDL.h>

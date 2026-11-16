@@ -1,6 +1,5 @@
-// A page of the home scene: the packs, the themes or the splashes, on the SD card or on Themezer. The home scene draws
-// what's round it (the backdrop, the top bar with the mode button and the tabs, the hints); the page draws what's
-// between the top bar and the hints, and handles its own keys.
+// A page of the home scene: packs, themes or splashes, on the SD card or Themezer. The home scene draws what's round
+// it (backdrop, top bar, hints); the page draws what's between the top bar and the hints and handles its own keys.
 
 #pragma once
 

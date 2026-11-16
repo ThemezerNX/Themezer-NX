@@ -13,8 +13,7 @@ bool init();
 void exit();
 SDL_Renderer* sdl();
 
-// A frame: beginFrame, the drawing, then endFrame, which waits for the screen's refresh, so the app runs at 60 frames
-// a second.
+// A frame: beginFrame, the drawing, then endFrame, which waits for the screen's refresh (60 frames a second).
 void beginFrame();
 void endFrame();
 

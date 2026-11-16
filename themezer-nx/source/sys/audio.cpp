@@ -71,7 +71,6 @@ void mix(void*, Uint8* stream, int length)
     }
 }
 
-// A WAV converted to the device's format.
 Clip load(const char* path)
 {
     SDL_AudioSpec wav;

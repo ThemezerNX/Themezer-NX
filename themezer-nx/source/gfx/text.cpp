@@ -25,7 +25,6 @@ constexpr size_t kFontCount = std::size(kFonts);
 
 PlFontData fontData[kFontCount];
 bool fontLoaded[kFontCount] = {};
-// by size in pixels
 std::map<int, TTF_Font*> fonts[kFontCount];
 
 struct Line
@@ -61,7 +60,6 @@ TTF_Font* font(size_t index, int size)
     return slot;
 }
 
-// Decodes the UTF-8 character at i, and moves i past it.
 uint32_t next(std::string_view text, size_t& i)
 {
     const auto byte = static_cast<unsigned char>(text[i]);
@@ -81,7 +79,6 @@ struct Run
     std::string text;
 };
 
-// The line cut into runs of characters that the same font has.
 std::vector<Run> runs(std::string_view text, int size)
 {
     std::vector<Run> out;
@@ -100,7 +97,6 @@ std::vector<Run> runs(std::string_view text, int size)
                 break;
             }
         }
-        // spaces and the like stay with the run they're in
         if (!out.empty() && (cp == ' ' || out.back().font == chosen))
             out.back().text.append(text.substr(start, i - start));
         else
@@ -267,7 +263,6 @@ float lineHeight(float size)
 
 namespace
 {
-// From a line's top to the middle of its capitals.
 float capMiddle(float size)
 {
     TTF_Font* f = font(0, pixels(size));
@@ -321,7 +316,6 @@ std::string ellipsize(std::string_view text, float maxWidth, float size)
 {
     if (textWidth(text, size) <= maxWidth)
         return std::string(text);
-    // the character boundaries, to cut at
     std::vector<size_t> ends;
     for (size_t i = 0; i < text.size();)
     {
