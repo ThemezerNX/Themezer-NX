@@ -1,0 +1,75 @@
+# Builds Themezer-NX on every push and pull request, and publishes a release for every vX.Y.Z tag.
+# Each build takes the latest list of CA certificates from curl.se (checked against its published SHA-256), so a
+# release always carries a fresh copy: the app checks HTTPS servers against it until it is three years old.
+
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install zlib
+        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
+      - name: Run the tests
+        run: make -C themezer-nx/desktop test
+
+  build:
+    name: NRO
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version comes from the tag
+
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install libraries
+        run: dkp-pacman -S --needed --noconfirm switch-curl switch-mbedtls switch-sdl2 switch-sdl2_image switch-sdl2_ttf
+
+      - name: Take the latest CA certificates
+        run: |
+          curl -fsSL --retry 3 -o /tmp/cacert.pem https://curl.se/ca/cacert.pem
+          curl -fsSL --retry 3 -o /tmp/cacert.pem.sha256 https://curl.se/ca/cacert.pem.sha256
+          (cd /tmp && sha256sum -c cacert.pem.sha256)
+          mv /tmp/cacert.pem themezer-nx/romfs/cacert.pem
+          grep -m 1 'as of:' themezer-nx/romfs/cacert.pem
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: themezer-nx-${{ github.sha }}
+          path: themezer-nx/themezer-nx.nro
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: themezer-nx-${{ github.sha }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: themezer-nx.nro
+          generate_release_notes: true
+          # v4.1.0-beta.1 and the like: the app's update check asks for releases/latest, which skips pre-releases
+          prerelease: ${{ contains(github.ref_name, '-') }}

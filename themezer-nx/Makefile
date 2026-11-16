@@ -39,7 +39,23 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 APP_TITLE   := Themezer-NX
 APP_AUTHOR  := Such Meme, Many Skill
-APP_VERSION := 4.0.0
+# APP_VERSION=x.y.z overrides the version, which otherwise comes from the git tag on HEAD (vX.Y.Z), or for an untagged
+# build the last release tag before it plus -dev and the commit (4.0.0-dev+abc1234). Releases before 4.0.0 were tagged
+# without the v.
+# (switch_rules has already set it to 1.0.0, so only a version given on the command line or in the environment counts)
+ifeq ($(filter command line environment,$(origin APP_VERSION)),)
+  GIT_TAG  := $(shell git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null)
+  GIT_HASH := $(shell git rev-parse --short=7 HEAD 2>/dev/null)
+  LAST_TAG := $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' --match '[0-9]*' 2>/dev/null)
+  LAST_VERSION := $(or $(LAST_TAG:v%=%),0.0.0)
+  ifneq ($(strip $(GIT_TAG)),)
+    APP_VERSION := $(GIT_TAG:v%=%)
+  else ifneq ($(strip $(GIT_HASH)),)
+    APP_VERSION := $(LAST_VERSION)-dev+$(GIT_HASH)
+  else
+    APP_VERSION := $(LAST_VERSION)-dev
+  endif
+endif
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build

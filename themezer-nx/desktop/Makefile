@@ -58,7 +58,7 @@ build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 
 build/tests/thumbhash_test: tests/thumbhash_test.cpp ../source/libs/thumbhash.c
 	@mkdir -p $(dir $@)
-	$(CC) -std=c11 -g -O1 -c ../source/libs/thumbhash.c -o build/tests/thumbhash.o
+	$(CC) -std=gnu11 -g -O1 -c ../source/libs/thumbhash.c -o build/tests/thumbhash.o
 	$(CXX) -std=c++23 -g -O1 -I../source tests/thumbhash_test.cpp build/tests/thumbhash.o -o $@
 
 build/tests/version_test: tests/version_test.cpp ../source/core/version.cpp
