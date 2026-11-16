@@ -18,6 +18,7 @@
 
 #include <switch.h>
 #include "sys/net.hpp"
+#include "sys/session.hpp"
 #include "services/themezer.hpp"
 namespace tz::scenes { void testError(bool network); void testLocalFile(const std::string& path); void testDownload(const std::string& url); }
 #include <mbedtls/base64.h>
@@ -169,6 +170,8 @@ void runScript()
             haveTyped = true;
             continue;
         }
+        if (step.command == "crash" || step.command == "freeze" || step.command == "unclean")
+            tz::session::simulate(step.command);
         if (step.command == "local") { tz::scenes::testLocalFile(step.argument); return; }
         if (step.command == "download") { tz::scenes::testDownload(step.argument); return; }
         if (step.command == "error") { tz::scenes::testError(step.argument == "network"); return;

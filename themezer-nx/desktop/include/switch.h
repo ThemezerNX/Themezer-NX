@@ -210,8 +210,19 @@ int themezerDesktopTestHttps(int argc, char** argv);
 #define CUR_PROCESS_HANDLE 0xFFFF8001
 constexpr int InfoType_TotalMemorySize = 6;
 constexpr int InfoType_UsedMemorySize = 7;
+constexpr int InfoType_ProgramId = 18;
 inline Result svcGetInfo(u64* value, int type, u32, u64)
 {
-    *value = type == InfoType_TotalMemorySize ? 512ULL * 1024 * 1024 : 120ULL * 1024 * 1024;
+    *value = type == InfoType_ProgramId ? 0x010000000000100dULL : type == InfoType_TotalMemorySize ? 512ULL * 1024 * 1024 : 120ULL * 1024 * 1024;
     return 0;
 }
+
+enum AppletFocusState { AppletFocusState_InFocus = 1, AppletFocusState_OutOfFocus = 2, AppletFocusState_Background = 3 };
+enum AppletHookType { AppletHookType_OnFocusState, AppletHookType_OnResume, AppletHookType_OnExitRequest };
+struct AppletHookCookie {};
+inline void appletHook(AppletHookCookie*, void (*)(AppletHookType, void*), void*) {}
+inline void appletUnhook(AppletHookCookie*) {}
+inline AppletFocusState appletGetFocusState() { return AppletFocusState_InFocus; }
+
+inline Result appletLockExit() { return 0; }
+inline Result appletUnlockExit() { return 0; }

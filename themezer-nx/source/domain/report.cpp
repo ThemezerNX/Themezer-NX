@@ -58,7 +58,7 @@ std::string toJson(const Report& report)
         std::to_string(report.memoryUsed) + ",\"available\":" + std::to_string(report.memoryAvailable) + "}";
     std::string base = "{\"version\":" + quote(report.version) + ",\"firmware\":" + quote(report.firmware) +
                        ",\"atmosphere\":" + quote(report.atmosphere) +
-                       ",\"kind\":" + quote(themezer::kindName(report.kind)) + ",\"message\":" + quote(report.message) +
+                       ",\"kind\":" + quote(report.kindText.empty() ? std::string(themezer::kindName(report.kind)) : report.kindText) + ",\"message\":" + quote(report.message) +
                        ",\"detail\":" + quote(report.detail) + memory + ",\"log\":[";
     std::vector<std::string> lines;
     size_t size = base.size() + 2;

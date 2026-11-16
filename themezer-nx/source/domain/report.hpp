@@ -17,6 +17,7 @@ struct Report
     std::vector<std::string> log;
     std::string launch = "unknown";
     uint64_t memoryUsed = 0, memoryAvailable = 0;
+    std::string kindText; // a previous session: crash, freeze, fatal error or unclean exit
 };
 std::string toJson(const Report& report);
 } // namespace tz::report

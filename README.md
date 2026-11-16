@@ -39,3 +39,6 @@ It contains no console or user identifiers. Themezer only logs the report; it do
 For bug reports, the current session log is `/Themes/ThemezerNX/log.txt`; the previous session is `log.old.txt` in the same folder.
 
 HTTPS servers are verified against the bundled Mozilla CA list; once that list is over three years old (1096 days by the console's clock), a certificate failure causes one retry without verification and disables verification for the rest of that session.
+
+After a recorded crash, foreground freeze or fatal error, the next start asks once whether to share that session's version, launch mode, memory, log and short crash registers/module offsets; it keeps the snapshot in `/Themes/ThemezerNX/last-session.txt`.
+Ambiguous leftovers without failure evidence are not offered on Switch, since an abrupt power off or forced HOME termination cannot reliably be distinguished from an unclean exit.

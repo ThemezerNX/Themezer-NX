@@ -2,6 +2,7 @@
 
 #include <switch.h>
 #include <chrono>
+#include <atomic>
 #include <condition_variable>
 #include <cstdarg>
 #include <cstdio>
@@ -21,6 +22,7 @@ Ring ring;
 std::deque<std::string> pending;
 std::thread writer;
 bool stopping = false;
+std::atomic<void (*)()> listener{nullptr};
 
 void write(char level, const char* format, va_list args)
 {
@@ -51,8 +53,14 @@ void write(char level, const char* format, va_list args)
         start = end + 1;
     } while (start < message.size());
     ready.notify_one();
+    if (auto notify = listener.load()) notify();
 }
 } // namespace
+
+void setListener(void (*notify)())
+{
+    listener = notify;
+}
 
 Memory memory()
 {
@@ -151,5 +159,10 @@ std::vector<std::string> tail()
 {
     std::lock_guard lock(mutex);
     return ring.tail();
+}
+std::vector<std::string> tailNow()
+{
+    std::unique_lock lock(mutex, std::try_to_lock);
+    return lock.owns_lock() ? ring.tail() : std::vector<std::string>{};
 }
 } // namespace tz::log

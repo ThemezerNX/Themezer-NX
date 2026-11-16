@@ -33,10 +33,13 @@ struct Memory
 Memory memory();
 void logMemory();
 
+void setListener(void (*listener)());
+
 void init();
 void exit();
 void info(const char* format, ...);
 void warn(const char* format, ...);
 void error(const char* format, ...);
 std::vector<std::string> tail();
+std::vector<std::string> tailNow(); // best effort for a fatal handler: never wait for a logger holding the mutex
 } // namespace tz::log

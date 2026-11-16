@@ -17,6 +17,7 @@
 #include "scenes/frame.hpp"
 #include "scenes/pack.hpp"
 #include "sys/audio.hpp"
+#include "sys/session.hpp"
 #include "ui/overlays.hpp"
 
 #include <switch.h>
@@ -548,7 +549,9 @@ std::optional<std::string> askText(const char* guide, const std::string& initial
     swkbdConfigSetGuideText(&config, guide);
     swkbdConfigSetInitialText(&config, initial.c_str());
     swkbdConfigSetStringLenMax(&config, static_cast<u32>(maxLength));
+    session::holdWatch(true);
     const Result result = swkbdShow(&config, out.data(), out.size());
+    session::holdWatch(false);
     swkbdClose(&config);
     if (R_FAILED(result))
         return std::nullopt;

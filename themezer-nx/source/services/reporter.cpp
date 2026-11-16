@@ -1,25 +1,15 @@
 #include "services/reporter.hpp"
 
-#include "domain/report.hpp"
 #include "sys/log.hpp"
 #include "ui/overlays.hpp"
 #include <switch.h>
-#ifdef TZ_DESKTOP
-#include <cstdlib>
-#endif
 
 namespace tz::report
 {
-void share(const themezer::Error& error)
+namespace
 {
-    if (!themezer::shareable(error.kind))
-        return;
-    Report report{APP_VERSION, "unknown", "unknown", error.kind, error.message, error.detail, log::tail()};
-    const auto launch = appletGetAppletType();
-    report.launch = launch == AppletType_Application || launch == AppletType_SystemApplication ? "application" : "applet";
-    const auto memory = log::memory();
-    report.memoryUsed = memory.used;
-    report.memoryAvailable = memory.available;
+void send(Report report)
+{
     if (R_SUCCEEDED(setsysInitialize()))
     {
         SetSysFirmwareVersion version{};
@@ -46,5 +36,23 @@ void share(const themezer::Error& error)
                   bool ok = response.curlCode == 0 && response.status == 204;
                   jobs::post([ok] { ui::toast(ok ? "Error shared. Thanks!" : "Couldn't share the error"); });
               });
+}
+} // namespace
+
+void share(const themezer::Error& error)
+{
+    if (!themezer::shareable(error.kind)) return;
+    Report report{APP_VERSION, "unknown", "unknown", error.kind, error.message, error.detail, log::tail()};
+    const auto launch = appletGetAppletType();
+    report.launch = launch == AppletType_Application || launch == AppletType_SystemApplication ? "application" : "applet";
+    const auto memory = log::memory();
+    report.memoryUsed = memory.used;
+    report.memoryAvailable = memory.available;
+    send(std::move(report));
+}
+
+void shareLastSession(Report report)
+{
+    send(std::move(report));
 }
 } // namespace tz::report

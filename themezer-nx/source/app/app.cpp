@@ -15,6 +15,8 @@
 #include "sys/audio.hpp"
 #include "sys/jobs.hpp"
 #include "sys/net.hpp"
+#include "sys/session.hpp"
+#include "services/reporter.hpp"
 #include "ui/overlays.hpp"
 
 #include <SDL2/SDL.h>
@@ -119,6 +121,8 @@ int App::run(const char* self)
     mkdir("/switch/.themezer-nx", 0777);
     installs::removeTemporary();
 
+    auto lastSession = session::takeLastSession();
+    session::begin();
     config_.load();
     audio::init();
     audio::quietHome();
@@ -164,12 +168,23 @@ int App::run(const char* self)
     if (!installs::installerPath())
         scenes::offerInstaller();
 
+    if (lastSession)
+    {
+        const auto report = std::move(*lastSession);
+        // the report's message is what happened, as the title says it
+        scenes_.emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, report.message,
+                                    "Do you want to share with the developers what happened last time?",
+            std::vector<ui::DialogButton>{
+                {"Not now", nullptr},
+                {"Share", [report] { report::shareLastSession(report); }}});
+    }
     float last = gfx::time();
     while (appletMainLoop() && !quitting_ && !scenes_.empty())
     {
         const float now = gfx::time();
         const float dt = std::clamp(now - last, 0.0f, 0.1f);
         last = now;
+        session::frame();
 
         // a frame's own work in its parts, for the log when it's long enough to show as a stutter
         const Uint64 start = SDL_GetPerformanceCounter();
@@ -198,6 +213,8 @@ int App::run(const char* self)
         gfx::endFrame();
     }
 
+    // Intentional shutdown may wait for workers or an installer handoff; that wait is not a foreground freeze.
+    session::holdWatch(true);
     const char* installer = installs::installerPath();
     if (installer && installs::queuedCount() > 0)
     {
@@ -237,6 +254,7 @@ int App::run(const char* self)
     if (updateStaged_)
         log::info("Update %s", updates::replace(updatePath(), selfPath_) ? "in place" : "couldn't go in place");
     log::info("Themezer-NX done");
+    session::end();
     log::exit();
     // Started by nxlink, stdout and stderr are copies of its socket. They go before the sockets do: else the C
     // library's closing of stdout at exit closes a socket after socketExit, which crashed the app, and with the
