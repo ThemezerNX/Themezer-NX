@@ -11,7 +11,7 @@ int main()
     auto full = themezer::storageError("/Themes/test", ENOSPC);
     assert(full.kind == ErrorKind::NoSpace && full.message == "The SD card is full.");
     assert(!themezer::shareable(full.kind));
-    for (auto kind : {ErrorKind::Cancelled, ErrorKind::Network, ErrorKind::Server, ErrorKind::Api, ErrorKind::NotFound,
+    for (auto kind : {ErrorKind::Cancelled, ErrorKind::Network, ErrorKind::Tls, ErrorKind::Server, ErrorKind::Api, ErrorKind::NotFound,
                       ErrorKind::NoSpace})
         assert(!themezer::shareable(kind));
     for (auto kind : {ErrorKind::Storage, ErrorKind::InvalidData, ErrorKind::Unsupported})

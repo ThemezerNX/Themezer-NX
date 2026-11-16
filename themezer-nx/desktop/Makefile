@@ -43,13 +43,14 @@ clean:
 # The reader of .nxtheme archives, on archives the test makes, the ThumbHash encoder, versions, file names, and what
 # tells an outdated item and swaps it for the new one.
 test: build/tests/archive_test build/tests/thumbhash_test build/tests/version_test build/tests/names_test \
-      build/tests/outdated_test build/tests/report_test
+      build/tests/outdated_test build/tests/report_test build/tests/certificates_test
 	./build/tests/archive_test
 	./build/tests/thumbhash_test
 	./build/tests/version_test
 	./build/tests/names_test
 	./build/tests/outdated_test
 	./build/tests/report_test
+	./build/tests/certificates_test
 
 build/tests/archive_test: tests/archive_test.cpp ../source/core/archive.cpp
 	@mkdir -p $(dir $@)
@@ -73,5 +74,9 @@ build/tests/outdated_test: tests/outdated_test.cpp ../source/domain/outdated.cpp
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@
 
 build/tests/report_test: tests/report_test.cpp ../source/domain/report.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@
+
+build/tests/certificates_test: tests/certificates_test.cpp ../source/core/certificates.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -std=c++23 -g -O1 -I../source $^ -o $@

@@ -6,6 +6,7 @@ enum class ErrorKind
 {
     Cancelled,
     Network,
+    Tls,
     Server,
     Api,
     NotFound,
@@ -27,6 +28,8 @@ constexpr const char* kindName(ErrorKind kind)
         return "cancelled";
     case ErrorKind::Network:
         return "network";
+    case ErrorKind::Tls:
+        return "tls";
     case ErrorKind::Server:
         return "server";
     case ErrorKind::Api:

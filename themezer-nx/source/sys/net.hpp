@@ -35,6 +35,7 @@ struct Response
 
     bool ok() const { return curlCode == 0 && status >= 200 && status < 300; }
     bool cancelled() const;
+    bool tls() const;
 };
 
 // A request on this thread's handle, which reuses its connection when it has one open to the host. sentHeader, when

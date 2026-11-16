@@ -36,3 +36,5 @@ Nothing is sent unless you press it. The report contains exactly the app version
 Atmosphère version, error kind, displayed message, diagnostic detail, and recent log lines (which may include file paths).
 It contains no console or user identifiers. Themezer only logs the report; it does not open a ticket.
 For bug reports, the current session log is `/Themes/ThemezerNX/log.txt`; the previous session is `log.old.txt` in the same folder.
+
+HTTPS servers are verified against the bundled Mozilla CA list; once that list is over three years old (1096 days by the console's clock), a certificate failure causes one retry without verification and disables verification for the rest of that session.

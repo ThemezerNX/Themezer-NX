@@ -100,6 +100,8 @@ struct Error
     ErrorKind kind = ErrorKind::Server;
 };
 
+Error connectionError(const net::Response& response);
+
 inline Error storageError(const std::string& path, int code = errno)
 {
     return {code == ENOSPC ? "The SD card is full." : "Couldn't access the file on the SD card.", path,

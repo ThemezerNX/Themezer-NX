@@ -203,3 +203,6 @@ inline void splExit() {}
 
 bool themezerDesktopOffline();
 const char* themezerDesktopReportUrl();
+
+const char* themezerDesktopCaDate();
+int themezerDesktopTestHttps(int argc, char** argv);

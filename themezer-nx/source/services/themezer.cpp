@@ -223,15 +223,21 @@ Error wrongAnswer()
     return Error{"Themezer's answer wasn't what the app expected. Try again later.", {}, ErrorKind::InvalidData};
 }
 
+} // namespace
+
 Error connectionError(const net::Response& response)
 {
     Error error{{}, {}, ErrorKind::Server};
     error.kind = response.cancelled() ? ErrorKind::Cancelled
+                 : response.tls()      ? ErrorKind::Tls
                  : response.curlCode  ? ErrorKind::Network
                                       : ErrorKind::Server;
     if (response.curlCode != 0)
     {
-        error.message = "Couldn't reach Themezer. Check the console's internet connection and try again.";
+        error.message = response.tls()
+                            ? "Couldn't connect securely. Check the console's date and time in System Settings: a wrong "
+                              "clock makes secure connections fail."
+                            : "Couldn't reach Themezer. Check the console's internet connection and try again.";
         error.detail = response.error;
     }
     else
@@ -240,6 +246,9 @@ Error connectionError(const net::Response& response)
     }
     return error;
 }
+
+namespace
+{
 
 std::string escapeJson(const std::string& text)
 {

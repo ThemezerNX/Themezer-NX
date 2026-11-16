@@ -225,3 +225,12 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
+
+# Every build should carry a current copy of Mozilla's CA list.
+.PHONY: update-certs
+update-certs:
+	@mkdir -p $(BUILD)
+	@curl -fsSL --retry 3 -o $(BUILD)/cacert.pem https://curl.se/ca/cacert.pem
+	@curl -fsSL --retry 3 -o $(BUILD)/cacert.pem.sha256 https://curl.se/ca/cacert.pem.sha256
+	@cd $(BUILD) && shasum -a 256 -c cacert.pem.sha256
+	@mv $(BUILD)/cacert.pem romfs/cacert.pem

@@ -2,6 +2,9 @@
 //
 //     THEMEZER_SCRIPT=script.txt THEMEZER_SHOTS=out ./themezer-nx-desktop
 //
+// --test-https <urls...> checks read-only requests without opening the UI; THEMEZER_CA_DATE="Jan 1 2020"
+// exercises the abandoned-build fallback (desktop only). The CA path uses the existing romfs: symlink.
+//
 // SDL_VIDEODRIVER=dummy runs it without a window; THEMEZER_SD=folder puts the SD card's /Themes, /switch, /atmosphere
 // and /bootloader there
 // (an empty NXThemesInstaller.nro in folder/switch lets installing be tried); THEMEZER_EXIT_AFTER_SCRIPT=1 quits when
@@ -14,6 +17,8 @@
 // C = X, V = Y, Q = L, E = R, 1 = ZL, 3 = ZR, = = +, - = -; the mouse is the touch screen.
 
 #include <switch.h>
+#include "sys/net.hpp"
+#include "services/themezer.hpp"
 namespace tz::scenes { void testError(bool network); }
 #include <mbedtls/base64.h>
 
@@ -566,3 +571,27 @@ int mbedtls_base64_decode(unsigned char* dst, size_t dlen, size_t* olen, const u
 
 bool themezerDesktopOffline() { return std::getenv("THEMEZER_OFFLINE") != nullptr; }
 const char* themezerDesktopReportUrl() { return std::getenv("THEMEZER_REPORT_URL"); }
+
+const char* themezerDesktopCaDate() { return std::getenv("THEMEZER_CA_DATE"); }
+
+int themezerDesktopTestHttps(int argc, char** argv)
+{
+    if (!tz::net::init())
+        return 1;
+    bool good = true;
+    const bool relaxed = themezerDesktopCaDate() != nullptr;
+    for (int i = 2; i < argc; ++i)
+    {
+        auto response = tz::net::get(argv[i], nullptr, nullptr, 30);
+        const auto error = tz::themezer::connectionError(response);
+        std::printf("HTTPS test %s: curl=%d HTTP=%ld kind=%s message=%s\n", argv[i], response.curlCode,
+                    response.status, response.curlCode ? tz::themezer::kindName(error.kind) : "none",
+                    response.curlCode ? error.message.c_str() : "success");
+        const bool bad = std::string_view(argv[i]).find("badssl.com") != std::string_view::npos;
+        good = good && (bad && !relaxed ? response.tls() && error.kind == tz::themezer::ErrorKind::Tls
+                                       : response.ok());
+    }
+    tz::net::release();
+    tz::net::exit();
+    return good ? 0 : 1;
+}
