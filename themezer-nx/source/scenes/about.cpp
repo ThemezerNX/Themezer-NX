@@ -38,9 +38,8 @@ constexpr float kFriction = 3;       // how fast a fling slows down, as in the g
 constexpr float kHeldSpeed = 900;    // pixels a second, while up or down is held
 
 const char* kCredits =
-    "Themezer-NX is made by suchmememanyskill and the Themezer contributors. Thanks to Exelix11 for NXThemesInstaller, "
-    "which installs what the app downloads, and for the help with cURL. The look, the sounds and the music come from "
-    "Themezer-3DS; the icons are Lucide's.";
+    "Themezer-NX is made by suchmememanyskill and Migush. Thanks to Exelix11 for NXThemesInstaller, "
+    "which installs what the app downloads, and for the help with cURL. The icons are Lucide's.";
 
 class AboutScene final : public ui::Scene
 {
