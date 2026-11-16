@@ -54,7 +54,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: themezer-nx-${{ github.sha }}
-          path: themezer-nx/themezer-nx.nro
+          path: |
+            themezer-nx/themezer-nx.nro
+            themezer-nx/themezer-nx.elf
 
   release:
     name: Release
@@ -67,9 +69,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: themezer-nx-${{ github.sha }}
+      # the ELF with its debug info, for looking up a crash report's addresses (aarch64-none-elf-addr2line -f -C -e)
+      - name: Zip the ELF
+        run: zip -9 -j themezer-nx.elf.zip themezer-nx.elf
       - uses: softprops/action-gh-release@v2
         with:
-          files: themezer-nx.nro
+          files: |
+            themezer-nx.nro
+            themezer-nx.elf.zip
           generate_release_notes: true
           # v4.1.0-beta.1 and the like: the app's update check asks for releases/latest, which skips pre-releases
           prerelease: ${{ contains(github.ref_name, '-') }}
