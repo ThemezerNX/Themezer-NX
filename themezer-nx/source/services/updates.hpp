@@ -23,6 +23,7 @@ struct Release
     std::string url;     // its .nro
     uint64_t size = 0;   // the .nro's, from GitHub; 0 when it didn't say
     std::string current; // what's here now
+    std::string notes;   // GitHub release body, Markdown shown as written
 };
 
 // Checks both on a worker; what's newer comes in on the main thread, and then found is called.
@@ -30,6 +31,9 @@ void check(std::function<void()> found);
 // The newer release of it, or nullptr: none, or not checked yet.
 const Release* available(Program program);
 int availableCount();
+#ifdef TZ_DESKTOP
+void setTestRelease(Program program, Release release);
+#endif
 // It's been updated: no longer offered.
 void done(Program program);
 

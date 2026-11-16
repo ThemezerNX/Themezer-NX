@@ -79,6 +79,7 @@ public:
     void update(Input& input, float dt) override;
     void draw() override;
     bool covers() const override { return false; }
+    void setNotes(std::string heading, std::string text);
 
 private:
     void choose(size_t button);
@@ -95,6 +96,11 @@ private:
         float x, y, w, h;
     };
     std::vector<Box> boxes_;
+    std::string notesHeading_;
+    std::vector<std::string> notesLines_;
+    Box notesBox_{};
+    float notesScroll_ = 0, notesMaxScroll_ = 0;
+    bool draggingNotes_ = false;
 };
 
 // What a task tells the progress overlay as it goes, from its worker thread.

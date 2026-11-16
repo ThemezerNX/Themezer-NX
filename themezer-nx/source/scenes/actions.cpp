@@ -1033,6 +1033,25 @@ void updateInstaller()
             ui::toast("NXThemes Installer " + release.version + " is installed", ui::ToastKind::Success);
         }));
 }
+void confirmUpdate(updates::Program program)
+{
+    const auto* release = updates::available(program);
+    if (!release)
+        return;
+    auto& dialog = scenes().emplace<ui::Dialog>(
+        Icon::Refresh, color::kPrimary,
+        (program == updates::Program::App ? "Version " : "NXThemes Installer ") + release->version + " is available",
+        "You have version " + release->current,
+        std::vector<ui::DialogButton>{{"Not now", nullptr},
+            {"Install", [program] {
+                if (program == updates::Program::App)
+                    updateApp();
+                else
+                    updateInstaller();
+            }}});
+    if (!release->notes.empty())
+        dialog.setNotes("Version " + release->version, release->notes);
+}
 } // namespace
 
 void openUpdates()
@@ -1041,10 +1060,10 @@ void openUpdates()
     if (const updates::Release* app = updates::available(updates::Program::App))
         actions.push_back({Icon::Refresh, "Themezer-NX " + app->version,
                            "You have " + app->current + ". Themezer-NX restarts into it.", true, false,
-                           [] { updateApp(); }});
+                           [] { confirmUpdate(updates::Program::App); }});
     if (const updates::Release* installer = updates::available(updates::Program::Installer))
         actions.push_back({Icon::Refresh, "NXThemes Installer " + installer->version,
-                           "You have " + installer->current + ".", true, false, [] { updateInstaller(); }});
+                           "You have " + installer->current + ".", true, false, [] { confirmUpdate(updates::Program::Installer); }});
     // the items on the SD card that Themezer has newer: all of them, then each
     const auto& items = itemupdates::found();
     if (!items.empty())
@@ -1137,6 +1156,21 @@ void openMenu()
 }
 
 #ifdef TZ_DESKTOP
+void testUpdate(const std::string& mode)
+{
+    const auto program = mode == "installer" ? updates::Program::Installer : updates::Program::App;
+    updates::Release release{"4.2.0", "http://127.0.0.1:18769/update.nro", 0, "4.0.0", {}};
+    if (mode != "empty")
+    {
+        release.notes = "## What's Changed\r\n\r\n";
+        for (int i = 1; i <= 18; ++i)
+            release.notes += "* Improve feature " + std::to_string(i) + " by @contributor in https://github.com/ThemezerNX/Themezer-NX/pull/" + std::to_string(i) + "\r\n";
+        release.notes += "\r\n## New Contributors\r\n* @new-user made their first contribution.\r\n";
+    }
+    updates::setTestRelease(program, std::move(release));
+    openUpdates();
+}
+
 void testLocalFile(const std::string& path)
 {
     library::Entry entry;

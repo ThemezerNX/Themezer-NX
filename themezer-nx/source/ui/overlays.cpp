@@ -276,9 +276,36 @@ Keys Dialog::keyOf(size_t button) const
     return button == 0 ? key::kB : key::kA;
 }
 
+void Dialog::setNotes(std::string heading, std::string text)
+{
+    notesHeading_ = std::move(heading);
+    std::erase(text, '\r'); // GitHub uses both LF and CRLF; keep Markdown otherwise unchanged.
+    notesLines_ = text.empty() ? std::vector<std::string>{} : wrap(text, 960 - 96, metric::kTextSmall);
+    notesScroll_ = 0;
+}
+
 void Dialog::update(Input& input, float dt)
 {
     approach(appear_, 1, dt, 12);
+    if (!notesLines_.empty())
+    {
+        const float step = lineHeight(metric::kTextSmall);
+        if (input.repeated(key::kUp))
+            notesScroll_ -= step;
+        if (input.repeated(key::kDown))
+            notesScroll_ += step;
+        if (input.touchStarted)
+            draggingNotes_ = input.x >= notesBox_.x && input.x < notesBox_.x + notesBox_.w &&
+                             input.y >= notesBox_.y && input.y < notesBox_.y + notesBox_.h;
+        if (draggingNotes_ && input.dragging)
+            notesScroll_ -= input.dy;
+        if (draggingNotes_ && input.touchEnded)
+        {
+            input.consumeTouch();
+            draggingNotes_ = false;
+        }
+        notesScroll_ = std::clamp(notesScroll_, 0.0f, notesMaxScroll_);
+    }
     for (size_t i = 0; i < buttons_.size(); ++i)
     {
         if (input.pressed(keyOf(i)))
@@ -305,12 +332,17 @@ void Dialog::update(Input& input, float dt)
 void Dialog::draw()
 {
     fill(withAlpha(color::kScrim, appear_));
-    const float width = 680;
+    const bool hasNotes = !notesLines_.empty();
+    const float width = hasNotes ? 960 : 680;
     const float messageWidth = width - 80;
-    const auto lines = wrap(message_, messageWidth, metric::kTextNormal, 8);
+    const int maxMessageLines = hasNotes ? 3 : 8;
+    const auto lines = wrap(message_, messageWidth, metric::kTextNormal, maxMessageLines);
     const float messageHeight = static_cast<float>(lines.size()) * lineHeight(metric::kTextNormal);
-    const float height = 40 + metric::kIconLarge * 0.75f + 20 + lineHeight(metric::kTextLarge) + 12 + messageHeight +
+    const float baseHeight = 40 + metric::kIconLarge * 0.75f + 20 + lineHeight(metric::kTextLarge) + 12 + messageHeight +
                          36 + kButtonHeight + 32;
+    const float headingHeight = lineHeight(metric::kTextNormal);
+    const float notesHeight = hasNotes ? std::min(260.0f, 656 - baseHeight - 24 - headingHeight - 12) : 0;
+    const float height = baseHeight + (hasNotes ? 24 + headingHeight + 12 + notesHeight : 0);
     const float x = (metric::kWidth - width) / 2;
     const float y = std::round((metric::kHeight - height) / 2 + (1 - ease(appear_)) * 40);
     const Layer layer(0, 0, ease(appear_));
@@ -323,7 +355,35 @@ void Dialog::draw()
     at += iconSize + 20;
     drawText(title_, x + width / 2, at, metric::kTextLarge, color::kText, Align::Center, messageWidth);
     at += lineHeight(metric::kTextLarge) + 12;
-    drawWrapped(message_, x + 40, at, messageWidth, metric::kTextNormal, color::kTextDim, 8, Align::Center);
+    drawWrapped(message_, x + 40, at, messageWidth, metric::kTextNormal, color::kTextDim, maxMessageLines, Align::Center);
+    if (hasNotes)
+    {
+        at += messageHeight + 24;
+        drawText(notesHeading_, x + 40, at, metric::kTextNormal, color::kText, Align::Left, messageWidth);
+        at += headingHeight + 12;
+        notesBox_ = {x + 40, at, messageWidth, notesHeight};
+        const float step = lineHeight(metric::kTextSmall);
+        const float contentHeight = static_cast<float>(notesLines_.size()) * step;
+        notesMaxScroll_ = std::max(0.0f, contentHeight - notesHeight);
+        notesScroll_ = std::clamp(notesScroll_, 0.0f, notesMaxScroll_);
+        pushClip(notesBox_.x, notesBox_.y, notesBox_.w, notesBox_.h);
+        const int first = static_cast<int>(notesScroll_ / step);
+        for (int i = first; i < static_cast<int>(notesLines_.size()); ++i)
+        {
+            const float top = at + static_cast<float>(i) * step - notesScroll_;
+            if (top >= at + notesHeight)
+                break;
+            drawText(notesLines_[i], x + 40, top, metric::kTextSmall, color::kTextDim);
+        }
+        popClip();
+        if (notesMaxScroll_ > 0)
+        {
+            const float thumb = std::max(16.0f, notesHeight * notesHeight / contentHeight);
+            roundedRect(x + width - 44, at, 3, notesHeight, 1.5f, color::kSurfaceHigh);
+            roundedRect(x + width - 44, at + (notesHeight - thumb) * notesScroll_ / notesMaxScroll_,
+                        3, thumb, 1.5f, color::kTextDim);
+        }
+    }
 
     const float buttonsTop = y + height - 32 - kButtonHeight;
     const float slotWidth = (width - 64) / static_cast<float>(buttons_.size());

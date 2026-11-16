@@ -41,6 +41,8 @@ std::optional<Release> latest(const char* repository)
         log::warn("Updates: invalid release data from %s", repository);
         return std::nullopt;
     }
+    const cJSON* body = cJSON_GetObjectItemCaseSensitive(root.get(), "body");
+    const std::string notes = cJSON_IsString(body) ? body->valuestring : "";
     const cJSON* asset = nullptr;
     cJSON_ArrayForEach(asset, cJSON_GetObjectItemCaseSensitive(root.get(), "assets"))
     {
@@ -54,7 +56,7 @@ std::optional<Release> latest(const char* repository)
         if (file.size() > 4 && file.ends_with(".nro") && cJSON_IsString(url))
             return Release{digit == std::string::npos ? tagName : tagName.substr(digit), url->valuestring,
                            cJSON_IsNumber(size) && size->valuedouble > 0 ? static_cast<uint64_t>(size->valuedouble) : 0,
-                           {}};
+                           {}, notes};
     }
     return std::nullopt;
 }
@@ -98,6 +100,13 @@ const Release* available(Program program)
     const auto& release = releases[static_cast<size_t>(program)];
     return release ? &*release : nullptr;
 }
+
+#ifdef TZ_DESKTOP
+void setTestRelease(Program program, Release release)
+{
+    releases[static_cast<size_t>(program)] = std::move(release);
+}
+#endif
 
 int availableCount()
 {

@@ -12,6 +12,7 @@
 //
 // A script has a command a line: "wait <frames>", "press <key>", "hold <key> <frames>", "tap <x> <y>",
 // "error storage|network" opens a test error dialog.
+// "drag <x> <y> <end-y> <frames>" drags vertically while held.
 // "type <text>" (what the next keyboard returns), "shot <name>" (out/<name>.png) and "quit". Keys: a b x y l r zl zr
 // plus minus up down left right rup rdown. Without a script the keyboard is the controller: arrows, Z = A, X = B,
 // C = X, V = Y, Q = L, E = R, 1 = ZL, 3 = ZR, = = +, - = -; the mouse is the touch screen.
@@ -20,7 +21,7 @@
 #include "sys/net.hpp"
 #include "sys/session.hpp"
 #include "services/themezer.hpp"
-namespace tz::scenes { void testError(bool network); void testLocalFile(const std::string& path); void testDownload(const std::string& url); }
+namespace tz::scenes { void testError(bool network); void testUpdate(const std::string& mode); void testLocalFile(const std::string& path); void testDownload(const std::string& url); }
 #include <mbedtls/base64.h>
 
 #undef SDL_RenderPresent
@@ -70,6 +71,9 @@ int waitFrames = 0;
 int holdFrames = 0;
 u64 holdKey = 0;
 int tapFrames = 0;
+int dragFrames = 0;
+float dragStep = 0;
+bool dragRelease = false;
 
 const std::map<std::string, u64> kKeys = {
     {"a", HidNpadButton_A},       {"b", HidNpadButton_B},          {"x", HidNpadButton_X},
@@ -94,7 +98,7 @@ void loadScript()
         words >> step.command;
         if (step.command.empty() || step.command[0] == '#')
             continue;
-        if (step.command == "type" || step.command == "local")
+        if (step.command == "type" || step.command == "local" || step.command == "drag")
         {
             std::getline(words, step.argument);
             if (!step.argument.empty() && step.argument[0] == ' ')
@@ -123,6 +127,18 @@ void loadScript()
 void runScript()
 {
     scriptHeld = 0;
+    if (dragFrames > 0)
+    {
+        touchY += dragStep;
+        dragRelease = --dragFrames == 0;
+        return;
+    }
+    if (dragRelease)
+    {
+        dragRelease = false;
+        scriptTouch = false;
+        return;
+    }
     if (tapFrames > 0 && --tapFrames == 0)
         scriptTouch = false;
     if (holdFrames > 0)
@@ -156,6 +172,17 @@ void runScript()
             waitFrames = 1;
             return;
         }
+        if (step.command == "drag")
+        {
+            float endY;
+            if (std::sscanf(step.argument.c_str(), "%f %f %f %d", &touchX, &touchY, &endY, &dragFrames) == 4 && dragFrames > 0)
+            {
+                dragStep = (endY - touchY) / dragFrames;
+                scriptTouch = true;
+                return;
+            }
+            continue;
+        }
         if (step.command == "tap")
         {
             std::sscanf(step.argument.c_str(), "%f %f", &touchX, &touchY);
@@ -172,6 +199,7 @@ void runScript()
         }
         if (step.command == "crash" || step.command == "freeze" || step.command == "unclean")
             tz::session::simulate(step.command);
+        if (step.command == "update") { tz::scenes::testUpdate(step.argument); return; }
         if (step.command == "local") { tz::scenes::testLocalFile(step.argument); return; }
         if (step.command == "download") { tz::scenes::testDownload(step.argument); return; }
         if (step.command == "error") { tz::scenes::testError(step.argument == "network"); return;
