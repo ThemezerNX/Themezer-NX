@@ -19,7 +19,7 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install zlib
         run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
       - name: Run the tests
@@ -28,9 +28,9 @@ jobs:
   build:
     name: NRO
     runs-on: ubuntu-latest
-    container: devkitpro/devkita64:latest
+    container: devkitpro/devkita64:20260219@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282 # pinned: the toolchain and the libraries come from the image
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the version comes from the tag
 
@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: make -j"$(nproc)"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: themezer-nx-${{ github.sha }}
           path: |
@@ -66,13 +66,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: themezer-nx-${{ github.sha }}
       # the ELF with its debug info, for looking up a crash report's addresses (aarch64-none-elf-addr2line -f -C -e)
       - name: Zip the ELF
         run: zip -9 -j themezer-nx.elf.zip themezer-nx.elf
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             themezer-nx.nro
