@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Writes romfs/licenses.txt, the notices of what the app is built with, which its About screen shows: the license
-files devkitPro installs with its portlibs, and the rest from the sources or written out below.
+"""Writes the notices of what the app is built with, from the one list ENTRIES below, so the two cannot drift apart:
+romfs/licenses.txt, which the app's About screen shows, and THIRD_PARTY_NOTICES.md, which also covers the parts that
+only live in the repository. The license texts are devkitPro's portlib license files, the sources, or written out below.
 
     python3 tools/make_licenses.py
 
@@ -12,6 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEVKITPRO = pathlib.Path(os.environ.get("DEVKITPRO", "/opt/devkitpro"))
 PORTLIBS = DEVKITPRO / "portlibs" / "switch" / "licenses"
 OUT = ROOT / "themezer-nx" / "romfs" / "licenses.txt"
+OUT_NOTICES = ROOT / "THIRD_PARTY_NOTICES.md"
 
 ISC = """Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -144,57 +146,95 @@ def cjson():
     return re.search(r"/\*(.*?)\*/", header, re.S).group(1).strip("\n").replace("\n  ", "\n").strip()
 
 
-def thumbhash():
-    notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text()
-    return notices[notices.index("\nMIT License\n"):notices.index("UI Sounds")].strip()
+THUMBHASH = ("MIT License\n\nCopyright (c) 2023 Stefano Verna\n\n" + MIT
+             + "\n\nThe reference implementation is available under the MIT License too:\n\n"
+             "MIT License\n\nCopyright (c) 2023 Evan Wallace\n\n" + MIT)
+
+INTRO = ("This repository is distributed under the GNU General Public License v3.0. Some files include or adapt "
+         "code from third-party projects under compatible licenses.")
 
 
-SECTIONS = [
-    ("libnx", "Switch system services", "Copyright 2017-2018 libnx Authors\n\n" + ISC),
-    ("SDL2, SDL2_image, SDL2_ttf", "the screen, sound and input; pictures; text",
+def entry(name, use, text="", prose="", files=()):
+    """text and use go into both files; prose and files only into THIRD_PARTY_NOTICES.md. No text: only there."""
+    return name, use, text, prose, files
+
+
+ENTRIES = [
+    entry("libnx", "Switch system services", "Copyright 2017-2018 libnx Authors\n\n" + ISC),
+    entry("SDL2, SDL2_image, SDL2_ttf", "the screen, sound and input; pictures; text",
      "Simple DirectMedia Layer\nCopyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>\n\n" + ZLIB
      + "\n\n" + portlib("switch-sdl2_image", "COPYING.txt") + "\n\n" + portlib("switch-sdl2_ttf", "LICENSE.txt")),
-    ("FreeType", "fonts", "Portions of this software are copyright (C) The FreeType Project (www.freetype.org). "
+    entry("FreeType", "fonts", "Portions of this software are copyright (C) The FreeType Project (www.freetype.org). "
      "All rights reserved. It is used under the FreeType License:\n\n" + portlib("switch-freetype", "FTL.TXT")),
-    ("HarfBuzz", "text shaping, for SDL2_ttf", HARFBUZZ),
-    ("libpng", "PNG pictures", portlib("switch-libpng", "LICENSE")),
-    ("libjpeg-turbo", "JPEG pictures", portlib("switch-libjpeg-turbo", "LICENSE.md")),
-    ("libwebp", "WebP pictures", WEBP),
-    ("zlib", "compression", portlib("switch-zlib", "LICENSE")),
-    ("bzip2", "compression, for FreeType", portlib("switch-bzip2", "LICENSE")),
-    ("curl", "downloads", CURL),
-    ("Mbed TLS", "HTTPS for curl", portlib("switch-mbedtls", "LICENSE")),
-    ("Mesa and libdrm_nouveau", "the Switch's GPU, for SDL2",
+    entry("HarfBuzz", "text shaping, for SDL2_ttf", HARFBUZZ),
+    entry("libpng", "PNG pictures", portlib("switch-libpng", "LICENSE")),
+    entry("libjpeg-turbo", "JPEG pictures", portlib("switch-libjpeg-turbo", "LICENSE.md")),
+    entry("libwebp", "WebP pictures", WEBP),
+    entry("zlib", "compression", portlib("switch-zlib", "LICENSE")),
+    entry("bzip2", "compression, for FreeType", portlib("switch-bzip2", "LICENSE")),
+    entry("curl", "downloads", CURL),
+    entry("Mbed TLS", "HTTPS for curl", portlib("switch-mbedtls", "LICENSE")),
+    entry("Mesa and libdrm_nouveau", "the Switch's GPU, for SDL2",
      "Copyright (C) 1999-2007 Brian Paul and the Mesa contributors; libdrm: Copyright the libdrm authors.\n"
      "Both are under the MIT license:\n\n" + MIT),
-    ("cJSON", "JSON", cjson()),
-    ("ThumbHash", "the blurred placeholders and backdrops (source/libs/thumbhash.c): the decoder adapted from "
-     "datocms/fast_thumbhash, the encoder ported from evanw/thumbhash", thumbhash()),
-    ("Lucide", "the icons (romfs/icons)",
+    entry("cJSON", "JSON", cjson()),
+    entry("ThumbHash", "the blurred placeholders and backdrops (source/libs/thumbhash.c): the decoder adapted from "
+     "datocms/fast_thumbhash, the encoder ported from evanw/thumbhash", THUMBHASH,
+          "The ThumbHash decoder implementation in this file is adapted from https://github.com/datocms/fast_thumbhash\n\n"
+          "Its encoder is ported from the reference implementation of ThumbHash, whose algorithm was created by "
+          "Evan Wallace: https://github.com/evanw/thumbhash\n\n"
+          "The adapted code from datocms/fast_thumbhash is available under the MIT License, and the reference "
+          "implementation under the MIT License too:", ("themezer-nx/source/libs/thumbhash.c",)),
+    entry("Lucide", "the icons (romfs/icons)",
      "ISC License\n\nCopyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). "
      "All other copyright (c) for Lucide are held by Lucide Contributors 2022.\n\n" + ISC
-     + "\n\nThe parts that come from Feather:\n\nThe MIT License (MIT)\n\nCopyright (c) 2013-2023 Cole Bemis\n\n" + MIT),
-    ("C and C++ runtime", "newlib and libstdc++, from devkitA64",
+     + "\n\nThe parts that come from Feather:\n\nThe MIT License (MIT)\n\nCopyright (c) 2013-2023 Cole Bemis\n\n" + MIT,
+          "The icons are Lucide's (https://lucide.dev), drawn through "
+          "tools/make_icons.py. Lucide is available under the ISC License:", ("themezer-nx/romfs/icons/*.png",)),
+    entry("C and C++ runtime", "newlib and libstdc++, from devkitA64",
      "The app is built with devkitA64. Its C library is newlib, whose parts are under BSD-style and similar "
      "permissive licenses (https://sourceware.org/newlib/COPYING.NEWLIB). Its C++ library, libstdc++, is under the "
      "GPL version 3 with the GCC Runtime Library Exception (https://www.gnu.org/licenses/gcc-exception-3.1.html)."),
+    # Only in THIRD_PARTY_NOTICES.md: no license text of their own.
+    entry("Themezer logo", "",
+          prose="Themezer's logo is rendered from the Themezer monorepo's design files by tools/make_brand.mjs.",
+          files=("themezer-nx/romfs/brand/*.png",)),
+    entry("In the App", "",
+          prose="The app's About page shows themezer-nx/romfs/licenses.txt: the notices of the libraries it's built "
+          "with (libnx, SDL2, FreeType, HarfBuzz, libpng, libjpeg-turbo, libwebp, zlib, bzip2, curl, Mbed TLS, Mesa, "
+          "cJSON and the above), made by tools/make_licenses.py from devkitPro's license files."),
 ]
 
 
 def main():
+    libs = [e for e in ENTRIES if e[2]]
     lines = [
         "Third-party notices",
         "",
         "Themezer-NX is free software under the GNU General Public License, version 3 (see LICENSE in its source). "
-        "Its look, sounds and music come from Themezer-3DS (GPL-3.0-or-later). It is built with the libraries "
+        "It is built with the libraries "
         "below, which keep their own licenses; their notices follow.",
         "",
     ]
-    lines += [f"- {name}: {use}" for name, use, _ in SECTIONS]
-    for name, _, text in SECTIONS:
+    lines += [f"- {name}: {use}" for name, use, *_ in libs]
+    for name, _, text, *_ in libs:
         lines += ["", "", f"== {name} ==", "", text]
     OUT.write_text("\n".join(lines) + "\n")
     print(f"{OUT}: {len(lines)} lines")
+
+    md = ["# Third-Party Notices", INTRO]
+    for name, use, text, prose, files in libs + [e for e in ENTRIES if not e[2]]:
+        md.append(f"## {name}")
+        if use:
+            md.append(f"Used for: {use}.")
+        if files:
+            md.append("Files:\n\n" + "\n".join(f"- `{f}`" for f in files))
+        if prose:
+            md.append(prose)
+        if text:
+            md.append(f"```text\n{text}\n```")
+    OUT_NOTICES.write_text("\n\n".join(md) + "\n")
+    print(f"{OUT_NOTICES}: {len(md)} blocks")
 
 
 if __name__ == "__main__":

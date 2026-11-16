@@ -1,6 +1,6 @@
 Third-party notices
 
-Themezer-NX is free software under the GNU General Public License, version 3 (see LICENSE in its source). Its look, sounds and music come from Themezer-3DS (GPL-3.0-or-later). It is built with the libraries below, which keep their own licenses; their notices follow.
+Themezer-NX is free software under the GNU General Public License, version 3 (see LICENSE in its source). It is built with the libraries below, which keep their own licenses; their notices follow.
 
 - libnx: Switch system services
 - SDL2, SDL2_image, SDL2_ttf: the screen, sound and input; pictures; text

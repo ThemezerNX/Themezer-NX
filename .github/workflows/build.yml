@@ -40,6 +40,11 @@ jobs:
       - name: Install libraries
         run: dkp-pacman -S --needed --noconfirm switch-curl switch-mbedtls switch-sdl2 switch-sdl2_image switch-sdl2_ttf
 
+      - name: Check the licence notices are up to date
+        run: |
+          python3 tools/make_licenses.py
+          git diff --exit-code -- THIRD_PARTY_NOTICES.md themezer-nx/romfs/licenses.txt
+
       - name: Take the latest CA certificates
         run: |
           curl -fsSL --retry 3 -o /tmp/cacert.pem https://curl.se/ca/cacert.pem
