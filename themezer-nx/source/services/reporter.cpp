@@ -2,6 +2,7 @@
 
 #include "sys/log.hpp"
 #include "ui/overlays.hpp"
+#include <string_view>
 #include <switch.h>
 
 namespace tz::report
@@ -30,6 +31,13 @@ void send(Report report)
     if (const char* override = themezerDesktopReportUrl())
         url = override;
 #endif
+    // only releases send, as in Themezer-3DS: a development build's errors are the developer's own
+    if (std::string_view(APP_VERSION).contains("-dev"))
+    {
+        log::info("A development build doesn't send the report (%zu bytes)", toJson(report).size());
+        ui::toast("Not sent: development builds don't share errors");
+        return;
+    }
     jobs::run(jobs::Lane::Network,
               [url, body = toJson(report)] {
                   auto response = net::post(url, body, "application/json");

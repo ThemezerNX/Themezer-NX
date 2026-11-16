@@ -33,7 +33,7 @@ For support you can go to the [Themezer discord](https://discord.gg/bBCw6tF)
 
 Errors reading or writing storage (except a full SD card), out-of-memory errors, invalid data, and unsupported data offer **Share error** on Y.
 Damaged or unsupported local files without a Themezer filename ID don't offer sharing; get them again from their source.
-Nothing is sent unless you press it. The report contains the app version, firmware display version,
+Nothing is sent unless you press it, and development builds (a version with -dev) never send. The report contains the app version, firmware display version,
 Atmosphère version, application/applet launch mode, used and available process memory in bytes, error kind, displayed message, diagnostic detail, and recent log lines (which may include file paths).
 It contains no console or user identifiers. Themezer only logs the report; it does not open a ticket.
 For bug reports, the current session log is `/Themes/ThemezerNX/log.txt`; the previous session is `log.old.txt` in the same folder.
