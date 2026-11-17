@@ -8,7 +8,7 @@ A theme manager for the Nintendo Switch by [Themezer](https://themezer.net). Bro
 
 <p>
 
-  <img src="docs/screenshots/packs.png" width="32%" alt="Packs on Themezer">
+  <img src="docs/screenshots/packs.png" width="100%" alt="Packs on Themezer">
 
 </p>
 
