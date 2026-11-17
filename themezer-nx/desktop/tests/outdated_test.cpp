@@ -157,7 +157,10 @@ void batches()
     {
         size_t items;
         std::vector<size_t> sizes;
-    } cases[] = {{1, {1}}, {50, {50}}, {51, {50, 1}}, {130, {50, 50, 30}}};
+    } cases[] = {{1, {1}},
+                 {kBatch, {kBatch}},
+                 {kBatch + 1, {kBatch, 1}},
+                 {kBatch * 2 + 30, {kBatch, kBatch, 30}}};
     for (const auto& one : cases)
     {
         const auto sent = fields(many(one.items));
@@ -179,8 +182,9 @@ void batches()
     if (two != want)
         std::printf("got %s\n", two.c_str());
     assert(two == want);
-    const auto next = fields(many(51));
-    assert(next[1] == "a0:checkUpdates(items:[{quickId:\"T51\",version:\"1700000000000\"}]){...F}");
+    const auto next = fields(many(kBatch + 1));
+    assert(next[1] == "a0:checkUpdates(items:[{quickId:\"T" + std::to_string(kBatch + 1) +
+                          "\",version:\"1700000000000\"}]){...F}");
 }
 
 void packs()

@@ -8,7 +8,6 @@
 #include <atomic>
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace tz::net
@@ -44,11 +43,12 @@ struct Response
 Response get(const std::string& url, const CancelToken* token = nullptr, Progress* progress = nullptr,
              long timeoutSeconds = 0, const char* sentHeader = nullptr);
 
-Response post(const std::string& url, const std::string& body, const char* contentType);
+// A POST of body, in the same way and on the same handle as get: the Themezer API's queries go in one, as no URL is long
+// enough for what they ask, and the error report.
+Response post(const std::string& url, const std::string& body, const char* contentType,
+              const CancelToken* token = nullptr, long timeoutSeconds = 30);
 
 // Closes this thread's handle and its connections: for a worker on its way out, before the sockets go.
 void release();
-
-std::string escape(std::string_view text);
 
 } // namespace tz::net

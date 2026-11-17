@@ -290,8 +290,8 @@ static Response request(const std::string& url, const CancelToken* token, Progre
     long connects = -1;
     curl_easy_getinfo(easy, CURLINFO_NUM_CONNECTS, &connects);
     const std::string safeUrl = url.substr(0, url.find_first_of("?#"));
-    if (!progress && !body)
-        return response; // previews and API browsing need no per-request line in the report ring
+    if (!progress && (!body || response.ok()))
+        return response; // previews and API browsing need no per-request line in the report ring: a failed POST does
     log::info("%s %s: %d, HTTP %ld, %zu bytes, %ld new connections, verification %s",
               body ? "POST" : "GET", safeUrl.c_str(), response.curlCode, response.status, response.body.size(),
               connects, verify ? (retried ? "on, then off" : "on") : "off");
@@ -313,10 +313,11 @@ Response get(const std::string& url, const CancelToken* token, Progress* progres
     return request(url, token, progress, timeoutSeconds, sentHeader);
 }
 
-Response post(const std::string& url, const std::string& body, const char* contentType)
+Response post(const std::string& url, const std::string& body, const char* contentType, const CancelToken* token,
+              long timeoutSeconds)
 {
     const std::string header = std::string("Content-Type: ") + contentType;
-    return request(url, nullptr, nullptr, 30, header.c_str(), &body);
+    return request(url, token, nullptr, timeoutSeconds, header.c_str(), &body);
 }
 
 void release()
@@ -326,27 +327,6 @@ void release()
     curl_easy_reset(threadEasy); // nothing left pointing at a stack frame that's gone while it closes
     curl_easy_cleanup(threadEasy);
     threadEasy = nullptr;
-}
-
-std::string escape(std::string_view text)
-{
-    std::string out;
-    static const char* kHex = "0123456789ABCDEF";
-    for (unsigned char c : text)
-    {
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
-            c == '.' || c == '~')
-        {
-            out += static_cast<char>(c);
-        }
-        else
-        {
-            out += '%';
-            out += kHex[c >> 4];
-            out += kHex[c & 15];
-        }
-    }
-    return out;
 }
 
 } // namespace tz::net

@@ -71,8 +71,6 @@ constexpr const char* kCheckUpdatesFragment =
     "... on SwitchSplash{quickId hexId name creator{username} updatedAt downloadUrl} "
     "... on SwitchPack{quickId hexId name creator{username} updatedAt downloadUrl "
     "themes{quickId hexId name creator{username} target updatedAt downloadUrl}}}";
-// Apollo's guard against cross-site requests blocks a GET that has a fragment unless it has this
-constexpr const char* kPreflightHeader = "apollo-require-preflight: true";
 
 struct JsonDeleter
 {
@@ -263,8 +261,9 @@ std::string escapeJson(const std::string& text)
 
 std::expected<Json, Error> request(const char* query, const std::string& variables, const CancelToken& token)
 {
-    const std::string url = std::string(kApi) + "?query=" + net::escape(query) + "&variables=" + net::escape(variables);
-    net::Response response = net::get(url, &token, nullptr, kJsonTimeout, kPreflightHeader);
+    // variables is JSON already
+    const std::string body = "{\"query\":" + escapeJson(query) + ",\"variables\":" + variables + "}";
+    net::Response response = net::post(kApi, body, "application/json", &token, kJsonTimeout);
     if (response.curlCode != 0)
         return std::unexpected(connectionError(response));
     Json root(cJSON_ParseWithLength(reinterpret_cast<const char*>(response.body.data()), response.body.size()));

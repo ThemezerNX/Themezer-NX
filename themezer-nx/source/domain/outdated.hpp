@@ -18,9 +18,9 @@
 namespace tz::outdated
 {
 
-// Items in a request, each asked in a field of its own. The API allows a cost of 43000 and an item costs 240; a GET
-// stops being answered (HTTP 520) between 130 and 200 of them, its URL over 15 kB.
-constexpr size_t kBatch = 50;
+// Items in a request, each asked in a field of its own. The API allows a cost of 43000 and an item costs 240, so 179 at
+// most (180 are refused); 100 leave room for a dearer answer.
+constexpr size_t kBatch = 100;
 
 // An ID in capitals, as Themezer gives it: "1e93d" is "1E93D".
 std::string canonical(std::string_view id);
