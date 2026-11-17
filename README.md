@@ -8,10 +8,6 @@ A theme manager for the Nintendo Switch by [Themezer](https://themezer.net). Bro
 
 <p>
 
-  <img src="docs/screenshots/themes.png" width="32%" alt="Themes on Themezer">
-
-  <img src="docs/screenshots/splashes.png" width="32%" alt="Splashes on Themezer">
-
   <img src="docs/screenshots/packs.png" width="32%" alt="Packs on Themezer">
 
 </p>
